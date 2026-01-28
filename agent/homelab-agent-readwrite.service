@@ -1,0 +1,42 @@
+[Unit]
+Description=HomelabCmd Monitoring Agent (Read/Write Mode)
+Documentation=https://github.com/DarrenBenson/HomelabCmd
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run as homelab-agent user with sudo privileges for command execution
+# The install script grants passwordless sudo for whitelisted commands
+User=homelab-agent
+Group=homelab-agent
+ExecStart=/usr/bin/python3 /opt/homelab-agent/__main__.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=homelab-agent
+
+# Relaxed security for read/write mode (BG0017)
+# This mode CAN execute whitelisted commands via sudo (apt-get, systemctl, etc.)
+#
+# Security model:
+# 1. Agent runs as unprivileged homelab-agent user
+# 2. Specific commands are whitelisted in /etc/sudoers.d/homelab-agent
+# 3. Agent enforces command whitelist in code (defence in depth)
+# 4. Commands run with use_sudo=true in config
+
+# Minimal systemd restrictions to allow sudo
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Allow writing to package management and boot directories (US0074)
+ReadWritePaths=/var/lib/apt /var/lib/dpkg /var/cache/apt /etc/apt /boot /var/run /run
+
+# Allow network access
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,28 @@
+# Home-Lab-Hub Agent Configuration
+# Copy to /etc/homelab-agent/config.yaml and edit values
+
+# Hub URL (required)
+# The URL of your Home-Lab-Hub instance
+hub_url: "http://homelab-cmd.home.lan:8080"
+
+# Server ID (required)
+# Unique identifier for this server (lowercase letters, numbers, hyphens only)
+# Example: "omv-mediaserver", "pi-master", "nas-backup"
+server_id: "my-server"
+
+# API Key (required)
+# Must match the HOMELAB_CMD_API_KEY environment variable on the hub
+api_key: "your-api-key-here"
+
+# Heartbeat interval in seconds (optional, default: 60)
+# How often the agent sends metrics to the hub
+heartbeat_interval: 60
+
+# Services to monitor (optional, for future use)
+# List of systemd service names to monitor
+# monitored_services:
+#   - plex
+#   - sonarr
+#   - radarr
+#   - nginx
+#   - docker

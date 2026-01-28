@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.pyc
+*.egg-info/
+.venv/
+venv/
+.python-version
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+.nox/
+.tox/
+pip-wheel-metadata/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+dist/
+dist-ssr/
+coverage/
+.turbo/
+.next/
+.nuxt/
+.cache/
+
+# Vite
+.vite/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDEs and OS
+.idea/
+.vscode/
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# SQLite
+*.sqlite
+*.sqlite3
+data/homelab.db
+data/*.db
+
+# SSH keys
+ssh-keys/

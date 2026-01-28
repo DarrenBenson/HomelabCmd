@@ -1,0 +1,48 @@
+services:
+  backend:
+    build: .
+    container_name: homelab-cmd-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - HOMELAB_CMD_API_KEY=${HOMELAB_CMD_API_KEY:-dev-key-change-me}
+      - HOMELAB_CMD_DEBUG=${HOMELAB_CMD_DEBUG:-false}
+      - HOMELAB_CMD_DATABASE_URL=sqlite:////app/data/homelab.db
+      - HOMELAB_CMD_EXTERNAL_URL=${HOMELAB_CMD_EXTERNAL_URL:-http://10.0.0.63:8080}
+      - HOMELAB_CMD_ENCRYPTION_KEY=${HOMELAB_CMD_ENCRYPTION_KEY:-plXXSqqz0RfafK90lRsF0zrMiBxzzL_jAAtFPpXP1aI=}
+    volumes:
+      - ./data:/app/data
+      - ssh-keys:/app/ssh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/system/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: homelab-cmd-frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ssh-keys:
+
+# Development override - uncomment for hot reload
+# services:
+#   backend:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile.dev
+#     volumes:
+#       - ./backend/src:/app/src:ro
+#     environment:
+#       - HOMELAB_CMD_DEBUG=true

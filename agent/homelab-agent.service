@@ -1,0 +1,29 @@
+[Unit]
+Description=HomelabCmd Monitoring Agent
+Documentation=https://github.com/DarrenBenson/HomelabCmd
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/homelab-agent/__main__.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=homelab-agent
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadOnlyPaths=/
+
+# Allow read access to config and package manager state
+ReadWritePaths=/etc
+ReadWritePaths=/usr
+ReadWritePaths=/var
+
+[Install]
+WantedBy=multi-user.target

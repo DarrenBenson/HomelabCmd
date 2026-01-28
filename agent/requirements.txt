@@ -1,0 +1,6 @@
+# Home-Lab-Hub Agent Dependencies
+# Install with: pip install -r requirements.txt
+
+psutil>=5.9.0
+httpx>=0.24.0
+pyyaml>=6.0

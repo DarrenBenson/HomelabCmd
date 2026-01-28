@@ -1,0 +1,46 @@
+[Unit]
+Description=HomelabCmd Monitoring Agent (Read-Only Mode)
+Documentation=https://github.com/DarrenBenson/HomelabCmd
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run as dedicated user with minimal privileges
+User=homelab-agent
+Group=homelab-agent
+ExecStart=/usr/bin/python3 /opt/homelab-agent/__main__.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=homelab-agent
+
+# Maximum security hardening for read-only mode (BG0017)
+# This mode ONLY collects metrics and cannot execute commands
+
+# Prevent privilege escalation
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Filesystem restrictions
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadOnlyPaths=/
+
+# Allow read access to config directory (for GUID persistence)
+ReadWritePaths=/etc/homelab-agent
+
+# Network restrictions - only outbound HTTP needed
+RestrictAddressFamilies=AF_INET AF_INET6
+
+# Namespace restrictions
+RestrictNamespaces=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,105 @@
+[project]
+name = "homelabcmd"
+version = "1.0.0"
+description = "Self-hosted homelab monitoring and management platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Darren", email = "darren@example.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.19.0",
+    "alembic>=1.13.0",
+    "apscheduler>=4.0.0a1",
+    "httpx>=0.26.0",
+    "paramiko>=3.4.0",
+    "psutil>=5.9.0",
+    "cryptography>=41.0.0",
+    "click>=8.0.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.26.0",
+    "ruff>=0.1.0",
+    "schemathesis>=3.28.0",
+]
+
+[project.scripts]
+homelabcmd = "homelab_cmd.main:run"
+homelabcmd-cli = "homelab_cmd.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/src/homelab_cmd"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["backend/src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["backend/src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function calls in argument defaults (FastAPI Depends pattern)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["homelab_cmd"]
+
+[tool.coverage.run]
+source = ["backend/src/homelab_cmd"]
+branch = true
+concurrency = ["greenlet", "thread"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+fail_under = 90
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "coverage_html"
