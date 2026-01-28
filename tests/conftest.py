@@ -60,7 +60,6 @@ def client() -> Generator[TestClient, None, None]:
         scan,
         servers,
         services,
-        ssh_settings,
         system,
         tailscale,
     )
@@ -131,7 +130,7 @@ homelab infrastructure. Features include:
         app.include_router(discovery.settings_router, prefix="/api/v1")
         app.include_router(tailscale.router, prefix="/api/v1")
         app.include_router(tailscale.devices_router, prefix="/api/v1")
-        app.include_router(ssh_settings.router, prefix="/api/v1")
+        # US0093: ssh_settings router removed - SSH key management now in scan.router
         app.include_router(connectivity_settings.router, prefix="/api/v1")
         return app
 

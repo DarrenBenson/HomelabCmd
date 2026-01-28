@@ -99,9 +99,7 @@ async def update_connectivity_mode(
     service = _get_connectivity_service(session, credential_service)
 
     try:
-        result = await service.update_connectivity_mode(
-            request.mode, request.ssh_username
-        )
+        result = await service.update_connectivity_mode(request.mode, request.ssh_username)
         await session.commit()
         return result
     except TailscaleTokenRequiredError as e:

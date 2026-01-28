@@ -153,8 +153,9 @@ describe('SSHKeyManager', () => {
 
       render(<SSHKeyManager />);
 
+      // Date format varies by locale - accept both "Jan 15, 2024" and "15 Jan 2024"
       await waitFor(() => {
-        expect(screen.getByText(/Added Jan 15, 2024/)).toBeInTheDocument();
+        expect(screen.getByText(/Added.*15.*Jan.*2024|Added.*Jan.*15.*2024/)).toBeInTheDocument();
       });
     });
   });

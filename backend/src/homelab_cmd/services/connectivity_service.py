@@ -77,9 +77,7 @@ class ConnectivityService:
 
         try:
             # Check token exists first
-            token_exists = await self._credential_service.credential_exists(
-                "tailscale_token"
-            )
+            token_exists = await self._credential_service.credential_exists("tailscale_token")
             if not token_exists:
                 return False
 
@@ -153,9 +151,7 @@ class ConnectivityService:
 
         try:
             # Check token exists first
-            token_exists = await self._credential_service.credential_exists(
-                "tailscale_token"
-            )
+            token_exists = await self._credential_service.credential_exists("tailscale_token")
             if not token_exists:
                 return 0
 
@@ -254,9 +250,7 @@ class ConnectivityService:
         """
         # Validate Tailscale mode requires token
         if mode == "tailscale":
-            token_exists = await self._credential_service.credential_exists(
-                "tailscale_token"
-            )
+            token_exists = await self._credential_service.credential_exists("tailscale_token")
             if not token_exists:
                 raise TailscaleTokenRequiredError(
                     "Tailscale mode requires a valid API token. Configure token first."
@@ -274,9 +268,7 @@ class ConnectivityService:
 
         # Save SSH username if provided
         if ssh_username:
-            await set_config_value(
-                self._session, "ssh_username", {"username": ssh_username}
-            )
+            await set_config_value(self._session, "ssh_username", {"username": ssh_username})
 
         # Note: SSH connection pool clearing is handled per-instance by SSHPooledExecutor.
         # Individual executors manage their own connection pools with TTL expiry.
@@ -311,9 +303,7 @@ class ConnectivityService:
             device_count = await self._get_tailscale_device_count()
             display = f"Tailscale ({device_count} devices)"
             # Check if actually connected
-            token_exists = await self._credential_service.credential_exists(
-                "tailscale_token"
-            )
+            token_exists = await self._credential_service.credential_exists("tailscale_token")
             healthy = token_exists
         else:
             display = "Direct SSH"

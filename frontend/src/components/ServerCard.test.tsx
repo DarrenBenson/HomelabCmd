@@ -103,10 +103,11 @@ describe('ServerCard', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
+  // US0114: Status indicators use shape+colour+icon
   it('has correct status LED for online server', () => {
     render(<ServerCard server={mockServer} />);
     const statusLed = screen.getByRole('status');
-    expect(statusLed).toHaveClass('bg-status-success');
+    expect(statusLed).toHaveClass('bg-green-500');
   });
 
   it('has correct status LED for offline server', () => {
@@ -116,7 +117,7 @@ describe('ServerCard', () => {
     };
     render(<ServerCard server={offlineServer} />);
     const statusLed = screen.getByRole('status');
-    expect(statusLed).toHaveClass('bg-status-error');
+    expect(statusLed).toHaveClass('bg-red-500');
   });
 
   /**
@@ -315,7 +316,8 @@ describe('ServerCard', () => {
         expect(screen.getByText(/Last seen: Unknown/)).toBeInTheDocument();
       });
 
-      it('shows grey indicator for offline workstation (TC-US0090-04)', () => {
+      // US0114: Offline workstation shows hollow grey circle
+      it('shows hollow grey circle for offline workstation (TC-US0090-04)', () => {
         const offlineWorkstation: Server = {
           ...mockServer,
           status: 'offline',
@@ -325,8 +327,8 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineWorkstation} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-text-muted');
-        expect(statusLed).not.toHaveClass('bg-status-error');
+        expect(statusLed).toHaveClass('border-gray-400');
+        expect(statusLed).not.toHaveClass('bg-red-500');
       });
     });
 
@@ -345,7 +347,8 @@ describe('ServerCard', () => {
         expect(screen.queryByText(/Last seen:/)).not.toBeInTheDocument();
       });
 
-      it('shows red indicator for offline server (TC-US0090-04)', () => {
+      // US0114: Offline server shows filled red circle with X
+      it('shows red circle with X for offline server (TC-US0090-04)', () => {
         const offlineServer: Server = {
           ...mockServer,
           status: 'offline',
@@ -355,8 +358,8 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineServer} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-status-error');
-        expect(statusLed).not.toHaveClass('bg-text-muted');
+        expect(statusLed).toHaveClass('bg-red-500');
+        expect(statusLed).not.toHaveClass('border-gray-400');
       });
 
       it('treats undefined machine_type as server (default behaviour)', () => {
@@ -369,7 +372,7 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineServerNoType} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-status-error');
+        expect(statusLed).toHaveClass('bg-red-500');
       });
     });
 
@@ -433,9 +436,9 @@ describe('ServerCard', () => {
       });
     });
 
-    // AC4: Status indicator colours
+    // AC4: Status indicator colours (US0114: uses shape+colour+icon)
     describe('AC4: Status indicator colours', () => {
-      it('shows green dot for online server', () => {
+      it('shows green circle with checkmark for online server', () => {
         const onlineServer: Server = {
           ...mockServer,
           status: 'online',
@@ -444,10 +447,10 @@ describe('ServerCard', () => {
         render(<ServerCard server={onlineServer} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-status-success');
+        expect(statusLed).toHaveClass('bg-green-500');
       });
 
-      it('shows green dot for online workstation', () => {
+      it('shows green circle with checkmark for online workstation', () => {
         const onlineWorkstation: Server = {
           ...mockServer,
           status: 'online',
@@ -456,7 +459,7 @@ describe('ServerCard', () => {
         render(<ServerCard server={onlineWorkstation} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-status-success');
+        expect(statusLed).toHaveClass('bg-green-500');
       });
     });
 
@@ -745,6 +748,175 @@ describe('ServerCard', () => {
           'title',
           'Workstation - intermittent availability expected'
         );
+      });
+    });
+  });
+
+  /**
+   * Enhanced Maintenance Mode Indicator tests (US0109)
+   * Spec Reference: sdlc-studio/stories/US0109-maintenance-mode-indicator.md
+   *
+   * AC1: Amber/orange glow border when is_paused: true
+   * AC2: Wrench icon next to server name when paused
+   * AC3: Tooltip on wrench icon
+   * AC4: Status LED shows neutral colour when paused
+   */
+  describe('Enhanced Maintenance Mode Indicator (US0109)', () => {
+    // AC1: Border glow when paused
+    describe('AC1: Border glow when paused', () => {
+      it('shows amber ring border when server is paused (TC01)', () => {
+        const pausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedServer} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).toHaveClass('ring-2');
+        expect(card).toHaveClass('ring-amber-500/50');
+        expect(card).toHaveClass('border-amber-500');
+      });
+
+      it('does not show amber ring when server is not paused (TC02)', () => {
+        const normalServer: Server = {
+          ...mockServer,
+          is_paused: false,
+        };
+        render(<ServerCard server={normalServer} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).not.toHaveClass('ring-amber-500/50');
+        expect(card).not.toHaveClass('border-amber-500');
+      });
+
+      it('does not show amber ring when server is inactive (even if paused)', () => {
+        const inactiveServer: Server = {
+          ...mockServer,
+          is_paused: true,
+          is_inactive: true,
+        };
+        render(<ServerCard server={inactiveServer} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).not.toHaveClass('ring-amber-500/50');
+      });
+    });
+
+    // AC2: Wrench icon when paused
+    describe('AC2: Wrench icon when paused', () => {
+      it('shows Wrench icon when server is paused (TC03)', () => {
+        const pausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedServer} />);
+
+        const wrenchIconWrapper = screen.getByTestId('maintenance-wrench-icon');
+        expect(wrenchIconWrapper).toBeInTheDocument();
+        // The SVG inside has the amber colour class
+        const wrenchSvg = wrenchIconWrapper.querySelector('svg');
+        expect(wrenchSvg).toHaveClass('text-amber-500');
+      });
+
+      it('does not show Wrench icon when server is not paused (TC04)', () => {
+        const normalServer: Server = {
+          ...mockServer,
+          is_paused: false,
+        };
+        render(<ServerCard server={normalServer} />);
+
+        expect(screen.queryByTestId('maintenance-wrench-icon')).not.toBeInTheDocument();
+      });
+
+      it('does not show Wrench icon when server is inactive (even if paused)', () => {
+        const inactiveServer: Server = {
+          ...mockServer,
+          is_paused: true,
+          is_inactive: true,
+        };
+        render(<ServerCard server={inactiveServer} />);
+
+        expect(screen.queryByTestId('maintenance-wrench-icon')).not.toBeInTheDocument();
+      });
+    });
+
+    // AC3: Tooltip on wrench icon
+    describe('AC3: Tooltip on wrench icon', () => {
+      it('Wrench icon has correct tooltip text (TC05)', () => {
+        const pausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedServer} />);
+
+        const wrenchIcon = screen.getByTestId('maintenance-wrench-icon');
+        expect(wrenchIcon).toHaveAttribute('title', 'Maintenance mode - monitoring paused');
+      });
+    });
+
+    // AC4: Status LED shows neutral colour when paused (US0114: hollow circle)
+    describe('AC4: Status LED shows neutral colour when paused', () => {
+      it('StatusLED shows hollow amber circle when server is paused (TC06)', () => {
+        const pausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedServer} />);
+
+        const statusLed = screen.getByRole('status');
+        expect(statusLed).toHaveClass('border-amber-500');
+        expect(statusLed).toHaveClass('bg-transparent');
+        expect(statusLed).not.toHaveClass('bg-green-500');
+      });
+
+      it('StatusLED shows "Paused" tooltip when server is paused (TC07)', () => {
+        const pausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedServer} />);
+
+        const statusLed = screen.getByRole('status');
+        expect(statusLed).toHaveAttribute('title', 'Paused');
+      });
+    });
+
+    // Edge cases
+    describe('Edge cases', () => {
+      it('paused and offline shows maintenance styling, not offline (Edge Case 1/TC08)', () => {
+        const pausedOfflineServer: Server = {
+          ...mockServer,
+          status: 'offline',
+          is_paused: true,
+        };
+        render(<ServerCard server={pausedOfflineServer} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).toHaveClass('ring-amber-500/50');
+
+        const wrenchIcon = screen.getByTestId('maintenance-wrench-icon');
+        expect(wrenchIcon).toBeInTheDocument();
+
+        // US0114: Paused shows hollow amber circle
+        const statusLed = screen.getByRole('status');
+        expect(statusLed).toHaveClass('border-amber-500');
+        expect(statusLed).not.toHaveClass('bg-red-500');
+      });
+
+      it('paused and inactive shows inactive styling only (TC09)', () => {
+        const inactivePausedServer: Server = {
+          ...mockServer,
+          is_paused: true,
+          is_inactive: true,
+        };
+        render(<ServerCard server={inactivePausedServer} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).toHaveClass('opacity-50');
+        expect(card).toHaveClass('grayscale');
+        expect(card).not.toHaveClass('ring-amber-500/50');
+
+        expect(screen.queryByTestId('maintenance-wrench-icon')).not.toBeInTheDocument();
       });
     });
   });

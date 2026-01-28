@@ -84,13 +84,6 @@ async def sync_services_to_agent(
     services = result.scalars().all()
     service_names = [s.service_name for s in services]
 
-    # Build the YAML list for monitored_services
-    if service_names:
-        services_list = ", ".join(f'"{name}"' for name in sorted(service_names))
-        services_yaml_line = f"monitored_services: [{services_list}]"
-    else:
-        services_yaml_line = "monitored_services: []"
-
     # SSH command to update the config file using Python (safer YAML handling)
     # This preserves other config values and handles YAML properly
     # Uses sudo for file access since config is owned by root

@@ -2,16 +2,16 @@
 
 This document provides an overview of all Implementation Plans in the project.
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| Draft | 10 |
+| Draft | 12 |
 | In Progress | 0 |
 | Complete | 55 |
-| **Total** | **65** |
+| **Total** | **67** |
 
 ## Plans by Epic
 
@@ -189,6 +189,13 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0091](PL0091-visual-distinction-workstations.md) | US0091 | Visual Distinction (Server vs Workstation) | Complete | 2026-01-27 |
 | [PL0092](PL0092-workstation-cost-tracking.md) | US0092 | Workstation Cost Tracking | Draft | 2026-01-27 |
 
+### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
+
+| ID | Story | Title | Status | Created |
+|----|-------|-------|--------|---------|
+| [PL0109](PL0109-maintenance-mode-indicator.md) | US0109 | Enhanced Maintenance Mode Indicator | Draft | 2026-01-28 |
+| [PL0110](PL0110-warning-state-visual.md) | US0110 | Warning State Visual Treatment | Draft | 2026-01-28 |
+
 ## By Status
 
 ### Draft
@@ -203,6 +210,8 @@ This document provides an overview of all Implementation Plans in the project.
 - **PL0087**: Per-Server Credential API Endpoints (US0087)
 - **PL0092**: Workstation Cost Tracking (US0092)
 - **PL0093**: Unified SSH Key Management (US0093)
+- **PL0109**: Enhanced Maintenance Mode Indicator (US0109)
+- **PL0110**: Warning State Visual Treatment (US0110)
 
 ### In Progress
 

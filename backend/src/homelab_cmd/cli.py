@@ -38,8 +38,7 @@ def generate_key() -> None:
     click.echo(f'  HOMELABCMD_ENCRYPTION_KEY="{key}"')
     click.echo()
     click.secho(
-        "WARNING: Store this key securely! If lost, stored credentials "
-        "cannot be recovered.",
+        "WARNING: Store this key securely! If lost, stored credentials cannot be recovered.",
         fg="yellow",
         bold=True,
     )

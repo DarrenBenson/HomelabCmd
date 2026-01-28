@@ -278,13 +278,13 @@ Managing a homelab with multiple servers and workstations currently requires:
 | Tailscale Tab Integration | Tailscale discovery integration | ✅ Complete | P2 | EP0016 |
 | Route Cleanup | Remove old discovery pages | ✅ Complete | P3 | EP0016 |
 | **Desktop UX Improvements** | | | | **EP0017** |
-| Maintenance Mode Indicator | Enhanced visual for paused servers | Partial | P1 | EP0017 |
-| Warning State Visual | Distinct treatment for warning status | Not Started | P1 | EP0017 |
-| Connectivity Badge | Tailscale/SSH badge on cards | Not Started | P1 | EP0017 |
-| Dashboard Search and Filter | Search box and filter chips | Not Started | P2 | EP0017 |
-| Inline Metric Sparklines | CPU trend sparklines on cards | Not Started | P2 | EP0017 |
-| Accessible Status Indicators | Shape + colour for WCAG compliance | Partial | P2 | EP0017 |
-| Server Card Quick Actions | Hover-reveal action buttons | Not Started | P3 | EP0017 |
+| Maintenance Mode Indicator | Enhanced visual for paused servers | ✅ Complete | P1 | EP0017 |
+| Warning State Visual | Distinct treatment for warning status | ✅ Complete | P1 | EP0017 |
+| Connectivity Badge | Tailscale/SSH badge on cards | ✅ Complete | P1 | EP0017 |
+| Dashboard Search and Filter | Search box and filter chips | ✅ Complete | P2 | EP0017 |
+| Inline Metric Sparklines | CPU trend sparklines on cards | ✅ Complete | P2 | EP0017 |
+| Accessible Status Indicators | Shape + colour for WCAG compliance | ✅ Complete | P2 | EP0017 |
+| Server Card Quick Actions | Hover-reveal action buttons | ✅ Complete | P3 | EP0017 |
 
 **v2.0 New:** 10 Epics, ~70 Stories, ~281 Points
 
@@ -661,7 +661,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
   - SSH testing for Tailscale devices
   - Unified import modal
 
-- **EP0017:** Desktop UX Improvements (~23 pts)
+- **EP0017:** Desktop UX Improvements (~23 pts) ✅ COMPLETE
   - Maintenance mode and warning state indicators
   - Connectivity badges (Tailscale/SSH)
   - Dashboard search and filter
@@ -676,7 +676,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 - [ ] Layout preferences sync across devices
 - [ ] All widgets responsive and functional
 - [x] Unified discovery page with consistent UX (EP0016)
-- [ ] Dashboard search/filter and sparklines (EP0017)
+- [x] Dashboard search/filter and sparklines (EP0017)
 
 ---
 
@@ -710,7 +710,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 **Progress:**
 - Phase 1 (Alpha): ✅ Complete (EP0008, EP0009, EP0013, EP0015) - 104 pts
-- Phase 2 (Beta): 🔶 In Progress (EP0016 ✅, EP0017/EP0011/EP0012/EP0014 pending) - 159 pts
+- Phase 2 (Beta): 🔶 In Progress (EP0016 ✅, EP0017 ✅, EP0011/EP0012/EP0014 pending) - 159 pts
 - Phase 3 (GA): ⬜ Not Started (EP0010) - 42 pts
 
 ---
@@ -1096,6 +1096,7 @@ python -m homelab_cmd.cli generate-key
 | 2026-01-28 | 2.0.4 | PRD Review: Major status update. EP0008 Connectivity Modes marked Complete. EP0009 all 6 features marked Complete (workstation alerting, last seen UI, visual distinction). Added EP0016 Unified Discovery (9 stories, 32 pts, Complete). Added EP0017 Desktop UX Improvements (7 stories, 23 pts). Phase 1 Alpha marked complete. Updated totals: 10 Epics, ~70 Stories, ~281 Points. |
 | 2026-01-28 | 2.0.5 | PRD Review: EP0017 Maintenance Mode Indicator updated to Partial (basic is_paused badge exists). Accessible Status Indicators updated to Partial (StatusLED uses shape+colour). Verified EP0013 status accurate. No undocumented features found. No TODO/FIXME debt. |
 | 2026-01-28 | 2.1.0 | **SDLC-Studio v2 Upgrade:** Added §18 Configuration Reference section (consolidated environment variables for hub and agent). Schema upgraded to v2 modular format. Created .version file for version tracking. |
+| 2026-01-28 | 2.1.1 | PRD Review: EP0017 (Desktop UX Improvements) now 100% complete - all 7 stories done. Updated all EP0017 features from Partial/Not Started to Complete. Verified: maintenance mode indicator with wrench icon and border, warning state with yellow triangle, Tailscale connectivity badge, DashboardFilters with search/filter, MetricSparkline component, StatusLED with accessible shapes, and pause/play quick action on cards. |
 
 ---
 

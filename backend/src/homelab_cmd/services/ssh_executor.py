@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 class SSHKeyNotConfiguredError(Exception):
     """Raised when SSH key is not configured."""
 
-    def __init__(self, message: str = "No SSH key configured. Upload a key in Settings > Connectivity.") -> None:
+    def __init__(
+        self, message: str = "No SSH key configured. Upload a key in Settings > Connectivity."
+    ) -> None:
         self.message = message
         super().__init__(message)
 

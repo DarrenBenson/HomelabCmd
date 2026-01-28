@@ -88,9 +88,7 @@ class TailscaleDevice:
     already_imported: bool = False
 
     @classmethod
-    def from_tailscale_api(
-        cls, data: dict, imported_hostnames: set[str]
-    ) -> "TailscaleDevice":
+    def from_tailscale_api(cls, data: dict, imported_hostnames: set[str]) -> "TailscaleDevice":
         """Transform Tailscale API response to our device format.
 
         Args:
@@ -112,6 +110,13 @@ class TailscaleDevice:
         else:
             last_seen = datetime.now(UTC)
 
+        # Compute online status from lastSeen recency (more reliable than API's online field)
+        # Consider device online if seen within the last 5 minutes
+        api_online = data.get("online", False)
+        last_seen_ago = datetime.now(UTC) - last_seen
+        recently_seen = last_seen_ago.total_seconds() < 300  # 5 minutes
+        online = api_online or recently_seen
+
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
@@ -120,7 +125,7 @@ class TailscaleDevice:
             os=data.get("os", ""),
             os_version=data.get("clientVersion"),
             last_seen=last_seen,
-            online=data.get("online", False),
+            online=online,
             authorized=data.get("authorized", False),
             already_imported=hostname in imported_hostnames,
         )
@@ -325,16 +330,12 @@ class TailscaleService:
 
         except httpx.ReadTimeout:
             logger.warning("Tailscale API read timed out")
-            raise TailscaleConnectionError(
-                "Read timed out waiting for response"
-            ) from None
+            raise TailscaleConnectionError("Read timed out waiting for response") from None
 
         except httpx.HTTPStatusError as e:
             # Catch any other HTTP errors not handled above
             logger.error("Tailscale API error: %s", e)
-            raise TailscaleConnectionError(
-                f"Unexpected API error: {e.response.status_code}"
-            ) from e
+            raise TailscaleConnectionError(f"Unexpected API error: {e.response.status_code}") from e
 
     async def get_devices(self) -> list[dict]:
         """Retrieve all devices from the tailnet.
@@ -390,14 +391,10 @@ class TailscaleService:
             ) from e
 
         except httpx.ReadTimeout:
-            raise TailscaleConnectionError(
-                "Read timed out waiting for response"
-            ) from None
+            raise TailscaleConnectionError("Read timed out waiting for response") from None
 
         except httpx.HTTPStatusError as e:
-            raise TailscaleConnectionError(
-                f"Unexpected API error: {e.response.status_code}"
-            ) from e
+            raise TailscaleConnectionError(f"Unexpected API error: {e.response.status_code}") from e
 
     async def get_devices_cached(
         self,

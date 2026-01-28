@@ -1,56 +1,11 @@
-"""SSH settings API schemas.
+"""SSH API schemas.
 
-Part of EP0008: Tailscale Integration (US0079).
+Part of EP0008: Tailscale Integration.
+US0093: Cleaned up deprecated single-key management schemas.
+Key management schemas now in schemas/scan.py (SSHKeyMetadata, etc.).
 """
 
-from datetime import datetime
-
 from pydantic import BaseModel, Field
-
-
-class SSHKeyUploadResponse(BaseModel):
-    """Response after uploading SSH private key.
-
-    AC2: SSH key encrypted storage.
-    """
-
-    success: bool
-    message: str
-    key_type: str = Field(..., description="SSH key type (e.g., ssh-ed25519, RSA-4096)")
-    fingerprint: str = Field(..., description="SHA256 fingerprint of the key")
-
-
-class SSHKeyStatusResponse(BaseModel):
-    """Response for SSH configuration status.
-
-    GET /api/v1/settings/ssh/status
-    """
-
-    configured: bool = Field(..., description="Whether an SSH key is configured")
-    key_type: str | None = Field(None, description="SSH key type if configured")
-    fingerprint: str | None = Field(None, description="SHA256 fingerprint if configured")
-    uploaded_at: datetime | None = Field(None, description="When the key was uploaded")
-    username: str = Field(..., description="Default SSH username")
-
-
-class SSHUsernameRequest(BaseModel):
-    """Request to update default SSH username."""
-
-    username: str = Field(..., min_length=1, max_length=100, description="Default SSH username")
-
-
-class SSHUsernameResponse(BaseModel):
-    """Response after updating SSH username."""
-
-    success: bool
-    message: str
-
-
-class SSHKeyDeleteResponse(BaseModel):
-    """Response after deleting SSH key."""
-
-    success: bool
-    message: str
 
 
 class SSHTestRequest(BaseModel):

@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ServerCard } from '../components/ServerCard';
+import { DashboardFilters } from '../components/DashboardFilters';
+import type { StatusFilter, TypeFilter } from '../components/DashboardFilters';
 import { AlertBanner } from '../components/AlertBanner';
 import { AlertDetailPanel } from '../components/AlertDetailPanel';
 import { PendingActionsPanel } from '../components/PendingActionsPanel';
@@ -53,6 +55,7 @@ function sortServers(servers: Server[]): Server[] {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [servers, setServers] = useState<Server[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [pendingActions, setPendingActions] = useState<Action[]>([]);
@@ -69,6 +72,130 @@ export function Dashboard() {
   const [alertActionInProgress, setAlertActionInProgress] = useState(false);
   const [restartMessage, setRestartMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [showAddServerModal, setShowAddServerModal] = useState(false);
+  // US0115: Quick action message state
+  const [quickActionMessage, setQuickActionMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+
+  // US0112: Filter state from URL parameters
+  const searchQuery = searchParams.get('q') || '';
+  const statusFilterParam = searchParams.get('status') || 'all';
+  const typeFilterParam = searchParams.get('type') || 'all';
+
+  // Validate status filter from URL
+  const validStatuses: StatusFilter[] = ['all', 'online', 'offline', 'warning', 'paused'];
+  const statusFilter: StatusFilter = validStatuses.includes(statusFilterParam as StatusFilter)
+    ? (statusFilterParam as StatusFilter)
+    : 'all';
+
+  // Validate type filter from URL
+  const validTypes: TypeFilter[] = ['all', 'server', 'workstation'];
+  const typeFilter: TypeFilter = validTypes.includes(typeFilterParam as TypeFilter)
+    ? (typeFilterParam as TypeFilter)
+    : 'all';
+
+  // US0112: Update URL when filters change
+  const updateSearchParams = useCallback(
+    (updates: { q?: string; status?: StatusFilter; type?: TypeFilter }) => {
+      const newParams = new URLSearchParams(searchParams);
+
+      if (updates.q !== undefined) {
+        if (updates.q) {
+          newParams.set('q', updates.q);
+        } else {
+          newParams.delete('q');
+        }
+      }
+
+      if (updates.status !== undefined) {
+        if (updates.status && updates.status !== 'all') {
+          newParams.set('status', updates.status);
+        } else {
+          newParams.delete('status');
+        }
+      }
+
+      if (updates.type !== undefined) {
+        if (updates.type && updates.type !== 'all') {
+          newParams.set('type', updates.type);
+        } else {
+          newParams.delete('type');
+        }
+      }
+
+      setSearchParams(newParams, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  // US0112: Filter handlers
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      updateSearchParams({ q: query });
+    },
+    [updateSearchParams]
+  );
+
+  const handleStatusChange = useCallback(
+    (status: StatusFilter) => {
+      updateSearchParams({ status });
+    },
+    [updateSearchParams]
+  );
+
+  const handleTypeChange = useCallback(
+    (type: TypeFilter) => {
+      updateSearchParams({ type });
+    },
+    [updateSearchParams]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setSearchParams(new URLSearchParams(), { replace: true });
+  }, [setSearchParams]);
+
+  // US0112: Check if any filters are active
+  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || typeFilter !== 'all';
+
+  // US0112: Filter servers based on search and filters
+  const filteredServers = useMemo(() => {
+    return servers.filter((server) => {
+      // Search filter (case-insensitive match on id, hostname, and display_name)
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        server.id.toLowerCase().includes(searchLower) ||
+        server.hostname.toLowerCase().includes(searchLower) ||
+        (server.display_name?.toLowerCase().includes(searchLower) ?? false);
+
+      // Status filter
+      let matchesStatus = true;
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'paused') {
+          matchesStatus = server.is_paused === true;
+        } else if (statusFilter === 'warning') {
+          // Warning: online server with active alerts
+          matchesStatus =
+            server.status === 'online' &&
+            !server.is_paused &&
+            (server.active_alert_count ?? 0) > 0;
+        } else {
+          // online/offline status (and not paused for online check)
+          matchesStatus = server.status === statusFilter && !server.is_paused;
+        }
+      }
+
+      // Type filter
+      const matchesType =
+        typeFilter === 'all' || server.machine_type === typeFilter;
+
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [servers, searchQuery, statusFilter, typeFilter]);
+
+  // US0115: Handle quick action message display
+  const handleQuickActionMessage = useCallback((msg: { type: 'success' | 'info' | 'error'; text: string }) => {
+    setQuickActionMessage(msg);
+    setTimeout(() => setQuickActionMessage(null), 5000);
+  }, []);
 
   // Function to refresh data (used by AddServerModal after token creation)
   const refreshData = useCallback(async () => {
@@ -340,11 +467,11 @@ export function Dashboard() {
               <Radar className="w-5 h-5" />
             </Link>
             <Link
-              to="/discovery/tailscale"
+              to="/discovery"
               className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Tailscale Discovery"
-              title="Tailscale Discovery"
-              data-testid="tailscale-discovery-link"
+              aria-label="Device Discovery"
+              title="Device Discovery"
+              data-testid="discovery-link"
             >
               <Globe className="w-5 h-5" />
             </Link>
@@ -420,6 +547,29 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* US0115: Quick action message toast */}
+      {quickActionMessage && (
+        <div
+          className={`mx-6 mt-4 p-3 rounded-lg flex items-center justify-between gap-2 ${
+            quickActionMessage.type === 'error'
+              ? 'bg-status-error/10 border border-status-error/30'
+              : quickActionMessage.type === 'success'
+                ? 'bg-status-success/10 border border-status-success/30'
+                : 'bg-status-info/10 border border-status-info/30'
+          }`}
+          data-testid="quick-action-toast"
+        >
+          <span className="text-sm text-text-secondary">{quickActionMessage.text}</span>
+          <button
+            onClick={() => setQuickActionMessage(null)}
+            className="text-text-tertiary hover:text-text-secondary text-sm"
+            aria-label="Dismiss"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="p-6 space-y-6">
         {hasServers ? (
@@ -440,16 +590,48 @@ export function Dashboard() {
               approvingIds={approvingIds}
             />
 
-            {/* Server Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {servers.map((server) => (
-                <ServerCard
-                  key={server.id}
-                  server={server}
-                  onClick={() => navigate(`/servers/${server.id}`)}
-                />
-              ))}
-            </div>
+            {/* US0112: Dashboard Filters */}
+            <DashboardFilters
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              statusFilter={statusFilter}
+              onStatusChange={handleStatusChange}
+              typeFilter={typeFilter}
+              onTypeChange={handleTypeChange}
+              onClear={handleClearFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
+
+            {/* Server Grid or Empty State */}
+            {filteredServers.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredServers.map((server) => (
+                  <ServerCard
+                    key={server.id}
+                    server={server}
+                    onClick={() => navigate(`/servers/${server.id}`)}
+                    onPauseToggle={refreshData}
+                    onMessage={handleQuickActionMessage}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* US0112 AC7: Empty state when filters match no servers */
+              <div
+                className="flex flex-col items-center justify-center py-12 gap-3"
+                data-testid="no-matches-message"
+              >
+                <ServerOff className="w-10 h-10 text-text-tertiary" />
+                <p className="text-text-secondary">No servers match your filters</p>
+                <button
+                  onClick={handleClearFilters}
+                  className="text-status-info hover:text-status-info/80 text-sm font-medium transition-colors"
+                  data-testid="clear-filters-link"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">

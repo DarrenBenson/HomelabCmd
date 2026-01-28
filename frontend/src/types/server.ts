@@ -47,6 +47,11 @@ export interface Server {
   // US0090: Workstation management
   machine_type?: MachineType;
   last_seen: string | null;
+  // US0110: Warning state visual treatment
+  active_alert_count: number;
+  active_alert_summaries?: string[];
+  // US0111: Connectivity badge
+  tailscale_hostname?: string | null;
 }
 
 export interface ServersResponse {

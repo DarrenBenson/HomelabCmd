@@ -2,16 +2,16 @@
 
 This document provides an overview of all Test Specifications for the HomelabCmd project.
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-01-28
 
 ## Summary
 
 | Status | Count | Test Cases |
 |--------|-------|------------|
-| Draft | 2 | 29 |
+| Draft | 3 | 38 |
 | In Progress | 3 | 62 |
 | Complete | 12 | 258 |
-| **Total** | **17** | **349** |
+| **Total** | **18** | **358** |
 
 ## Specifications by Epic
 
@@ -62,6 +62,12 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | [TS0015](TS0015-scan-results-display.md) | Scan Results Display Tests | US0039 | 20 | Draft |
 | [TS0019](TS0019-ssh-key-manager-ui.md) | SSH Key Manager UI Tests | US0071 | 18 | In Progress |
 
+### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
+
+| ID | Title | Stories | Test Cases | Status |
+|----|-------|---------|------------|--------|
+| [TS0109](TS0109-maintenance-mode-indicator.md) | Enhanced Maintenance Mode Indicator Tests | US0109 | 9 | Draft |
+
 ## All Specifications
 
 | ID | Title | Epic | Test Cases | Automated | Status |
@@ -90,6 +96,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 
 - **TS0015**: Scan Results Display Tests - 20 test cases (0 automated)
 - **TS0020**: Remove Agent API SSH Credentials Tests - 9 test cases (0 automated)
+- **TS0109**: Enhanced Maintenance Mode Indicator Tests - 9 test cases (0 automated)
 
 ### In Progress
 

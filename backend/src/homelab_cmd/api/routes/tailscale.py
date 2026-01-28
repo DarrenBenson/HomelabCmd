@@ -1,6 +1,7 @@
 """Tailscale configuration and discovery API endpoints.
 
 Part of EP0008: Tailscale Integration (US0076, US0077, US0078).
+EP0016: Unified Discovery Experience (US0096, US0097).
 
 Provides endpoints for:
 - Saving/removing Tailscale API tokens
@@ -8,9 +9,12 @@ Provides endpoints for:
 - Checking configuration status
 - Device discovery with caching (US0077)
 - Device import as monitored server (US0078)
+- SSH testing for Tailscale devices (US0096, US0097)
 """
 
+import asyncio
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -20,17 +24,22 @@ from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES
 from homelab_cmd.api.schemas.tailscale import (
     TailscaleDeviceListResponse,
+    TailscaleDeviceListWithSSHResponse,
     TailscaleDeviceSchema,
+    TailscaleDeviceWithSSHSchema,
     TailscaleImportCheckResponse,
     TailscaleImportedMachine,
     TailscaleImportRequest,
     TailscaleImportResponse,
+    TailscaleSSHTestRequest,
+    TailscaleSSHTestResponse,
     TailscaleStatusResponse,
     TailscaleTestResponse,
     TailscaleTokenRequest,
     TailscaleTokenResponse,
 )
 from homelab_cmd.config import get_settings
+from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.server import Server
 from homelab_cmd.db.session import get_async_session
 from homelab_cmd.services.credential_service import CredentialService
@@ -38,6 +47,7 @@ from homelab_cmd.services.tailscale_service import (
     TailscaleAuthError,
     TailscaleCache,
     TailscaleConnectionError,
+    TailscaleDevice,
     TailscaleNotConfiguredError,
     TailscaleRateLimitError,
     TailscaleService,
@@ -55,6 +65,7 @@ def _get_credential_service(session: AsyncSession) -> CredentialService:
     """
     settings = get_settings()
     return CredentialService(session, settings.encryption_key or "")
+
 
 logger = logging.getLogger(__name__)
 
@@ -497,9 +508,7 @@ async def check_import(
     Returns import status and machine details if the device is already
     registered as a server.
     """
-    result = await session.execute(
-        select(Server).where(Server.tailscale_hostname == hostname)
-    )
+    result = await session.execute(select(Server).where(Server.tailscale_hostname == hostname))
     server = result.scalar_one_or_none()
 
     if server:
@@ -511,3 +520,394 @@ async def check_import(
         )
 
     return TailscaleImportCheckResponse(imported=False)
+
+
+# =============================================================================
+# SSH Testing Endpoints (EP0016: US0096, US0097)
+# =============================================================================
+
+# In-memory cache for SSH status with 5-minute TTL
+_ssh_status_cache: dict[str, tuple[str, str | None, str | None, datetime]] = {}
+SSH_STATUS_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+async def _get_ssh_username(session: AsyncSession) -> str:
+    """Get the configured SSH username from database."""
+    stmt = select(Config).where(Config.key == "ssh_username")
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    return config.value if config else "homelabcmd"
+
+
+async def _test_ssh_for_device(
+    device: TailscaleDevice,
+    session: AsyncSession,
+    credential_service: CredentialService,
+) -> tuple[str, str | None, str | None]:
+    """Test SSH connection to a single device.
+
+    Uses the unified SSH key management (US0093) via SSHConnectionService.
+
+    Returns:
+        Tuple of (status, error, key_used) where status is 'available', 'unavailable', or 'untested'.
+    """
+    from homelab_cmd.services.ssh import get_ssh_service
+
+    if not device.online:
+        return (
+            "unavailable",
+            f"Offline - last seen {_format_relative_time(device.last_seen)}",
+            None,
+        )
+
+    # Check SSH status cache
+    cache_key = device.id
+    if cache_key in _ssh_status_cache:
+        status, error, key_used, cached_at = _ssh_status_cache[cache_key]
+        if (datetime.now(UTC) - cached_at).total_seconds() < SSH_STATUS_CACHE_TTL_SECONDS:
+            return (status, error, key_used)
+
+    # Test SSH connection using unified SSH service (US0093)
+    ssh_service = get_ssh_service()
+    username = await _get_ssh_username(session)
+
+    # Check if any SSH keys are configured
+    keys = ssh_service.list_keys_with_metadata()
+    if not keys:
+        error = "No SSH key configured. Upload a key in Settings > Connectivity."
+        _ssh_status_cache[cache_key] = ("unavailable", error, None, datetime.now(UTC))
+        return ("unavailable", error, None)
+
+    # Read key_usernames from database config (US0072)
+    # Usernames are stored in Config["ssh"]["key_usernames"] dict
+    result = await session.execute(select(Config).where(Config.key == "ssh"))
+    config = result.scalar_one_or_none()
+    ssh_config = config.value if config else {}
+    key_usernames = ssh_config.get("key_usernames", {})
+
+    try:
+        # Use Tailscale IP for reliable connectivity (hostname may not resolve)
+        ssh_hostname = device.tailscale_ip or device.name or device.hostname
+        result = await ssh_service.test_connection(
+            hostname=ssh_hostname,
+            username=username,
+            key_usernames=key_usernames,
+        )
+
+        if result.success:
+            status = "available"
+            error = None
+            key_used = result.key_used
+        else:
+            status = "unavailable"
+            error = result.error or "SSH connection failed"
+            key_used = None
+
+        # Cache the result
+        _ssh_status_cache[cache_key] = (status, error, key_used, datetime.now(UTC))
+
+        return (status, error, key_used)
+
+    except Exception as e:
+        error = str(e) if str(e) else "SSH connection failed"
+        _ssh_status_cache[cache_key] = ("unavailable", error, None, datetime.now(UTC))
+        return ("unavailable", error, None)
+
+
+def _format_relative_time(dt: datetime) -> str:
+    """Format a datetime as relative time string."""
+    now = datetime.now(UTC)
+    diff = now - dt
+    diff_mins = int(diff.total_seconds() / 60)
+    diff_hours = int(diff_mins / 60)
+    diff_days = int(diff_hours / 24)
+
+    if diff_mins < 1:
+        return "just now"
+    if diff_mins < 60:
+        return f"{diff_mins}m ago"
+    if diff_hours < 24:
+        return f"{diff_hours}h ago"
+    return f"{diff_days}d ago"
+
+
+@devices_router.post(
+    "/devices/{device_id}/test-ssh",
+    response_model=TailscaleSSHTestResponse,
+    operation_id="test_tailscale_device_ssh",
+    summary="Test SSH connection to Tailscale device",
+    responses={
+        **AUTH_RESPONSES,
+        404: {"description": "Device not found"},
+    },
+)
+async def test_device_ssh(
+    device_id: str,
+    request: TailscaleSSHTestRequest | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> TailscaleSSHTestResponse:
+    """Test SSH connectivity to a Tailscale device.
+
+    EP0016: Unified Discovery Experience (US0096).
+
+    Tests SSH connection using configured keys and returns success/failure
+    with latency and error details.
+    """
+    credential_service = _get_credential_service(session)
+    tailscale_service = TailscaleService(credential_service)
+
+    try:
+        # Get all server hostnames to check for already_imported
+        result = await session.execute(select(Server.hostname))
+        imported_hostnames = {row[0] for row in result.fetchall() if row[0]}
+
+        # Get devices to find the one we're testing
+        device_list = await tailscale_service.get_devices_cached(
+            cache=_device_cache,
+            imported_hostnames=imported_hostnames,
+            refresh=False,
+        )
+
+        # Find the device
+        device = next((d for d in device_list.devices if d.id == device_id), None)
+        if not device:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "DEVICE_NOT_FOUND", "message": f"Device {device_id} not found"},
+            )
+
+        # Test SSH connection
+        start_time = datetime.now(UTC)
+        status, error, key_used = await _test_ssh_for_device(device, session, credential_service)
+        elapsed = datetime.now(UTC) - start_time
+        latency_ms = int(elapsed.total_seconds() * 1000)
+
+        return TailscaleSSHTestResponse(
+            success=status == "available",
+            latency_ms=latency_ms if status == "available" else None,
+            key_used=key_used,
+            error=error,
+        )
+
+    except TailscaleNotConfiguredError:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "TAILSCALE_NOT_CONFIGURED",
+                "message": "Tailscale API token not configured",
+            },
+        ) from None
+
+    except TailscaleAuthError as e:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "TAILSCALE_AUTH_ERROR", "message": str(e)},
+        ) from e
+
+    finally:
+        await tailscale_service.close()
+
+
+@devices_router.get(
+    "/devices/with-ssh",
+    response_model=TailscaleDeviceListWithSSHResponse,
+    operation_id="list_tailscale_devices_with_ssh",
+    summary="List Tailscale devices with SSH status",
+    responses={
+        **AUTH_RESPONSES,
+        401: {"description": "Tailscale token not configured or invalid"},
+        503: {"description": "Connection to Tailscale API failed"},
+    },
+)
+async def list_devices_with_ssh(
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+    online: bool | None = Query(None, description="Filter by online status"),
+    os: str | None = Query(None, description="Filter by OS (linux, windows, macos, ios, android)"),
+    refresh: bool = Query(False, description="Bypass cache and fetch fresh data"),
+    test_ssh: bool = Query(True, description="Test SSH connectivity for online devices"),
+) -> TailscaleDeviceListWithSSHResponse:
+    """List all devices with SSH connectivity status.
+
+    EP0016: Unified Discovery Experience (US0097).
+
+    Returns a list of all devices with SSH status. SSH is tested in parallel
+    for all online devices. Results are cached for 5 minutes.
+
+    Filtering:
+    - online: Filter by online status (true/false)
+    - os: Filter by OS type (linux, windows, macos, ios, android)
+    - refresh: Bypass both device and SSH caches
+    - test_ssh: Whether to test SSH (default: true)
+    """
+    credential_service = _get_credential_service(session)
+    tailscale_service = TailscaleService(credential_service)
+
+    try:
+        # Get all server hostnames to check for already_imported
+        result = await session.execute(select(Server.hostname))
+        imported_hostnames = {row[0] for row in result.fetchall() if row[0]}
+
+        # Clear SSH cache if refresh requested
+        if refresh:
+            _ssh_status_cache.clear()
+
+        # Get devices with caching
+        device_list = await tailscale_service.get_devices_cached(
+            cache=_device_cache,
+            imported_hostnames=imported_hostnames,
+            refresh=refresh,
+        )
+
+        devices = device_list.devices
+
+        # Apply filters
+        if online is not None:
+            devices = [d for d in devices if d.online == online]
+
+        if os is not None:
+            os_lower = os.lower()
+            if os_lower in VALID_OS_VALUES:
+                devices = [d for d in devices if d.os.lower() == os_lower]
+
+        # Test SSH in parallel for online devices
+        if test_ssh:
+            SSH_TEST_TIMEOUT_SECONDS = 10.0
+
+            async def test_device(
+                d: TailscaleDevice,
+            ) -> tuple[TailscaleDevice, str, str | None, str | None]:
+                status, error, key_used = await _test_ssh_for_device(d, session, credential_service)
+                return (d, status, error, key_used)
+
+            async def test_device_with_timeout(
+                d: TailscaleDevice,
+            ) -> tuple[TailscaleDevice, str, str | None, str | None]:
+                """Wrap test_device with per-device timeout to prevent hanging."""
+                try:
+                    return await asyncio.wait_for(test_device(d), timeout=SSH_TEST_TIMEOUT_SECONDS)
+                except TimeoutError:
+                    return (
+                        d,
+                        "unavailable",
+                        f"SSH test timed out after {int(SSH_TEST_TIMEOUT_SECONDS)}s",
+                        None,
+                    )
+
+            online_devices = [d for d in devices if d.online]
+            offline_devices = [d for d in devices if not d.online]
+
+            # Test online devices in parallel with per-device timeout
+            ssh_results = await asyncio.gather(
+                *[test_device_with_timeout(d) for d in online_devices],
+                return_exceptions=True,
+            )
+
+            # Build result list
+            device_results = []
+
+            for result_or_exc in ssh_results:
+                if isinstance(result_or_exc, Exception):
+                    # Log unexpected exceptions for debugging
+                    logger.warning("SSH test failed with unexpected exception: %s", result_or_exc)
+                    continue
+                d, status, error, key_used = result_or_exc
+                device_results.append(
+                    TailscaleDeviceWithSSHSchema(
+                        id=d.id,
+                        name=d.name,
+                        hostname=d.hostname,
+                        tailscale_ip=d.tailscale_ip,
+                        os=d.os,
+                        os_version=d.os_version,
+                        last_seen=d.last_seen,
+                        online=d.online,
+                        authorized=d.authorized,
+                        already_imported=d.already_imported,
+                        ssh_status=status,
+                        ssh_error=error,
+                        ssh_key_used=key_used,
+                    )
+                )
+
+            # Add offline devices
+            for d in offline_devices:
+                device_results.append(
+                    TailscaleDeviceWithSSHSchema(
+                        id=d.id,
+                        name=d.name,
+                        hostname=d.hostname,
+                        tailscale_ip=d.tailscale_ip,
+                        os=d.os,
+                        os_version=d.os_version,
+                        last_seen=d.last_seen,
+                        online=d.online,
+                        authorized=d.authorized,
+                        already_imported=d.already_imported,
+                        ssh_status="unavailable",
+                        ssh_error=f"Offline - last seen {_format_relative_time(d.last_seen)}",
+                        ssh_key_used=None,
+                    )
+                )
+        else:
+            # Don't test SSH, just mark all as untested
+            device_results = [
+                TailscaleDeviceWithSSHSchema(
+                    id=d.id,
+                    name=d.name,
+                    hostname=d.hostname,
+                    tailscale_ip=d.tailscale_ip,
+                    os=d.os,
+                    os_version=d.os_version,
+                    last_seen=d.last_seen,
+                    online=d.online,
+                    authorized=d.authorized,
+                    already_imported=d.already_imported,
+                    ssh_status="untested",
+                    ssh_error=None,
+                    ssh_key_used=None,
+                )
+                for d in devices
+            ]
+
+        return TailscaleDeviceListWithSSHResponse(
+            devices=device_results,
+            count=len(device_results),
+            cache_hit=device_list.cache_hit,
+            cached_at=device_list.cached_at,
+        )
+
+    except TailscaleNotConfiguredError:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "TAILSCALE_NOT_CONFIGURED",
+                "message": "Tailscale API token not configured",
+            },
+        ) from None
+
+    except TailscaleAuthError as e:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "TAILSCALE_AUTH_ERROR", "message": str(e)},
+        ) from e
+
+    except TailscaleRateLimitError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "TAILSCALE_RATE_LIMIT",
+                "message": str(e),
+                "retry_after": e.retry_after,
+            },
+        ) from e
+
+    except TailscaleConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "TAILSCALE_CONNECTION_ERROR", "message": str(e)},
+        ) from e
+
+    finally:
+        await tailscale_service.close()

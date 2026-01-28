@@ -26,7 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES, NOT_FOUND_RESPONSE
-from homelab_cmd.api.schemas.metrics import MetricPoint, MetricsHistoryResponse, TimeRange
+from homelab_cmd.api.schemas.metrics import (
+    MetricPoint,
+    MetricsHistoryResponse,
+    SparklinePoint,
+    SparklineResponse,
+    TimeRange,
+)
 from homelab_cmd.db.models.metrics import Metrics, MetricsDaily, MetricsHourly
 from homelab_cmd.db.models.server import Server
 from homelab_cmd.db.session import get_async_session
@@ -239,6 +245,131 @@ async def get_metrics_history(
         resolution=resolution,
         data_points=data_points,
         total_points=len(data_points),
+    )
+
+
+# US0113: Sparkline period configuration (minutes, target_points)
+SPARKLINE_PERIODS: dict[str, tuple[int, int]] = {
+    "30m": (30, 30),  # 30 minutes, ~30 points (1 per minute)
+    "1h": (60, 30),  # 1 hour, ~30 points (1 per 2 minutes)
+    "6h": (360, 36),  # 6 hours, ~36 points (1 per 10 minutes)
+}
+
+
+def downsample_metrics(data_points: list[SparklinePoint], target: int) -> list[SparklinePoint]:
+    """Downsample data points to target count using step sampling.
+
+    Args:
+        data_points: Original data points.
+        target: Target number of points.
+
+    Returns:
+        Downsampled list with approximately target points.
+    """
+    if len(data_points) <= target:
+        return data_points
+
+    step = len(data_points) / target
+    result: list[SparklinePoint] = []
+    for i in range(target):
+        idx = int(i * step)
+        if idx < len(data_points):
+            result.append(data_points[idx])
+
+    return result
+
+
+@router.get(
+    "/{server_id}/metrics/sparkline",
+    response_model=SparklineResponse,
+    operation_id="get_server_sparkline",
+    summary="Get sparkline data for a server metric",
+    responses={**AUTH_RESPONSES, **NOT_FOUND_RESPONSE},
+)
+async def get_sparkline(
+    server_id: str,
+    metric: str = Query(
+        default="cpu_percent",
+        description="Metric type to retrieve (cpu_percent, memory_percent, disk_percent)",
+    ),
+    period: str = Query(
+        default="30m",
+        description="Time period (30m, 1h, 6h)",
+    ),
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> SparklineResponse:
+    """Get sparkline data for a server metric.
+
+    Returns a lightweight array of data points suitable for rendering
+    a small inline sparkline chart. Data is downsampled to ~30 points
+    for efficient transfer and display.
+
+    **Supported metrics:**
+    - cpu_percent: CPU usage (0-100)
+    - memory_percent: Memory usage (0-100)
+    - disk_percent: Disk usage (0-100)
+
+    **Supported periods:**
+    - 30m: Last 30 minutes (~1 point per minute)
+    - 1h: Last hour (~1 point per 2 minutes)
+    - 6h: Last 6 hours (~1 point per 10 minutes)
+    """
+    # Verify server exists
+    server = await session.get(Server, server_id)
+    if not server:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
+        )
+
+    # Validate metric type
+    valid_metrics = {"cpu_percent", "memory_percent", "disk_percent"}
+    if metric not in valid_metrics:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_METRIC",
+                "message": f"Invalid metric '{metric}'. Valid options: {', '.join(valid_metrics)}",
+            },
+        )
+
+    # Get period configuration
+    if period not in SPARKLINE_PERIODS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_PERIOD",
+                "message": f"Invalid period '{period}'. Valid options: {', '.join(SPARKLINE_PERIODS.keys())}",
+            },
+        )
+
+    minutes, target_points = SPARKLINE_PERIODS[period]
+    cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
+
+    # Query raw metrics for the period
+    result = await session.execute(
+        select(Metrics)
+        .where(Metrics.server_id == server_id)
+        .where(Metrics.timestamp >= cutoff)
+        .order_by(Metrics.timestamp)
+    )
+    raw_metrics = list(result.scalars().all())
+
+    # Extract the requested metric and convert to SparklinePoints
+    data_points: list[SparklinePoint] = []
+    for m in raw_metrics:
+        value = getattr(m, metric, None)
+        data_points.append(SparklinePoint(timestamp=m.timestamp, value=value))
+
+    # Downsample if we have more points than target
+    data_points = downsample_metrics(data_points, target_points)
+
+    return SparklineResponse(
+        server_id=server_id,
+        metric=metric,
+        period=period,
+        data=data_points,
     )
 
 

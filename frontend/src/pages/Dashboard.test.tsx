@@ -56,10 +56,29 @@ const mockServersResponse: ServersResponse = {
       hostname: 'server-1.local',
       display_name: 'Test Server 1',
       status: 'online',
+      is_paused: false,
+      is_inactive: false,
+      inactive_since: null,
+      agent_version: '1.0.0',
+      agent_mode: 'readwrite',
+      updates_available: null,
+      security_updates: null,
+      last_seen: new Date().toISOString(),
+      active_alert_count: 0,
+      machine_type: 'server',
       latest_metrics: {
         cpu_percent: 45.5,
         memory_percent: 67.2,
         disk_percent: 35.0,
+        memory_total_mb: null,
+        memory_used_mb: null,
+        disk_total_gb: null,
+        disk_used_gb: null,
+        network_rx_bytes: null,
+        network_tx_bytes: null,
+        load_1m: null,
+        load_5m: null,
+        load_15m: null,
         uptime_seconds: 86400 * 5 + 3600 * 2,
       },
     },
@@ -68,10 +87,29 @@ const mockServersResponse: ServersResponse = {
       hostname: 'server-2.local',
       display_name: 'Test Server 2',
       status: 'offline',
+      is_paused: false,
+      is_inactive: false,
+      inactive_since: null,
+      agent_version: '1.0.0',
+      agent_mode: 'readwrite',
+      updates_available: null,
+      security_updates: null,
+      last_seen: null,
+      active_alert_count: 0,
+      machine_type: 'server',
       latest_metrics: {
         cpu_percent: 0,
         memory_percent: 0,
         disk_percent: 50.0,
+        memory_total_mb: null,
+        memory_used_mb: null,
+        disk_total_gb: null,
+        disk_used_gb: null,
+        network_rx_bytes: null,
+        network_tx_bytes: null,
+        load_1m: null,
+        load_5m: null,
+        load_15m: null,
         uptime_seconds: 0,
       },
     },
@@ -80,6 +118,16 @@ const mockServersResponse: ServersResponse = {
       hostname: 'server-3.local',
       display_name: null,
       status: 'unknown',
+      is_paused: false,
+      is_inactive: false,
+      inactive_since: null,
+      agent_version: null,
+      agent_mode: null,
+      updates_available: null,
+      security_updates: null,
+      last_seen: null,
+      active_alert_count: 0,
+      machine_type: 'workstation',
       latest_metrics: null,
     },
   ],
@@ -1259,6 +1307,256 @@ describe('Dashboard', () => {
       await screen.findAllByTestId('server-card');
 
       expect(screen.getByTestId('scans-link')).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Dashboard Filters tests (US0112)
+   * Spec Reference: sdlc-studio/stories/US0112-dashboard-search-filter.md
+   */
+  describe('Dashboard Filters (US0112)', () => {
+    it('renders search box and filter chips (AC1, AC3)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      expect(screen.getByTestId('dashboard-filters')).toBeInTheDocument();
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+      expect(screen.getByTestId('status-filter-all')).toBeInTheDocument();
+      expect(screen.getByTestId('status-filter-online')).toBeInTheDocument();
+    });
+
+    it('filters servers by search text (AC2)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Initially shows all 3 servers
+      expect(screen.getAllByTestId('server-card')).toHaveLength(3);
+
+      // Type in search
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'server-1' } });
+
+      // Should filter to 1 server
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 1')).toBeInTheDocument();
+    });
+
+    it('search is case-insensitive (AC2)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'SERVER-1' } });
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+    });
+
+    it('filters by hostname', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: '.local' } });
+
+      // All servers have .local in hostname
+      expect(screen.getAllByTestId('server-card')).toHaveLength(3);
+    });
+
+    it('filters by display name', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'Test Server 2' } });
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 2')).toBeInTheDocument();
+    });
+
+    it('filters by status (AC3)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Click online filter
+      fireEvent.click(screen.getByTestId('status-filter-online'));
+
+      // Only server-1 is online
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 1')).toBeInTheDocument();
+    });
+
+    it('filters by offline status', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      fireEvent.click(screen.getByTestId('status-filter-offline'));
+
+      // Only server-2 is offline
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 2')).toBeInTheDocument();
+    });
+
+    it('filters by machine type (AC4)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Click workstation filter
+      fireEvent.click(screen.getByTestId('type-filter-workstation'));
+
+      // Only server-3 is a workstation
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('server-3.local')).toBeInTheDocument();
+    });
+
+    it('combines search and status filters', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Search for "server" (matches all) and filter to offline
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'server' } });
+      fireEvent.click(screen.getByTestId('status-filter-offline'));
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 2')).toBeInTheDocument();
+    });
+
+    it('shows empty state when filters match no servers (AC7)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Search for something that doesn't exist
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+
+      expect(screen.queryByTestId('server-card')).not.toBeInTheDocument();
+      expect(screen.getByTestId('no-matches-message')).toBeInTheDocument();
+      expect(screen.getByText('No servers match your filters')).toBeInTheDocument();
+    });
+
+    it('shows clear filters link in empty state (AC7)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+
+      expect(screen.getByTestId('clear-filters-link')).toBeInTheDocument();
+    });
+
+    it('clear filters link resets filters (AC6)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Apply filter that results in no matches
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+
+      expect(screen.queryByTestId('server-card')).not.toBeInTheDocument();
+
+      // Click clear filters link
+      fireEvent.click(screen.getByTestId('clear-filters-link'));
+
+      // Should show all servers again
+      expect(screen.getAllByTestId('server-card')).toHaveLength(3);
+    });
+
+    it('clear filters button resets all filters (AC6)', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Apply multiple filters
+      const searchInput = screen.getByTestId('search-input');
+      fireEvent.change(searchInput, { target: { value: 'server-1' } });
+      fireEvent.click(screen.getByTestId('status-filter-online'));
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByTestId('clear-filters-button')).toBeInTheDocument();
+
+      // Clear filters
+      fireEvent.click(screen.getByTestId('clear-filters-button'));
+
+      // Should show all servers again
+      expect(screen.getAllByTestId('server-card')).toHaveLength(3);
+    });
+
+    it('filters by paused status', async () => {
+      const serversWithPaused = {
+        servers: [
+          { ...mockServersResponse.servers[0], is_paused: true },
+          ...mockServersResponse.servers.slice(1),
+        ],
+        total: 3,
+      };
+      (getServers as Mock).mockResolvedValue(serversWithPaused);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      fireEvent.click(screen.getByTestId('status-filter-paused'));
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 1')).toBeInTheDocument();
+    });
+
+    it('filters by warning status (online with alerts)', async () => {
+      const serversWithWarning = {
+        servers: [
+          { ...mockServersResponse.servers[0], active_alert_count: 2 },
+          ...mockServersResponse.servers.slice(1),
+        ],
+        total: 3,
+      };
+      (getServers as Mock).mockResolvedValue(serversWithWarning);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      fireEvent.click(screen.getByTestId('status-filter-warning'));
+
+      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
+      expect(screen.getByText('Test Server 1')).toBeInTheDocument();
     });
   });
 });

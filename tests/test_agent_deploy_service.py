@@ -242,10 +242,16 @@ class TestAgentDeploymentServiceInstall:
     @pytest.mark.asyncio
     async def test_install_agent_fails_if_server_exists_active(self, db_session) -> None:
         """Should fail if server already exists and is active."""
+        from datetime import UTC, datetime
+
         from homelab_cmd.db.models.server import Server
 
-        # Create existing active server
-        server = Server(id="existing-server", hostname="existing.local")
+        # Create existing active server with last_seen set (indicating active agent)
+        server = Server(
+            id="existing-server",
+            hostname="existing.local",
+            last_seen=datetime.now(UTC),
+        )
         db_session.add(server)
         await db_session.commit()
 

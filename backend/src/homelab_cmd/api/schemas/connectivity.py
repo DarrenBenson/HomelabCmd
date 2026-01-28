@@ -21,57 +21,35 @@ SSH_USERNAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 class TailscaleInfo(BaseModel):
     """Tailscale connection information."""
 
-    configured: bool = Field(
-        ..., description="Whether Tailscale API token is configured"
-    )
-    connected: bool = Field(
-        False, description="Whether connected to Tailscale API"
-    )
-    tailnet: str | None = Field(
-        None, description="Tailnet name if connected"
-    )
-    device_count: int = Field(
-        0, description="Number of devices in tailnet"
-    )
+    configured: bool = Field(..., description="Whether Tailscale API token is configured")
+    connected: bool = Field(False, description="Whether connected to Tailscale API")
+    tailnet: str | None = Field(None, description="Tailnet name if connected")
+    device_count: int = Field(0, description="Number of devices in tailnet")
 
 
 class SSHInfo(BaseModel):
     """SSH configuration information."""
 
-    username: str = Field(
-        "homelabcmd", description="Default SSH username"
-    )
-    key_configured: bool = Field(
-        False, description="Whether SSH private key is uploaded"
-    )
-    key_uploaded_at: datetime | None = Field(
-        None, description="When SSH key was uploaded"
-    )
+    username: str = Field("homelabcmd", description="Default SSH username")
+    key_configured: bool = Field(False, description="Whether SSH private key is uploaded")
+    key_uploaded_at: datetime | None = Field(None, description="When SSH key was uploaded")
 
 
 class ConnectivityStatusResponse(BaseModel):
     """Response for GET /api/v1/settings/connectivity."""
 
-    mode: ConnectivityMode = Field(
-        ..., description="Current connectivity mode"
-    )
+    mode: ConnectivityMode = Field(..., description="Current connectivity mode")
     mode_auto_detected: bool = Field(
         False, description="Whether mode was auto-detected vs explicitly set"
     )
-    tailscale: TailscaleInfo = Field(
-        ..., description="Tailscale connection status"
-    )
-    ssh: SSHInfo = Field(
-        ..., description="SSH configuration status"
-    )
+    tailscale: TailscaleInfo = Field(..., description="Tailscale connection status")
+    ssh: SSHInfo = Field(..., description="SSH configuration status")
 
 
 class ConnectivityUpdateRequest(BaseModel):
     """Request for PUT /api/v1/settings/connectivity."""
 
-    mode: ConnectivityMode = Field(
-        ..., description="Connectivity mode to set"
-    )
+    mode: ConnectivityMode = Field(..., description="Connectivity mode to set")
     ssh_username: str | None = Field(
         None,
         description="SSH username to set (optional, keeps current if not provided)",
@@ -107,9 +85,5 @@ class ConnectivityStatusBarResponse(BaseModel):
     """Response for GET /api/v1/settings/connectivity/status (dashboard)."""
 
     mode: ConnectivityMode = Field(..., description="Current connectivity mode")
-    display: str = Field(
-        ..., description="Display text for status bar"
-    )
-    healthy: bool = Field(
-        True, description="Whether connectivity is healthy"
-    )
+    display: str = Field(..., description="Display text for status bar")
+    healthy: bool = Field(True, description="Whether connectivity is healthy")

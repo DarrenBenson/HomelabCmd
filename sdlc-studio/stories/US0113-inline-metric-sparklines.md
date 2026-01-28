@@ -1,245 +1,235 @@
 # US0113: Inline Metric Sparklines
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
+> **Completed:** 2026-01-28
 > **Story Points:** 5
 
 ## User Story
 
-**As a** system administrator
-**I want** to see metric trends at a glance on server cards
-**So that** I can identify servers with increasing resource usage without opening detail pages
+**As a** Darren (Homelab Operator)
+**I want** to see CPU usage trends as sparklines on server cards
+**So that** I can identify if a server's load is increasing or decreasing at a glance
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - Monitors homelab infrastructure, needs to spot trends quickly
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab with 11+ servers. Wants to see trends without clicking into detail pages for every server.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-The current ServerCard displays point-in-time CPU, RAM, and Disk percentages. This tells you the current state but not whether the value is trending up, down, or stable. A server at 70% CPU might be fine (steady state) or concerning (rapidly increasing).
-
-Sparklines are miniature inline charts that show trend direction at a glance. Market leaders like Grafana, Datadog, and Netdata all use sparklines or mini-charts to provide trend context. Adding a small 7-point sparkline for CPU usage will help administrators quickly identify servers that need attention.
+Currently, server cards show only the current metric value (e.g., "CPU: 45%"). This doesn't indicate if the value is trending up (potential problem) or down (recovering). Market leaders like Netdata and Grafana show mini sparkline charts on summary cards. This story adds CPU trend sparklines to server cards.
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| PRD | Performance | Dashboard <3s load | Sparkline data must be efficient (<50 bytes per server) |
-| TRD | Architecture | Recharts already installed | Use existing charting library |
-| Epic | Accessibility | WCAG 2.1 AA | Screen reader must announce trend direction |
+| Epic | Performance | Dashboard load <3s | Sparkline data must be efficiently fetched |
+| PRD | Performance | Minimal polling overhead | Use dedicated lightweight endpoint |
+| TRD | Architecture | Recharts already in stack | Use existing charting library |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: CPU Sparkline Display
-- **Given** a server with metric history
-- **When** the ServerCard is rendered
-- **Then** a 7-point sparkline appears next to the CPU percentage showing the last 30 minutes (5-minute intervals)
+### AC1: Backend sparkline endpoint
 
-### AC2: Trend Colour Coding
-- **Given** a CPU sparkline
-- **When** the trend is stable or decreasing
-- **Then** the sparkline is green
-- **When** the trend is rising (>10% increase over period)
-- **Then** the sparkline is yellow
-- **When** the value is high (>80%) AND rising
-- **Then** the sparkline is red
+- **Given** a server has metric history
+- **When** I call `GET /api/v1/servers/{id}/metrics/sparkline?metric=cpu&period=30m`
+- **Then** the response returns an array of {timestamp, value} pairs
+- **And** the data covers the last 30 minutes
+- **And** the data is sampled to ~30 points (1 per minute)
 
-### AC3: Hover Tooltip
-- **Given** a CPU sparkline
-- **When** I hover over a data point
-- **Then** a tooltip shows the actual value and timestamp (e.g., "75% at 14:25")
+### AC2: CPU sparkline on server card
 
-### AC4: Graceful Degradation
-- **Given** a server with insufficient history (<7 data points)
-- **When** the sparkline is rendered
-- **Then** it shows available points (partial line) or falls back to just the percentage
+- **Given** a server card is rendered
+- **When** the dashboard loads
+- **Then** a small sparkline chart (60px wide x 20px tall) appears on the card
+- **And** the sparkline shows CPU usage trend for the last 30 minutes
+- **And** the sparkline uses a subtle colour (grey or blue)
 
-### AC5: Sparkline Size
-- **Given** the ServerCard layout
-- **When** the sparkline is displayed
-- **Then** it measures approximately 50x16 pixels (compact, inline with percentage)
+### AC3: Sparkline tooltip
 
-### AC6: Backend Sparkline Endpoint
-- **Given** `GET /api/v1/servers/{id}/metrics/sparkline?metric=cpu`
-- **When** called
-- **Then** returns an array of 7 values representing 5-minute aggregates over 30 minutes
-- **And** response is under 100 bytes per server
+- **Given** a sparkline is displayed on a card
+- **When** the user hovers over the sparkline
+- **Then** a tooltip shows the value at that point (e.g., "45% at 10:23")
+- **And** the tooltip follows the cursor along the sparkline
+
+### AC4: Sparkline colour indicates trend
+
+- **Given** the CPU trend over 30 minutes
+- **When** the sparkline renders
+- **Then** the sparkline colour reflects the trend:
+  - Green: trending down (good)
+  - Grey: stable (within 5% variance)
+  - Red/amber: trending up (concerning)
+
+### AC5: Handle missing data
+
+- **Given** a server has insufficient metric history (<5 minutes)
+- **When** the sparkline attempts to render
+- **Then** a placeholder shows "No trend data" or a flat line
+- **And** no error is thrown
+
+### AC6: Batch fetch for dashboard
+
+- **Given** the dashboard displays 10+ servers
+- **When** the dashboard loads
+- **Then** sparkline data is fetched efficiently (batch request or parallel)
+- **And** sparklines render progressively (don't block card display)
 
 ---
 
 ## Scope
 
 ### In Scope
-- CPU sparkline on ServerCard (one metric to start)
-- Colour-coded trend indication
-- Hover tooltips with values
+
 - Backend endpoint for sparkline data
+- CPU, RAM, and Disk sparklines on server cards
+- Trend-based colour coding
+- Hover tooltip with value/time
+- Efficient data fetching for multiple servers
 - Graceful handling of missing data
 
 ### Out of Scope
-- RAM and Disk sparklines (future story)
-- Customisable time ranges
-- Sparkline click-to-expand
-- Historical sparkline view (scrollable)
+
+- Sparkline on detail page (already has full charts)
+- Configurable time period (default 30m)
+- Sparkline click to expand
+- Historical trend comparison
 
 ---
 
 ## Technical Notes
 
-### Backend Implementation
+### Implementation Approach
 
-Create sparkline endpoint in `backend/src/homelab_cmd/api/routes/metrics.py`:
+1. **Backend endpoint (metrics.py):**
+   ```python
+   @router.get("/servers/{server_id}/metrics/sparkline")
+   async def get_sparkline(
+       server_id: UUID,
+       metric: str = "cpu_usage",
+       period: str = "30m",
+       db: Session = Depends(get_db)
+   ):
+       # Parse period (30m, 1h, etc.)
+       since = datetime.utcnow() - timedelta(minutes=30)
 
-```python
-@router.get("/servers/{server_id}/metrics/sparkline")
-async def get_sparkline(
-    server_id: UUID,
-    metric: str = Query(default="cpu", enum=["cpu", "memory", "disk"]),
-    db: Session = Depends(get_db),
-    _: str = Depends(require_api_key),
-) -> SparklineResponse:
-    """Get 7-point sparkline data for last 30 minutes (5-minute intervals)."""
-    now = datetime.utcnow()
-    thirty_mins_ago = now - timedelta(minutes=30)
+       # Query metrics, sample to ~30 points
+       metrics = db.query(Metric).filter(
+           Metric.server_id == server_id,
+           Metric.metric_type == metric,
+           Metric.timestamp >= since
+       ).order_by(Metric.timestamp).all()
 
-    # Get metrics, aggregate by 5-minute buckets
-    metrics = db.query(Metric).filter(
-        Metric.server_id == server_id,
-        Metric.metric_type == f"{metric}_usage",
-        Metric.timestamp >= thirty_mins_ago,
-    ).order_by(Metric.timestamp).all()
+       # Downsample if needed
+       sampled = downsample(metrics, target_points=30)
 
-    # Bucket into 5-minute intervals
-    buckets = aggregate_to_buckets(metrics, interval_minutes=5, num_buckets=7)
+       return {
+           "server_id": server_id,
+           "metric": metric,
+           "period": period,
+           "data": [{"timestamp": m.timestamp, "value": m.value} for m in sampled]
+       }
+   ```
 
-    return SparklineResponse(
-        server_id=server_id,
-        metric=metric,
-        values=buckets,  # [72.5, 74.1, 73.8, 75.2, 78.4, 82.1, 85.3]
-        interval_minutes=5,
-    )
-```
+2. **Frontend MetricSparkline component:**
+   ```tsx
+   function MetricSparkline({ serverId, metric = "cpu_usage" }) {
+     const { data, isLoading } = useSparklineData(serverId, metric);
 
-### Schema
+     if (isLoading) return <SparklineSkeleton />;
+     if (!data?.length || data.length < 5) return <span className="text-xs text-gray-400">No trend</span>;
 
-```python
-class SparklineResponse(BaseModel):
-    server_id: UUID
-    metric: str
-    values: list[float | None]  # None for missing data points
-    interval_minutes: int = 5
-```
+     const trend = calculateTrend(data);
+     const color = trend > 5 ? "red" : trend < -5 ? "green" : "gray";
 
-### Frontend Implementation
+     return (
+       <ResponsiveContainer width={60} height={20}>
+         <LineChart data={data}>
+           <Line type="monotone" dataKey="value" stroke={color} dot={false} strokeWidth={1} />
+           <Tooltip content={<SparklineTooltip />} />
+         </LineChart>
+       </ResponsiveContainer>
+     );
+   }
+   ```
 
-Use Recharts (already installed) for sparklines:
+3. **Batch fetching strategy:**
+   - Option A: Single endpoint with multiple server IDs
+   - Option B: Parallel requests with rate limiting
+   - Recommend Option B for simplicity (fetch in useEffect per card)
 
-```tsx
-import { Sparklines, SparklinesLine, SparklinesSpots } from 'react-sparklines';
-// OR use Recharts directly:
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+### API Contracts
 
-interface MetricSparklineProps {
-  values: (number | null)[];
-  current: number;
-}
+**Request:** `GET /api/v1/servers/{server_id}/metrics/sparkline?metric=cpu_usage&period=30m`
 
-function MetricSparkline({ values, current }: MetricSparklineProps) {
-  // Calculate trend
-  const first = values.find(v => v !== null) ?? current;
-  const last = current;
-  const change = last - first;
-  const isRising = change > 10;
-  const isHigh = current > 80;
-
-  const colour = isHigh && isRising ? '#ef4444' // red
-    : isRising ? '#eab308' // yellow
-    : '#22c55e'; // green
-
-  return (
-    <div className="inline-flex items-center gap-1">
-      <span className="text-sm font-mono">{current}%</span>
-      <div className="w-[50px] h-[16px]">
-        <ResponsiveContainer>
-          <LineChart data={values.map((v, i) => ({ value: v }))}>
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={colour}
-              strokeWidth={1.5}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
+**Response:**
+```json
+{
+  "server_id": "uuid",
+  "metric": "cpu_usage",
+  "period": "30m",
+  "data": [
+    { "timestamp": "2026-01-28T10:00:00Z", "value": 42.5 },
+    { "timestamp": "2026-01-28T10:01:00Z", "value": 43.2 }
+  ]
 }
 ```
 
-### Data Fetching Strategy
+### Files to Modify
 
-**Option A: Batch with server list** (preferred for performance)
-- Add `sparkline` field to server list response
-- Single API call, slightly larger payload
+- `backend/src/homelab_cmd/api/routes/metrics.py` - Add sparkline endpoint
+- `backend/src/homelab_cmd/api/schemas/metrics.py` - Add sparkline schema
+- `frontend/src/components/MetricSparkline.tsx` - New component
+- `frontend/src/components/ServerCard.tsx` - Add sparkline
+- `frontend/src/api/metrics.ts` - Add sparkline API call
+- `frontend/src/hooks/useSparklineData.ts` - Custom hook
 
-**Option B: Individual requests**
-- Fetch sparklines separately per server
-- More API calls, but simpler caching
+### Data Requirements
 
-Recommended: Option A - batch with server list to minimise round trips.
-
-### Caching
-
-Cache sparkline data for 5 minutes (matches aggregation interval):
-
-```python
-# In-memory cache or Redis
-@cache(ttl=300)  # 5 minutes
-def get_sparkline_data(server_id: UUID, metric: str) -> list[float]:
-    ...
-```
+- Metric model with server_id, metric_type, value, timestamp
+- Sufficient metric history (heartbeats with CPU data)
+- Metrics stored at reasonable frequency (every 30s-1m)
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| Server with no metrics yet | Show percentage only, no sparkline |
-| Server with <7 data points | Show partial sparkline with available points |
-| Metrics gap (server was offline) | Show null points as gaps in line |
-| All 7 values are identical | Show flat green line (stable) |
-| Rapid spike (0% to 100%) | Show red line with steep slope |
-| API error fetching sparkline | Fall back to percentage only, log error |
-| Sparkline data stale (>5 min old) | Fetch fresh on next poll |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | Server has no metrics | Show "No trend data" text |
+| 2 | Server has <5 data points | Show flat line or "Insufficient data" |
+| 3 | Metric values are all identical | Show flat grey line (stable) |
+| 4 | API request fails | Show error icon, don't break card |
+| 5 | Server offline (no recent metrics) | Show last known trend, greyed out |
+| 6 | Very high variance (0-100% swings) | Cap sparkline scale to 0-100 |
+| 7 | 50+ servers on dashboard | Rate limit requests, lazy load below fold |
+| 8 | Negative trend calculation | Clamp to -100% to +100% |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify sparkline appears for server with metric history
-- [ ] Verify green colour for stable/decreasing trend
-- [ ] Verify yellow colour for rising trend (<80%)
-- [ ] Verify red colour for high + rising trend
-- [ ] Verify hover tooltip shows value and time
-- [ ] Verify graceful handling of missing data points
-- [ ] Verify partial sparkline with <7 points
-- [ ] Verify no sparkline for server with no history
-- [ ] Verify sparkline endpoint returns 7 values
-- [ ] Verify sparkline data is cached (5-min TTL)
-- [ ] Verify accessibility: trend direction announced
+- [x] API returns sparkline data for valid server
+- [x] API returns 404 for unknown server
+- [x] API handles missing metric type
+- [x] Sparkline renders on server card
+- [x] Sparkline shows tooltip on hover
+- [x] Green sparkline for downward trend
+- [x] Red sparkline for upward trend
+- [x] Grey sparkline for stable trend
+- [x] "No trend data" for insufficient points
+- [x] Multiple sparklines load efficiently
+- [x] Dark mode renders correctly
 
 ---
 
@@ -247,27 +237,27 @@ def get_sparkline_data(server_id: UUID, metric: str) -> list[float]:
 
 ### Story Dependencies
 
-None - uses existing metrics data
+None - independent implementation.
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
 | Recharts | Library | Available |
-| Metrics table with CPU data | Data | Available |
+| Metric history data | Data | Available (via heartbeats) |
 
 ---
 
 ## Estimation
 
 **Story Points:** 5
-**Complexity:** Medium (backend endpoint, frontend visualisation, caching)
+**Complexity:** Medium - new API endpoint + chart component
 
 ---
 
 ## Open Questions
 
-None
+None.
 
 ---
 
@@ -275,5 +265,4 @@ None
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

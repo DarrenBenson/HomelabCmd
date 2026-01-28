@@ -43,3 +43,31 @@ class MetricsHistoryResponse(BaseModel):
         default_factory=list, description="Time-series data points"
     )
     total_points: int = Field(..., description="Number of data points returned")
+
+
+# US0113: Sparkline schemas for inline metric charts
+
+
+class SparklinePoint(BaseModel):
+    """A single data point for sparkline display.
+
+    Simplified format with just timestamp and value for efficient transfer.
+    """
+
+    timestamp: datetime = Field(..., description="When the metric was recorded")
+    value: float | None = Field(None, description="Metric value (0-100 for percentages)")
+
+
+class SparklineResponse(BaseModel):
+    """Response schema for sparkline endpoint.
+
+    Returns a lightweight array of data points suitable for rendering
+    a small inline chart on server cards.
+    """
+
+    server_id: str = Field(..., description="Server identifier")
+    metric: str = Field(..., description="Metric type (cpu_percent, memory_percent, etc.)")
+    period: str = Field(..., description="Time period covered (e.g., 30m)")
+    data: list[SparklinePoint] = Field(
+        default_factory=list, description="Time-series data points for sparkline"
+    )

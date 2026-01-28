@@ -1,6 +1,6 @@
 # US0093: Unified SSH Key Management
 
-> **Status:** Review
+> **Status:** Done
 > **Epic:** [EP0008: Tailscale Integration](../epics/EP0008-tailscale-integration.md)
 > **Owner:** Darren
 > **Created:** 2026-01-27

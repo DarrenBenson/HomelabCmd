@@ -23,6 +23,7 @@ from homelab_cmd.api.schemas.server import (
     StoreServerCredentialRequest,
     StoreServerCredentialResponse,
 )
+from homelab_cmd.db.models.alert import Alert, AlertStatus
 from homelab_cmd.db.models.metrics import Metrics
 from homelab_cmd.db.models.remediation import RemediationAction
 from homelab_cmd.db.models.server import Server, ServerStatus
@@ -49,7 +50,7 @@ async def list_servers(
     """List all registered servers.
 
     Returns a list of all servers with their current status, basic information,
-    and latest metrics.
+    latest metrics, and active alert counts (US0110).
 
     Performance: Uses a single query with window function to fetch latest metrics
     for all servers (O(1) queries instead of O(N) - fixes BG0020).
@@ -68,19 +69,55 @@ async def list_servers(
     # Alias the subquery so we can reference its columns
     MetricsRanked = aliased(Metrics, metrics_ranked)
 
-    # Main query: LEFT JOIN servers with their latest metrics (rn=1)
-    # This fetches all servers and their latest metrics in a single query
-    stmt = select(Server, MetricsRanked).outerjoin(
-        metrics_ranked,
-        (Server.id == metrics_ranked.c.server_id) & (metrics_ranked.c.rn == 1),
+    # US0110: Subquery for active alert counts per server
+    # Uses existing index: idx_alerts_server_status on (server_id, status)
+    alert_counts = (
+        select(
+            Alert.server_id,
+            func.count(Alert.id).label("active_count"),
+        )
+        .where(Alert.status == AlertStatus.OPEN.value)
+        .group_by(Alert.server_id)
+    ).subquery()
+
+    # Main query: LEFT JOIN servers with their latest metrics (rn=1) and alert counts
+    # This fetches all servers, metrics, and alert counts in a single query
+    stmt = (
+        select(Server, MetricsRanked, alert_counts.c.active_count)
+        .outerjoin(
+            metrics_ranked,
+            (Server.id == metrics_ranked.c.server_id) & (metrics_ranked.c.rn == 1),
+        )
+        .outerjoin(
+            alert_counts,
+            Server.id == alert_counts.c.server_id,
+        )
     )
 
     result = await session.execute(stmt)
     rows = result.all()
 
-    # Build response - each row is (Server, Metrics or None)
+    # US0110: Build a map of server_id -> alert summaries (titles)
+    # Separate query to get up to 3 alert titles per server for tooltip
+    alert_summaries_stmt = (
+        select(Alert.server_id, Alert.title)
+        .where(Alert.status == AlertStatus.OPEN.value)
+        .order_by(Alert.server_id, desc(Alert.created_at))
+    )
+    alert_result = await session.execute(alert_summaries_stmt)
+    alert_rows = alert_result.all()
+
+    # Group alerts by server_id, keeping max 3 per server
+    server_alert_summaries: dict[str, list[str]] = {}
+    for server_id, title in alert_rows:
+        if server_id not in server_alert_summaries:
+            server_alert_summaries[server_id] = []
+        if len(server_alert_summaries[server_id]) < 3:
+            server_alert_summaries[server_id].append(title)
+
+    # Build response - each row is (Server, Metrics or None, active_count or None)
     server_responses = []
-    for server, latest_metrics_record in rows:
+    for server, latest_metrics_record, active_count in rows:
         response = ServerResponse.model_validate(server)
 
         if latest_metrics_record:
@@ -99,6 +136,10 @@ async def list_servers(
                 load_15m=latest_metrics_record.load_15m,
                 uptime_seconds=latest_metrics_record.uptime_seconds,
             )
+
+        # US0110: Populate alert count and summaries
+        response.active_alert_count = active_count or 0
+        response.active_alert_summaries = server_alert_summaries.get(server.id, [])
 
         server_responses.append(response)
 

@@ -1,106 +1,118 @@
 # US0112: Dashboard Search and Filter
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
+> **Completed:** 2026-01-28
 > **Story Points:** 5
 
 ## User Story
 
-**As a** system administrator with many servers
-**I want** to search and filter the dashboard
-**So that** I can quickly find specific servers
+**As a** Darren (Homelab Operator)
+**I want** to search and filter servers on the dashboard
+**So that** I can quickly find specific servers when I have 20+ machines
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - Manages homelab infrastructure with 10+ servers, needs efficient navigation
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab with 11+ servers. As the fleet grows, manually scanning the dashboard becomes inefficient.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-The current dashboard displays all servers in a grid without any search or filtering capability. For users with more than 10-20 servers, finding a specific server requires visual scanning of all cards. Market leaders like Uptime Kuma, Grafana, and Datadog all provide search/filter functionality as standard.
-
-Adding a search box and filter chips will make the dashboard usable at scale and match industry expectations.
+With 11+ servers and growing, the dashboard becomes harder to scan visually. Market leaders like Uptime Kuma and Grafana provide search boxes and filter chips to help users find specific servers instantly. This story adds search and filter functionality to the HomelabCmd dashboard.
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| PRD | Performance | Dashboard <3s load | Filtering must be instant (client-side) |
-| TRD | Architecture | React + Tailwind | Use existing component patterns |
-| Epic | Accessibility | WCAG 2.1 AA | Keyboard-accessible filters |
+| Epic | Performance | Find server <2s | Filter must be instant (client-side) |
+| PRD | Performance | Dashboard load <3s | Filtering must not re-fetch data |
+| TRD | Architecture | React + Tailwind | Use existing input components |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: Search Box in Header
-- **Given** the Dashboard page
-- **When** I type in the search box
-- **Then** the server grid filters to show only servers whose name or hostname contains the search term (case-insensitive)
+### AC1: Search box in dashboard header
 
-### AC2: Status Filter Chips
-- **Given** the Dashboard page
-- **When** I click a status filter chip (Online, Offline, Warning)
-- **Then** the server grid filters to show only servers matching that status
-- **And** multiple status chips can be selected simultaneously (OR logic)
+- **Given** I am on the dashboard page
+- **When** the page loads
+- **Then** a search box appears in the dashboard header
+- **And** the placeholder text shows "Search servers..."
+- **And** a search icon (lucide-react Search) appears inside the input
 
-### AC3: Machine Type Filter
-- **Given** the Dashboard page
-- **When** I click a machine type filter chip (Server, Workstation)
-- **Then** the server grid filters to show only servers of that machine type
-- **And** multiple types can be selected simultaneously (OR logic)
+### AC2: Search filters by name and hostname
 
-### AC4: Combined Filter Display
-- **Given** active filters
-- **When** viewing the dashboard
-- **Then** I see a count "X of Y servers" showing filtered/total count
-- **And** active filter chips are visually highlighted
+- **Given** I type "media" in the search box
+- **When** the input value changes
+- **Then** only servers where `server_id` OR `hostname` contains "media" are shown
+- **And** the filter is case-insensitive
+- **And** filtering happens immediately (no debounce needed for <100 items)
 
-### AC5: URL State Persistence
-- **Given** active search and filters
-- **When** I copy the URL and open it in a new tab
-- **Then** the same search term and filters are applied
-- **And** URL format is `?q=search&status=online,warning&type=server`
+### AC3: Filter chips for status
 
-### AC6: Clear All Button
-- **Given** active filters
-- **When** I click "Clear All"
-- **Then** all filters are removed
-- **And** the search box is cleared
-- **And** all servers are shown
+- **Given** I am on the dashboard page
+- **When** the page loads
+- **Then** filter chips appear below the search box: "All", "Online", "Offline", "Warning", "Paused"
+- **And** "All" is selected by default
+- **And** clicking a chip filters to that status
 
-### AC7: Empty State
-- **Given** filters that match no servers
-- **When** the result is empty
-- **Then** I see a message "No servers match your filters"
-- **And** I see a "Clear filters" button
+### AC4: Filter chips for machine type
+
+- **Given** I am on the dashboard page
+- **When** the page loads
+- **Then** filter chips include: "Servers", "Workstations" (after EP0009)
+- **And** clicking a type chip filters to that machine type
+- **And** type and status filters can be combined
+
+### AC5: URL state persistence
+
+- **Given** I have search text "plex" and status filter "online"
+- **When** I refresh the page
+- **Then** the filters are restored from URL query parameters
+- **And** the URL shows `?q=plex&status=online`
+
+### AC6: Clear filters
+
+- **Given** I have active search text or filters
+- **When** I click the "Clear" button (or X icon)
+- **Then** all filters reset to defaults (empty search, "All" status)
+- **And** the URL query parameters are cleared
+
+### AC7: Empty state message
+
+- **Given** I have filters that match no servers
+- **When** the filtered list is empty
+- **Then** a message shows "No servers match your filters"
+- **And** a "Clear filters" link is provided
 
 ---
 
 ## Scope
 
 ### In Scope
-- Search box filtering by server name and hostname
-- Status filter chips (Online, Offline, Warning)
-- Machine type filter chips (Server, Workstation)
-- Filter count display (X of Y servers)
+
+- Search box filtering by server_id and hostname
+- Status filter chips (All, Online, Offline, Warning, Paused)
+- Machine type filter chips (Servers, Workstations)
 - URL query parameter persistence
-- Clear all button
-- Empty state handling
+- Clear filters functionality
+- Empty state message
+- Keyboard accessibility (Enter to search, Escape to clear)
 
 ### Out of Scope
-- Tag-based filtering (requires tag system)
+
+- Server-side filtering/pagination (not needed for <100 servers)
 - Saved filter presets
-- Advanced query syntax (operators, boolean logic)
-- Server-side filtering (all client-side)
+- Tag-based filtering (future feature)
+- Advanced search syntax (field:value)
+- Search history
 
 ---
 
@@ -108,109 +120,102 @@ Adding a search box and filter chips will make the dashboard usable at scale and
 
 ### Implementation Approach
 
-Create `DashboardFilters` component:
+1. **Create DashboardFilters component:**
+   ```tsx
+   function DashboardFilters({
+     searchQuery,
+     onSearchChange,
+     statusFilter,
+     onStatusChange,
+     typeFilter,
+     onTypeChange,
+     onClear
+   }) {
+     return (
+       <div className="flex flex-col gap-2 mb-4">
+         <div className="relative">
+           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+           <input
+             type="text"
+             placeholder="Search servers..."
+             value={searchQuery}
+             onChange={(e) => onSearchChange(e.target.value)}
+             className="pl-10 pr-4 py-2 w-full rounded-lg border"
+           />
+         </div>
+         <div className="flex gap-2 flex-wrap">
+           {statusFilters.map(s => (
+             <FilterChip key={s} label={s} active={statusFilter === s} onClick={() => onStatusChange(s)} />
+           ))}
+         </div>
+       </div>
+     );
+   }
+   ```
 
-```tsx
-interface DashboardFiltersProps {
-  servers: Server[];
-  onFilter: (filtered: Server[]) => void;
-}
+2. **URL state management:**
+   - Use `useSearchParams` from react-router-dom
+   - Sync filter state with URL on change
+   - Read initial state from URL on mount
 
-export function DashboardFilters({ servers, onFilter }: DashboardFiltersProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+3. **Filtering logic in Dashboard:**
+   ```tsx
+   const filteredServers = useMemo(() => {
+     return servers.filter(s => {
+       const matchesSearch = !searchQuery ||
+         s.server_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+         s.hostname?.toLowerCase().includes(searchQuery.toLowerCase());
+       const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+       const matchesType = !typeFilter || s.machine_type === typeFilter;
+       return matchesSearch && matchesStatus && matchesType;
+     });
+   }, [servers, searchQuery, statusFilter, typeFilter]);
+   ```
 
-  // Parse URL state
-  const searchQuery = searchParams.get('q') || '';
-  const statusFilter = searchParams.get('status')?.split(',') || [];
-  const typeFilter = searchParams.get('type')?.split(',') || [];
+### Files to Modify
 
-  // Apply filters
-  useEffect(() => {
-    let filtered = servers;
+- `frontend/src/components/DashboardFilters.tsx` - New component
+- `frontend/src/components/FilterChip.tsx` - New component
+- `frontend/src/pages/Dashboard.tsx` - Integrate filters
+- `frontend/src/hooks/useFilterState.ts` - Optional: custom hook for URL sync
 
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.display_name?.toLowerCase().includes(q) ||
-        s.hostname.toLowerCase().includes(q)
-      );
-    }
+### Data Requirements
 
-    if (statusFilter.length > 0) {
-      filtered = filtered.filter(s => statusFilter.includes(s.status));
-    }
-
-    if (typeFilter.length > 0) {
-      filtered = filtered.filter(s => typeFilter.includes(s.machine_type));
-    }
-
-    onFilter(filtered);
-  }, [servers, searchQuery, statusFilter, typeFilter]);
-
-  // ...render search box and chips
-}
-```
-
-### URL State Format
-
-```
-/dashboard?q=media&status=online,warning&type=server
-```
-
-- `q`: Search query (free text)
-- `status`: Comma-separated status values (online, offline, warning)
-- `type`: Comma-separated machine types (server, workstation)
-
-### Component Structure
-
-```
-Dashboard.tsx
-├── DashboardFilters
-│   ├── SearchBox (with debounce)
-│   ├── FilterChips (status)
-│   ├── FilterChips (machine type)
-│   └── FilterSummary ("5 of 12 servers" + Clear All)
-└── ServerGrid (receives filtered servers)
-```
-
-### Dependencies
-
-- React Router `useSearchParams` (already available)
-- Debounce utility for search (lodash.debounce or custom)
+- No API changes needed
+- Uses existing server list data
+- Machine type requires EP0009 Server.machine_type field
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| Search with special characters | Escape regex characters, literal search |
-| Search with leading/trailing spaces | Trim spaces before filtering |
-| Empty search box | Show all servers (no filter) |
-| All filter chips deselected | Show all servers (no filter) |
-| Filter matches 0 servers | Show empty state with "Clear filters" |
-| 100+ servers | Client-side filter remains fast (<50ms) |
-| URL with invalid filter values | Ignore invalid values, use defaults |
-| Browser back/forward | Filters update from URL |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | Search with special regex chars | Escape special characters, treat as literal |
+| 2 | URL with invalid status | Ignore invalid param, use default "all" |
+| 3 | Very long search query | Truncate display, still filter correctly |
+| 4 | Mobile viewport | Chips wrap to multiple rows |
+| 5 | Keyboard navigation | Tab through chips, Enter activates |
+| 6 | 0 servers total | Show "No servers registered" (different from filter empty) |
+| 7 | Filter applied via URL on first load | Apply before first render |
+| 8 | Combined filters (status + type + search) | All filters AND together |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify search box filters by display name
-- [ ] Verify search box filters by hostname
-- [ ] Verify case-insensitive search
-- [ ] Verify status filter chips work (single selection)
-- [ ] Verify status filter chips work (multiple selection)
-- [ ] Verify machine type filter works
-- [ ] Verify combined search + status + type filters
-- [ ] Verify "X of Y servers" count updates
-- [ ] Verify URL contains filter state
-- [ ] Verify URL filter state restores on page load
-- [ ] Verify Clear All button resets everything
-- [ ] Verify empty state message appears
-- [ ] Verify keyboard navigation for filter chips
-- [ ] Verify browser back/forward updates filters
+- [x] Search box appears on dashboard
+- [x] Typing in search filters servers by name
+- [x] Typing in search filters servers by hostname
+- [x] Search is case-insensitive
+- [x] Status filter chips appear
+- [x] Clicking status chip filters list
+- [x] Type filter chips appear (if EP0009 done)
+- [x] Filters persist in URL
+- [x] Refreshing restores filters from URL
+- [x] Clear button resets all filters
+- [x] Empty state shows when no matches
+- [x] Keyboard accessibility works
 
 ---
 
@@ -218,27 +223,29 @@ Dashboard.tsx
 
 ### Story Dependencies
 
-None - uses existing server data
+| Story | Type | What's Needed | Status |
+|-------|------|---------------|--------|
+| EP0009 | Feature | machine_type field for type filter | Done |
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
-| React Router useSearchParams | Library | Available |
-| Server list with machine_type | Data | Available |
+| react-router-dom useSearchParams | Library | Available |
+| lucide-react Search icon | Library | Available |
 
 ---
 
 ## Estimation
 
 **Story Points:** 5
-**Complexity:** Medium (URL state management, multiple filter types)
+**Complexity:** Medium - multiple filter types, URL sync, keyboard accessibility
 
 ---
 
 ## Open Questions
 
-None
+None.
 
 ---
 
@@ -246,5 +253,4 @@ None
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

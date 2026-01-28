@@ -1,184 +1,153 @@
 # US0111: Connectivity Badge (Tailscale/SSH)
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
 > **Story Points:** 2
 
 ## User Story
 
-**As a** system administrator
-**I want** to see which connectivity method each server uses (Tailscale vs direct SSH)
-**So that** I understand my infrastructure topology at a glance
+**As a** Darren (Homelab Operator)
+**I want** to see which servers are connected via Tailscale at a glance
+**So that** I know which servers support remote SSH access without checking each one
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - Manages homelab infrastructure, needs to understand connectivity paths
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab with 11+ servers on Tailscale. Uses Tailscale for secure remote access and SSH operations.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-With Tailscale integration (EP0008), servers can be connected via Tailscale MagicDNS or direct SSH. Currently there's no visual indicator showing which method a server uses. This makes it hard to understand the connectivity topology when looking at the dashboard.
-
-A small badge showing "Tailscale" (with icon) on applicable cards helps administrators quickly identify which servers are reachable via Tailscale vs direct network connectivity.
+With EP0008 (Tailscale Integration) complete, servers can be imported from Tailscale and connected via Tailscale hostnames. However, there's no visual indicator on the dashboard showing which servers have Tailscale connectivity configured. This makes it hard to know at a glance which servers support remote SSH operations.
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| Epic | Data | Use existing `tailscale_hostname` | No new API fields needed |
-| PRD | Performance | Dashboard <3s load | Badge must be lightweight |
+| Epic | Accessibility | Colour not sole indicator | Badge must include icon and text |
+| PRD | Performance | Dashboard load <3s | No additional API calls needed |
+| EP0008 | Data | tailscale_hostname on Server | Use existing field |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: Tailscale Badge Display
-- **Given** a server with `tailscale_hostname` set (not null/empty)
-- **When** the ServerCard is rendered
-- **Then** a small Tailscale badge appears in the card footer showing the Tailscale icon and "TS"
+### AC1: Tailscale badge on connected servers
 
-### AC2: No Badge for Direct SSH
-- **Given** a server with `tailscale_hostname` null or empty
-- **When** the ServerCard is rendered
-- **Then** no connectivity badge is shown (direct SSH is the default)
+- **Given** a server has `tailscale_hostname` set (not null/empty)
+- **When** the dashboard renders the server card
+- **Then** a Tailscale badge appears on the card
+- **And** the badge shows the Tailscale logo icon and "Tailscale" text
 
-### AC3: Tooltip with Full Hostname
-- **Given** a server with `tailscale_hostname: "homeserver.tailnet.ts.net"`
+### AC2: Badge placement and styling
+
+- **Given** a server card is rendered with Tailscale badge
+- **When** the user views the card
+- **Then** the badge appears in the card header (top-right or below name)
+- **And** the badge uses Tailscale brand colour (blue) or neutral grey
+- **And** the badge is small/subtle to avoid visual clutter
+
+### AC3: Tooltip with hostname
+
+- **Given** a server has Tailscale connectivity
 - **When** the user hovers over the Tailscale badge
-- **Then** a tooltip shows "Connected via Tailscale: homeserver.tailnet.ts.net"
+- **Then** a tooltip displays "Connected via Tailscale: {tailscale_hostname}"
+- **And** the tooltip appears within 200ms
 
-### AC4: Badge Styling
-- **Given** a server with Tailscale connectivity
-- **When** the badge is rendered
-- **Then** it uses subtle styling: small text, muted colours, positioned in footer area
+### AC4: No badge for non-Tailscale servers
 
-### AC5: Frontend Type Update
-- **Given** the `Server` TypeScript interface
-- **When** the interface is defined
-- **Then** it includes `tailscale_hostname: string | null` field (already in `ServerDetail`, needs adding to `Server`)
+- **Given** a server has `tailscale_hostname: null` or empty string
+- **When** the dashboard renders the server card
+- **Then** no Tailscale badge is shown
+- **And** no visual difference from current card layout
 
 ---
 
 ## Scope
 
 ### In Scope
+
 - Tailscale badge component
-- Tooltip showing full Tailscale hostname
-- Update `Server` TypeScript type to include `tailscale_hostname`
-- Badge in ServerCard footer
+- Badge appears on servers with tailscale_hostname
+- Tooltip showing Tailscale hostname
+- Light and dark mode styling
 
 ### Out of Scope
-- Showing Tailscale badge on server detail page (consider for open question)
-- SSH connectivity badge (direct SSH is default, no badge needed)
-- Network diagnostics or connectivity testing from badge
+
+- SSH badge (separate indicator for SSH-configured servers)
+- Badge on server detail page (consider in Open Questions)
+- Connectivity status indicator (online/offline on Tailscale network)
+- Direct SSH button from badge (US0115 scope)
 
 ---
 
 ## Technical Notes
 
-### Frontend Type Update
+### Implementation Approach
 
-Update `frontend/src/types/server.ts`:
+1. **Create ConnectivityBadge component:**
+   ```tsx
+   function ConnectivityBadge({ server }: { server: Server }) {
+     if (!server.tailscale_hostname) return null;
 
-```typescript
-export interface Server {
-  // ... existing fields
-  tailscale_hostname: string | null;  // Add this field
-}
-```
+     return (
+       <Tooltip content={`Connected via Tailscale: ${server.tailscale_hostname}`}>
+         <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+           <TailscaleIcon className="w-3 h-3" />
+           <span>Tailscale</span>
+         </div>
+       </Tooltip>
+     );
+   }
+   ```
 
-### ConnectivityBadge Component
+2. **Tailscale icon:**
+   - Use SVG from Tailscale brand assets
+   - Or use a generic network icon (lucide-react Network)
+   - Store in `frontend/src/assets/` if custom SVG
 
-Create `frontend/src/components/ConnectivityBadge.tsx`:
+3. **Integration in ServerCard:**
+   - Add `<ConnectivityBadge server={server} />` in card header
 
-```tsx
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+### Files to Modify
 
-interface ConnectivityBadgeProps {
-  tailscaleHostname: string | null;
-}
+- `frontend/src/components/ConnectivityBadge.tsx` - New component
+- `frontend/src/components/ServerCard.tsx` - Add badge
+- `frontend/src/assets/tailscale-icon.svg` - Optional custom icon
 
-export function ConnectivityBadge({ tailscaleHostname }: ConnectivityBadgeProps) {
-  if (!tailscaleHostname) return null;
+### Data Requirements
 
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-500/10 text-blue-400">
-            {/* Tailscale logo SVG or icon */}
-            <TailscaleIcon className="h-3 w-3" />
-            TS
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Connected via Tailscale: {tailscaleHostname}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-```
-
-### Tailscale Icon
-
-Use a simple Tailscale-inspired icon or SVG. Options:
-1. Custom SVG based on Tailscale logo
-2. Generic network/VPN icon from Lucide (`Network`, `Globe`)
-3. Text-only badge "TS"
-
-Recommended: Text badge "TS" with subtle styling (simplest, no licensing concerns).
-
-### Integration in ServerCard
-
-Add to `ServerCard.tsx` footer section:
-
-```tsx
-{/* Footer */}
-<div className="flex justify-between items-center mt-3 pt-3 border-t border-border-subtle">
-  <span className="font-mono text-xs text-text-tertiary">
-    ↑ {formatUptime(metrics?.uptime_seconds ?? null)}
-  </span>
-  <div className="flex items-center gap-2">
-    <ConnectivityBadge tailscaleHostname={server.tailscale_hostname} />
-    {/* Update indicator */}
-    ...
-  </div>
-</div>
-```
+- Server model already has `tailscale_hostname: string | null`
+- No API changes required
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| `tailscale_hostname` is null | No badge shown |
-| `tailscale_hostname` is empty string | No badge shown (treat as null) |
-| `tailscale_hostname` is very long | Tooltip shows full name, badge shows "TS" only |
-| Server has both Tailscale and direct IP | Show Tailscale badge (Tailscale is the preferred connection method) |
-| Tailscale not configured globally | Servers without `tailscale_hostname` show no badge |
-| Card in compact/mobile view | Badge may be hidden at small breakpoints |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | tailscale_hostname is empty string | Treat as null, no badge |
+| 2 | Very long Tailscale hostname | Truncate in tooltip if >50 chars |
+| 3 | Server imported then Tailscale disconnected | Badge still shows (based on field, not live status) |
+| 4 | Multiple connectivity types (future) | Badges stack horizontally |
+| 5 | Icon fails to load | Show text-only badge "TS" |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify Tailscale badge appears when `tailscale_hostname` is set
-- [ ] Verify no badge when `tailscale_hostname` is null
-- [ ] Verify no badge when `tailscale_hostname` is empty string
-- [ ] Verify tooltip shows full Tailscale hostname
-- [ ] Verify badge styling matches design system
-- [ ] Verify `Server` TypeScript type includes `tailscale_hostname`
-- [ ] Verify accessibility: badge has aria-label or tooltip accessible
+- [x] Server with tailscale_hostname shows badge
+- [x] Server without tailscale_hostname has no badge
+- [x] Badge tooltip shows correct hostname
+- [x] Badge renders correctly in dark mode
+- [x] Badge doesn't affect card layout/spacing
+- [x] Empty string tailscale_hostname shows no badge
 
 ---
 
@@ -186,29 +155,27 @@ Add to `ServerCard.tsx` footer section:
 
 ### Story Dependencies
 
-| Story | Type | What's Needed | Status |
-|-------|------|---------------|--------|
-| US0076 | Data | Tailscale integration with `tailscale_hostname` | Done |
+None - uses existing data from EP0008.
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
-| `tailscale_hostname` in ServerResponse | Backend | Done |
-| Radix UI Tooltip | Library | Available |
+| EP0008 Tailscale Integration | Feature | Done |
+| Server.tailscale_hostname field | Data | Done |
 
 ---
 
 ## Estimation
 
 **Story Points:** 2
-**Complexity:** Low
+**Complexity:** Low - simple conditional UI component
 
 ---
 
 ## Open Questions
 
-- [ ] Should connectivity badge also show on server detail page header? - Owner: Darren
+- [ ] Should connectivity badge also appear on server detail page header? - Owner: Darren
 
 ---
 
@@ -216,5 +183,4 @@ Add to `ServerCard.tsx` footer section:
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

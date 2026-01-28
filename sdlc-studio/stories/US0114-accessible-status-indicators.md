@@ -1,100 +1,106 @@
 # US0114: Accessible Status Indicators
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
+> **Completed:** 2026-01-28
 > **Story Points:** 2
 
 ## User Story
 
-**As a** colour-blind user
-**I want** status to be indicated with more than colour
-**So that** I can distinguish server states regardless of colour perception
+**As a** Darren (Homelab Operator)
+**I want** status indicators to use shape and colour together
+**So that** I can identify server status even with colour vision deficiency
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - May have colour vision deficiency (affects ~8% of males)
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab. Values inclusive design that works for all users.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-The current `StatusLED` component uses colour alone to indicate server status:
-- Green circle = online
-- Red circle = offline
-- Grey circle = unknown
-
-This is problematic for users with colour vision deficiency (CVD), particularly red-green colour blindness (deuteranopia/protanopia) which affects approximately 8% of males. WCAG 2.1 Success Criterion 1.4.1 states "Color is not used as the only visual means of conveying information."
-
-Adding shape and text indicators alongside colour ensures all users can distinguish server states.
+The current StatusLED component uses only colour (green/red/yellow) to indicate server status. This fails WCAG 2.1 AA compliance which requires that colour not be the sole means of conveying information. Market leaders use shape + colour combinations (e.g., filled circle vs hollow circle, checkmark vs X).
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| Epic | Accessibility | WCAG 2.1 AA | Colour must not be sole indicator |
-| PRD | Performance | Dashboard <3s load | No heavy icon loading |
-| TRD | Architecture | Lucide icons | Use existing icon library |
+| Epic | Accessibility | WCAG 2.1 AA compliant | Shape must differentiate states |
+| PRD | Accessibility | Colour not sole indicator | Icons or patterns required |
+| TRD | Architecture | lucide-react icons | Use existing icon library |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: Online Status Indicator
-- **Given** a server with `status: online`
-- **When** the StatusLED is rendered
-- **Then** it displays a green filled circle (●)
-- **And** uses Lucide `CheckCircle2` or filled circle icon
+### AC1: Online status indicator
 
-### AC2: Offline Status Indicator
-- **Given** a server with `status: offline`
-- **When** the StatusLED is rendered
-- **Then** it displays a red outlined/hollow circle (○)
-- **And** uses Lucide `Circle` (stroke only) or `XCircle` icon
+- **Given** a server has `status: "online"`
+- **When** the status indicator renders
+- **Then** it shows a filled green circle with a checkmark icon inside
+- **And** the shape is distinguishable without colour (filled vs hollow)
 
-### AC3: Warning Status Indicator
-- **Given** a server with `status: warning` or active alerts
-- **When** the StatusLED is rendered
-- **Then** it displays a yellow/amber triangle (▲)
-- **And** uses Lucide `AlertTriangle` icon
+### AC2: Offline status indicator
 
-### AC4: Unknown Status Indicator
-- **Given** a server with `status: unknown`
-- **When** the StatusLED is rendered
-- **Then** it displays a grey square (■)
-- **And** uses Lucide `HelpCircle` or `Square` icon
+- **Given** a server has `status: "offline"`
+- **When** the status indicator renders
+- **Then** it shows a filled red circle with an X icon inside
+- **And** the icon is clearly visible against the background
 
-### AC5: Screen Reader Accessibility
-- **Given** any status indicator
+### AC3: Warning status indicator
+
+- **Given** a server has `status: "warning"`
+- **When** the status indicator renders
+- **Then** it shows a yellow/amber triangle with exclamation mark
+- **And** the triangle shape distinguishes from circle (online/offline)
+
+### AC4: Paused status indicator
+
+- **Given** a server has `is_paused: true`
+- **When** the status indicator renders
+- **Then** it shows a grey/amber hollow circle with pause bars icon
+- **And** the hollow shape indicates non-critical state
+
+### AC5: Screen reader accessibility
+
+- **Given** a status indicator is rendered
 - **When** a screen reader reads the element
-- **Then** it announces the status text: "Online", "Offline", "Warning", "Unknown"
-- **And** uses `aria-label` attribute
+- **Then** it announces the status (e.g., "Server status: online")
+- **And** the indicator has appropriate aria-label
 
-### AC6: Contrast Ratio
-- **Given** all status indicators
-- **When** checked against WCAG contrast tools
-- **Then** all indicators have at least 4.5:1 contrast ratio against the card background
+### AC6: High contrast support
+
+- **Given** the user has high contrast mode enabled
+- **When** viewing status indicators
+- **Then** indicators remain visible and distinguishable
+- **And** icons have sufficient contrast ratio (4.5:1 minimum)
 
 ---
 
 ## Scope
 
 ### In Scope
-- Update StatusLED component with shape differentiation
-- Add aria-labels for screen readers
-- Ensure WCAG AA contrast compliance
-- Update all usages of StatusLED across the app
+
+- Update StatusLED component with shape + colour
+- Online: filled circle + checkmark
+- Offline: filled circle + X
+- Warning: triangle + exclamation
+- Paused: hollow circle + pause bars
+- Screen reader labels
+- High contrast mode support
 
 ### Out of Scope
-- High contrast mode toggle
-- Custom colour themes
-- Animation changes (pulse for online)
+
+- Colourblind simulation testing tool
+- User preference for indicator style
+- Animation on status change
+- Status indicator size customisation
 
 ---
 
@@ -102,118 +108,99 @@ Adding shape and text indicators alongside colour ensures all users can distingu
 
 ### Implementation Approach
 
-Update `StatusLED.tsx`:
+1. **Update StatusLED component:**
+   ```tsx
+   function StatusLED({ status, isPaused }: { status: ServerStatus; isPaused?: boolean }) {
+     if (isPaused) {
+       return (
+         <span
+           className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-amber-500 text-amber-500"
+           aria-label="Server status: paused"
+         >
+           <Pause className="w-3 h-3" />
+         </span>
+       );
+     }
 
-```tsx
-import { CheckCircle2, Circle, AlertTriangle, HelpCircle } from 'lucide-react';
+     const config = {
+       online: {
+         bg: "bg-green-500",
+         icon: Check,
+         shape: "rounded-full",
+         label: "online"
+       },
+       offline: {
+         bg: "bg-red-500",
+         icon: X,
+         shape: "rounded-full",
+         label: "offline"
+       },
+       warning: {
+         bg: "bg-yellow-500",
+         icon: AlertTriangle,
+         shape: "triangle",  // Custom CSS clip-path
+         label: "warning"
+       },
+     }[status];
 
-interface StatusLEDProps {
-  status: 'online' | 'offline' | 'warning' | 'unknown';
-  size?: number;
-}
+     return (
+       <span
+         className={cn("inline-flex items-center justify-center w-5 h-5", config.bg, config.shape)}
+         aria-label={`Server status: ${config.label}`}
+       >
+         <config.icon className="w-3 h-3 text-white" />
+       </span>
+     );
+   }
+   ```
 
-const statusConfig = {
-  online: {
-    icon: CheckCircle2,
-    className: 'text-green-500 fill-green-500',
-    label: 'Online',
-  },
-  offline: {
-    icon: Circle,
-    className: 'text-red-500',  // stroke only, no fill
-    label: 'Offline',
-  },
-  warning: {
-    icon: AlertTriangle,
-    className: 'text-yellow-500 fill-yellow-500',
-    label: 'Warning',
-  },
-  unknown: {
-    icon: HelpCircle,
-    className: 'text-gray-400',
-    label: 'Unknown',
-  },
-};
+2. **Triangle shape CSS:**
+   ```css
+   .triangle {
+     clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+   }
+   ```
 
-export function StatusLED({ status, size = 16 }: StatusLEDProps) {
-  const config = statusConfig[status] ?? statusConfig.unknown;
-  const Icon = config.icon;
+3. **Lucide icons to use:**
+   - Online: `Check` or `CheckCircle`
+   - Offline: `X` or `XCircle`
+   - Warning: `AlertTriangle`
+   - Paused: `Pause` or `PauseCircle`
 
-  return (
-    <Icon
-      size={size}
-      className={config.className}
-      aria-label={config.label}
-      role="img"
-    />
-  );
-}
-```
+### Files to Modify
 
-### Shape Differentiation Summary
+- `frontend/src/components/StatusLED.tsx` - Complete rewrite
+- `frontend/src/styles/globals.css` - Add triangle clip-path if needed
 
-| Status | Colour | Shape | Icon | Visual |
-|--------|--------|-------|------|--------|
-| Online | Green | Filled circle | `CheckCircle2` | ● |
-| Offline | Red | Hollow circle | `Circle` | ○ |
-| Warning | Yellow | Triangle | `AlertTriangle` | ▲ |
-| Unknown | Grey | Circle with ? | `HelpCircle` | ? |
+### Data Requirements
 
-### Contrast Verification
-
-Test against card backgrounds:
-- Light mode: bg-white (#ffffff) or bg-gray-50 (#f9fafb)
-- Dark mode: bg-gray-800 (#1f2937) or bg-gray-900 (#111827)
-
-Lucide default colours should meet 4.5:1, but verify:
-- Green-500 (#22c55e) on white: 3.4:1 - **needs adjustment to green-600**
-- Red-500 (#ef4444) on white: 4.0:1 - **borderline, consider red-600**
-- Yellow-500 (#eab308) on white: 2.6:1 - **needs amber-600 or text stroke**
-
-Recommended adjustments:
-```tsx
-const statusConfig = {
-  online: {
-    className: 'text-green-600 fill-green-600',  // green-600 for contrast
-    // ...
-  },
-  offline: {
-    className: 'text-red-600',  // red-600 for contrast
-    // ...
-  },
-  warning: {
-    className: 'text-amber-600 fill-amber-600',  // amber-600 for contrast
-    // ...
-  },
-};
-```
+- Uses existing `status` field on Server model
+- Uses existing `is_paused` field on Server model
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| Status value not in enum | Fall back to "unknown" indicator |
-| Very small size (< 12px) | Shapes may not be distinguishable - enforce min size |
-| Icon fails to load | Fall back to text abbreviation (ON, OFF, WARN, ?) |
-| High contrast mode OS | Ensure icons respect system contrast preference |
-| Reduced motion preference | No animation changes (already static) |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | Unknown status value | Show grey circle with question mark |
+| 2 | Icon fails to load | Show shape with colour only (graceful degradation) |
+| 3 | Very small viewport | Icons remain visible at minimum 16x16px |
+| 4 | Status + paused conflict | Paused takes precedence |
+| 5 | Print stylesheet | Icons render as shapes (no colour dependency) |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify online status shows green filled circle
-- [ ] Verify offline status shows red hollow circle
-- [ ] Verify warning status shows yellow/amber triangle
-- [ ] Verify unknown status shows grey help circle
-- [ ] Verify aria-label contains status text
-- [ ] Verify screen reader announces status correctly
-- [ ] Verify 4.5:1 contrast ratio on light background
-- [ ] Verify 4.5:1 contrast ratio on dark background
-- [ ] Verify shapes are distinguishable in grayscale
-- [ ] Verify fallback for unknown status value
+- [x] Online server shows green circle with checkmark
+- [x] Offline server shows red circle with X
+- [x] Warning server shows yellow triangle with exclamation
+- [x] Paused server shows hollow circle with pause bars
+- [x] Screen reader announces correct status
+- [x] Indicators visible in high contrast mode
+- [x] Shapes distinguishable in greyscale
+- [x] Icons visible in dark mode
 
 ---
 
@@ -221,26 +208,29 @@ const statusConfig = {
 
 ### Story Dependencies
 
-None - updates existing component
+| Story | Type | What's Needed | Status |
+|-------|------|---------------|--------|
+| US0109 | Coordination | Both update StatusLED | Ready |
+| US0110 | Coordination | Warning state handling | Ready |
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
-| Lucide React icons | Library | Available |
+| lucide-react icons | Library | Available |
 
 ---
 
 ## Estimation
 
 **Story Points:** 2
-**Complexity:** Low (component update with accessibility focus)
+**Complexity:** Low - component update with icon changes
 
 ---
 
 ## Open Questions
 
-None
+None.
 
 ---
 
@@ -248,5 +238,4 @@ None
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

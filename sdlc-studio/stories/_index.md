@@ -10,11 +10,11 @@ This document provides an overview of all User Stories in the project.
 | Status | Count |
 |--------|-------|
 | Draft | 8 |
-| Ready | 7 |
+| Ready | 0 |
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 89 |
+| Done | 96 |
 | **Total** | **104** |
 ...
 | [US0052](US0052-trigger-package-updates.md) | Trigger Package Updates from Dashboard | Done | 5 | Darren |
@@ -80,15 +80,15 @@ This document provides an overview of all User Stories in the project.
 
 | Story | Title | Status | Points | Owner |
 |-------|-------|--------|--------|-------|
-| [US0109](US0109-maintenance-mode-indicator.md) | Enhanced Maintenance Mode Indicator | Ready | 3 | Darren |
-| [US0110](US0110-warning-state-visual.md) | Warning State Visual Treatment | Ready | 3 | Darren |
-| [US0111](US0111-connectivity-badge.md) | Connectivity Badge (Tailscale/SSH) | Ready | 2 | Darren |
-| [US0112](US0112-dashboard-search-filter.md) | Dashboard Search and Filter | Ready | 5 | Darren |
-| [US0113](US0113-inline-metric-sparklines.md) | Inline Metric Sparklines | Ready | 5 | Darren |
-| [US0114](US0114-accessible-status-indicators.md) | Accessible Status Indicators | Ready | 2 | Darren |
-| [US0115](US0115-server-card-quick-actions.md) | Server Card Quick Actions | Ready | 3 | Darren |
+| [US0109](US0109-maintenance-mode-indicator.md) | Enhanced Maintenance Mode Indicator | Done | 3 | Darren |
+| [US0110](US0110-warning-state-visual.md) | Warning State Visual Treatment | Done | 3 | Darren |
+| [US0111](US0111-connectivity-badge.md) | Connectivity Badge (Tailscale/SSH) | Done | 2 | Darren |
+| [US0112](US0112-dashboard-search-filter.md) | Dashboard Search and Filter | Done | 5 | Darren |
+| [US0113](US0113-inline-metric-sparklines.md) | Inline Metric Sparklines | Done | 5 | Darren |
+| [US0114](US0114-accessible-status-indicators.md) | Accessible Status Indicators | Done | 2 | Darren |
+| [US0115](US0115-server-card-quick-actions.md) | Server Card Quick Actions | Done | 3 | Darren |
 
-**EP0017 Total:** 7 stories, 23 points (0 Done)
+**EP0017 Total:** 7 stories, 23 points (7 Done)
 
 ### EP0010: Configuration Management (v2.0)
 
@@ -113,14 +113,7 @@ None
 
 ### Ready
 
-**EP0017: Desktop UX Improvements** (23 pts)
-- [US0109: Enhanced Maintenance Mode Indicator](US0109-maintenance-mode-indicator.md) (3 pts)
-- [US0110: Warning State Visual Treatment](US0110-warning-state-visual.md) (3 pts)
-- [US0111: Connectivity Badge (Tailscale/SSH)](US0111-connectivity-badge.md) (2 pts)
-- [US0112: Dashboard Search and Filter](US0112-dashboard-search-filter.md) (5 pts)
-- [US0113: Inline Metric Sparklines](US0113-inline-metric-sparklines.md) (5 pts)
-- [US0114: Accessible Status Indicators](US0114-accessible-status-indicators.md) (2 pts)
-- [US0115: Server Card Quick Actions](US0115-server-card-quick-actions.md) (3 pts)
+None
 
 ### Review
 
@@ -248,6 +241,15 @@ None
 - US0100: Network Discovery Tab Integration (3 pts)
 - US0101: Tailscale Tab Integration (3 pts)
 - US0102: Update Routes and Cleanup (2 pts)
+
+**EP0017: Desktop UX Improvements** (23 pts done)
+- US0109: Enhanced Maintenance Mode Indicator (3 pts)
+- US0110: Warning State Visual Treatment (3 pts)
+- US0111: Connectivity Badge (Tailscale/SSH) (2 pts)
+- US0112: Dashboard Search and Filter (5 pts)
+- US0113: Inline Metric Sparklines (5 pts)
+- US0114: Accessible Status Indicators (2 pts)
+- US0115: Server Card Quick Actions (3 pts)
 
 ## Estimation Summary
 

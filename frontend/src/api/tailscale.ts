@@ -95,14 +95,16 @@ export async function testTailscaleConnection(): Promise<TailscaleTestResponse> 
  * Get list of Tailscale devices.
  *
  * Part of US0077: Tailscale Device Discovery.
+ * EP0016: Added test_ssh parameter for SSH status testing.
  *
  * @param params - Optional filter parameters
  * @param params.online - Filter by online status (true/false)
  * @param params.os - Filter by OS type (linux, windows, macos, ios, android)
  * @param params.refresh - Bypass cache and fetch fresh data
+ * @param params.test_ssh - Test SSH connectivity for online devices
  */
 export async function getTailscaleDevices(
-  params?: TailscaleDeviceListParams
+  params?: TailscaleDeviceListParams & { test_ssh?: boolean }
 ): Promise<TailscaleDeviceListResponse> {
   const searchParams = new URLSearchParams();
 
@@ -114,6 +116,14 @@ export async function getTailscaleDevices(
   }
   if (params?.refresh) {
     searchParams.append('refresh', 'true');
+  }
+
+  // Use the with-ssh endpoint if test_ssh is requested
+  if (params?.test_ssh) {
+    searchParams.append('test_ssh', 'true');
+    const queryString = searchParams.toString();
+    const url = `/api/v1/tailscale/devices/with-ssh${queryString ? `?${queryString}` : ''}`;
+    return api.get<TailscaleDeviceListResponse>(url);
   }
 
   const queryString = searchParams.toString();

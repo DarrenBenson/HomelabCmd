@@ -63,9 +63,7 @@ class ServerCostItem(BaseModel):
     )
     avg_cpu_percent: float | None = Field(None, description="Average CPU usage (last 24h)")
     # US0092: Workstation-specific fields (AC3)
-    hours_used: float | None = Field(
-        None, description="Hours used in period (workstations only)"
-    )
+    hours_used: float | None = Field(None, description="Hours used in period (workstations only)")
     calculation_type: str = Field(
         default="24x7", description="'24x7' for servers, 'actual_usage' for workstations"
     )

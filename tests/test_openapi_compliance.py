@@ -86,8 +86,9 @@ class TestOperationIds:
         # save/remove added for credential management operations (EP0008)
         # import/check added for Tailscale device import (US0078)
         # store added for per-server credential storage (US0087)
+        # set added for default key setting (US0093)
         valid_pattern = re.compile(
-            r"^(list|get|create|update|delete|acknowledge|resolve|test|pause|unpause|approve|reject|export|cancel|discover|save|remove|import|check|store)_[a-z_]+$"
+            r"^(list|get|create|update|delete|acknowledge|resolve|test|pause|unpause|approve|reject|export|cancel|discover|save|remove|import|check|store|set)_[a-z_]+$"
         )
 
         invalid_operation_ids = []

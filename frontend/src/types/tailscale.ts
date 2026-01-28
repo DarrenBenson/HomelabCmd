@@ -55,6 +55,7 @@ export interface TailscaleStatusResponse {
  * A single Tailscale device.
  *
  * Part of US0077: Tailscale Device Discovery.
+ * EP0016: Added SSH status fields for unified discovery.
  */
 export interface TailscaleDevice {
   id: string;
@@ -67,6 +68,12 @@ export interface TailscaleDevice {
   online: boolean;
   authorized: boolean;
   already_imported: boolean;
+  /** SSH connectivity status (EP0016) */
+  ssh_status?: 'available' | 'unavailable' | 'untested';
+  /** SSH error message if unavailable (EP0016) */
+  ssh_error?: string | null;
+  /** SSH key that succeeded (EP0016) */
+  ssh_key_used?: string | null;
 }
 
 /**

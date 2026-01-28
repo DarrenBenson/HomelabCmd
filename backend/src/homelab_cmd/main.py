@@ -29,7 +29,6 @@ from homelab_cmd.api.routes import (
     scan,
     servers,
     services,
-    ssh_settings,
     system,
     tailscale,
 )
@@ -270,8 +269,8 @@ homelab infrastructure. Features include:
     # Mount Tailscale device discovery routes (auth required) - US0077
     app.include_router(tailscale.devices_router, prefix="/api/v1")
 
-    # Mount SSH settings routes (auth required) - US0079: SSH Connection via Tailscale
-    app.include_router(ssh_settings.router, prefix="/api/v1")
+    # US0093: SSH key management now unified in scan.router (/settings/ssh/keys endpoints)
+    # Old ssh_settings router removed - single-key management deprecated
 
     # Mount connectivity settings routes (auth required) - US0080: Connectivity Mode Management
     app.include_router(connectivity_settings.router, prefix="/api/v1")

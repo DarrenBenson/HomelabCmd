@@ -1,82 +1,89 @@
 # US0109: Enhanced Maintenance Mode Indicator
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
 > **Story Points:** 3
 
 ## User Story
 
-**As a** system administrator
-**I want** maintenance mode to be visually prominent on server cards
-**So that** I can immediately identify which servers are paused without reading text
+**As a** Darren (Homelab Operator)
+**I want** a clearly visible maintenance mode indicator on server cards
+**So that** I can instantly distinguish paused servers from offline ones
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - Manages homelab infrastructure, needs quick visual status assessment
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab with 11+ servers. Expects quick visual identification of server states without reading details.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-The current maintenance mode indicator is a small "Maintenance" text badge that blends with other card elements. When scanning a dashboard with many cards, it's easy to miss servers in maintenance mode. A more prominent visual treatment (border glow, icon) will make maintenance status immediately visible.
+Currently, servers in maintenance mode (paused) have only a subtle indicator that can be missed at a glance. This causes confusion between "server is down" (problem) and "server is paused for maintenance" (intentional). Market leaders like Uptime Kuma use distinct visual treatments (colour, icon, border) to differentiate maintenance states.
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| Epic | Accessibility | WCAG 2.1 AA | Must use icon + colour, not colour alone |
-| PRD | Performance | Dashboard <3s load | No heavy animations |
+| Epic | Accessibility | Colour not sole indicator | Must include icon alongside colour |
+| PRD | Performance | Dashboard load <3s | Badge rendering must be efficient |
+| TRD | Architecture | React + Tailwind CSS | Use existing design system tokens |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: Amber Border Glow
-- **Given** a server with `is_paused: true`
-- **When** the ServerCard is rendered
-- **Then** the card displays an amber/orange glow effect around the border using `shadow-[0_0_8px_rgba(245,158,11,0.5)]` or similar Tailwind shadow
+### AC1: Maintenance mode border glow
 
-### AC2: Wrench Icon in Header
-- **Given** a server with `is_paused: true`
-- **When** the ServerCard is rendered
-- **Then** a wrench icon (🔧 or Lucide `Wrench`) appears in the card header before the status LED
+- **Given** a server has `is_paused: true`
+- **When** the dashboard renders the server card
+- **Then** the card displays an amber/orange glow border (ring-2 ring-amber-500)
+- **And** the border is visible in both light and dark themes
 
-### AC3: Tooltip on Hover
-- **Given** a server with `is_paused: true`
-- **When** the user hovers over the maintenance indicator (icon or badge)
-- **Then** a tooltip displays "Server is in maintenance mode - alerts are paused"
+### AC2: Maintenance mode icon
 
-### AC4: Existing Badge Retained
-- **Given** a server with `is_paused: true`
-- **When** the ServerCard is rendered
-- **Then** the existing "Maintenance" text badge remains visible (in addition to glow and icon)
+- **Given** a server has `is_paused: true`
+- **When** the dashboard renders the server card
+- **Then** a wrench icon (lucide-react Wrench) appears next to the server name
+- **And** the icon is amber/orange coloured (text-amber-500)
 
-### AC5: No Conflict with Other States
-- **Given** a server with `is_paused: true` and `status: offline`
-- **When** the ServerCard is rendered
-- **Then** both the maintenance glow AND the offline status LED are visible (amber glow around card, red LED)
+### AC3: Tooltip explanation
+
+- **Given** a server has `is_paused: true`
+- **When** the user hovers over the wrench icon
+- **Then** a tooltip displays "Maintenance mode - monitoring paused"
+- **And** the tooltip appears within 200ms of hover
+
+### AC4: Combined with status LED
+
+- **Given** a server has `is_paused: true`
+- **When** the dashboard renders the server card
+- **Then** the status LED shows a neutral colour (grey/amber) instead of green/red
+- **And** the LED tooltip shows "Paused" instead of "Online"/"Offline"
 
 ---
 
 ## Scope
 
 ### In Scope
-- Amber/orange border glow effect
-- Wrench icon added to header
-- Tooltip for maintenance indicators
-- Works alongside existing maintenance badge
+
+- Amber/orange glow border on paused server cards
+- Wrench icon next to server name when paused
+- Tooltip on hover explaining maintenance mode
+- Status LED colour change for paused state
+- Dark mode support for all visual changes
 
 ### Out of Scope
-- Changing server detail page (just cards)
-- Alert behaviour changes (already pauses alerts)
-- API changes (uses existing `is_paused` field)
+
+- Toggle pause functionality (existing, not changing)
+- Maintenance scheduling UI (future feature)
+- Bulk pause operations
+- Maintenance history/audit log
 
 ---
 
@@ -84,59 +91,57 @@ The current maintenance mode indicator is a small "Maintenance" text badge that 
 
 ### Implementation Approach
 
-Update `ServerCard.tsx` to add conditional styling:
+1. **ServerCard component update:**
+   - Add conditional classes for `is_paused` state
+   - Import Wrench icon from lucide-react
+   - Add Tooltip component wrapping the icon
 
-```tsx
-// Maintenance mode visual enhancements
-const maintenanceStyles = server.is_paused
-  ? 'shadow-[0_0_8px_rgba(245,158,11,0.5)] ring-1 ring-amber-500/30'
-  : '';
+2. **CSS classes (Tailwind):**
+   ```tsx
+   // Border glow when paused
+   className={cn(
+     "rounded-lg border p-4",
+     server.is_paused && "ring-2 ring-amber-500/50 border-amber-500"
+   )}
+   ```
 
-// In JSX
-<div className={`... ${maintenanceStyles}`}>
-  {/* Header */}
-  <div className="flex items-center gap-2 mb-3">
-    {server.is_paused && (
-      <Wrench
-        size={16}
-        className="text-amber-500"
-        title="Server is in maintenance mode - alerts are paused"
-      />
-    )}
-    <MachineTypeIcon ... />
-    <StatusLED ... />
-    ...
-  </div>
-</div>
-```
+3. **StatusLED component update:**
+   - Add "paused" as a valid status value
+   - Map to grey/amber colour
 
-### Dependencies
-- Lucide React (already installed) - `Wrench` icon
+### Files to Modify
+
+- `frontend/src/components/ServerCard.tsx` - Add maintenance indicator
+- `frontend/src/components/StatusLED.tsx` - Add paused state handling
+
+### Data Requirements
+
+- Server model already has `is_paused: boolean` field
+- No API changes required
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| Server enters maintenance mode while dashboard open | Card updates on next poll cycle with glow and icon |
-| Server exits maintenance mode | Glow and icon removed immediately on state change |
-| Maintenance + inactive server | Show both maintenance glow and inactive (greyed) styling |
-| Maintenance + offline server | Show maintenance glow with red status LED |
-| Maintenance + workstation offline | Show maintenance glow with grey status LED |
-| Touch device (no hover) | Tooltip shows on long-press or tap |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | Server paused AND offline | Show maintenance indicator, not offline styling |
+| 2 | Server paused AND has alerts | Show both maintenance indicator and alert badge |
+| 3 | Pause state changes while viewing | Card updates immediately (React state) |
+| 4 | Multiple paused servers | Each card shows indicator independently |
+| 5 | Icon library fails to load | Graceful fallback to text "[M]" |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify amber glow appears on paused server card
-- [ ] Verify wrench icon appears before status LED
-- [ ] Verify tooltip text on hover
-- [ ] Verify existing "Maintenance" badge still visible
-- [ ] Verify glow + offline LED combination
-- [ ] Verify glow + inactive styling combination
-- [ ] Verify accessibility: icon has aria-label
+- [ ] Paused server shows amber glow border
+- [ ] Paused server shows wrench icon
+- [ ] Tooltip appears on icon hover
+- [ ] Status LED shows grey/amber when paused
+- [ ] Non-paused server has no maintenance indicators
+- [ ] Dark mode renders correctly
+- [ ] Border visible against various card backgrounds
 
 ---
 
@@ -144,27 +149,28 @@ const maintenanceStyles = server.is_paused
 
 ### Story Dependencies
 
-None - uses existing `is_paused` field
+None - frontend only, uses existing data.
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
-| Lucide React icons | Library | Available |
-| `is_paused` field in Server | Data | Done |
+| lucide-react Wrench icon | Library | Available |
+| Tailwind ring utilities | Framework | Available |
+| Server `is_paused` field | Data | Done |
 
 ---
 
 ## Estimation
 
 **Story Points:** 3
-**Complexity:** Low
+**Complexity:** Low - CSS styling and conditional rendering
 
 ---
 
 ## Open Questions
 
-None
+None.
 
 ---
 
@@ -172,5 +178,4 @@ None
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

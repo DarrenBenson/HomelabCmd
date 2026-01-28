@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { ServerDetail } from './pages/ServerDetail';
 import { Settings } from './pages/Settings';
@@ -8,7 +8,7 @@ import { CostsPage } from './pages/CostsPage';
 import { ScanResultsPage } from './pages/ScanResultsPage';
 import { ScanHistoryPage } from './pages/ScanHistoryPage';
 import { ScansPage } from './pages/ScansPage';
-import { TailscaleDevices } from './pages/TailscaleDevices';
+import { DiscoveryPage } from './pages/DiscoveryPage';
 
 function App() {
   return (
@@ -23,7 +23,10 @@ function App() {
         <Route path="/scans" element={<ScansPage />} />
         <Route path="/scans/history" element={<ScanHistoryPage />} />
         <Route path="/scans/:scanId" element={<ScanResultsPage />} />
-        <Route path="/discovery/tailscale" element={<TailscaleDevices />} />
+        {/* EP0016: Unified Discovery Page */}
+        <Route path="/discovery" element={<DiscoveryPage />} />
+        {/* Redirect old Tailscale discovery route to unified discovery */}
+        <Route path="/discovery/tailscale" element={<Navigate to="/discovery?tab=tailscale" replace />} />
       </Routes>
     </BrowserRouter>
   );

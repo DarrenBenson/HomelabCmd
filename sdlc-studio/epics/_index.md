@@ -9,11 +9,11 @@ This document provides an overview of all Epics in the project.
 
 | Status | Count |
 |--------|-------|
-| Draft | 6 |
-| Ready for Review | 0 |
+| Draft | 5 |
+| Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 11 |
+| Done | 12 |
 | **Total** | **17** |
 
 ## Epics
@@ -43,7 +43,7 @@ This document provides an overview of all Epics in the project.
 | [EP0014](EP0014-docker-container-monitoring.md) | Docker Container Monitoring | Draft | Darren | 7 | 24 | Phase 2 (Beta) |
 | [EP0015](EP0015-per-host-credential-management.md) | Per-Host Credential Management | Done | Darren | 6 | 24 | Phase 1 (Alpha) |
 | [EP0016](EP0016-unified-discovery.md) | Unified Discovery Experience | Done | Darren | 9 | 32 | Phase 2 (Beta) |
-| [EP0017](EP0017-desktop-ux-improvements.md) | Desktop UX Improvements | Draft | Darren | 7 | 23 | Phase 2 (Beta) |
+| [EP0017](EP0017-desktop-ux-improvements.md) | Desktop UX Improvements | Done | Darren | 7 | 23 | Phase 2 (Beta) |
 
 ## By Status
 
@@ -63,6 +63,11 @@ This document provides an overview of all Epics in the project.
 - **EP0013: Synchronous Command Execution** - SSH executor, command execution via SSH (5/5 stories)
 - **EP0015: Per-Host Credential Management** - Per-server SSH credentials, credential service, agent upgrade/removal sudo support (6/6 stories)
 - **EP0016: Unified Discovery Experience** - Consolidated discovery page, unified device cards, SSH testing, unified import (9/9 stories)
+- **EP0017: Desktop UX Improvements** - Maintenance mode indicator, warning state visual, Tailscale/SSH badges, search/filter, sparklines, accessibility, quick actions (7/7 stories)
+
+### Ready (v2.0)
+
+None
 
 ### Draft (v2.0)
 
@@ -71,7 +76,6 @@ This document provides an overview of all Epics in the project.
 - **EP0011: Advanced Dashboard UI** - Drag-and-drop cards, card order persistence, server/workstation grouping
 - **EP0012: Widget-Based Detail View** - Widget grid, 8 widget types, layout customisation, layout persistence
 - **EP0014: Docker Container Monitoring** - Docker detection, container listing, container widget, start/stop/restart actions
-- **EP0017: Desktop UX Improvements** - Maintenance mode indicator, warning state visual, Tailscale/SSH badges, search/filter, sparklines, accessibility, quick actions
 
 ## Dependency Graph
 
@@ -135,23 +139,23 @@ EP0001 (Core Monitoring) ◄── Foundation
 | EP0014 | 7 | 0 | 24 |
 | EP0015 | 6 | 6 | 24 |
 | EP0016 | 9 | 9 | 32 |
-| EP0017 | 7 | 0 | 23 |
-| **v2.0 Total** | **77** | **34** | **308** |
+| EP0017 | 7 | 7 | 23 |
+| **v2.0 Total** | **77** | **41** | **308** |
 
 ### Combined Totals
 
 | Version | Stories | Done | Story Points |
 |---------|---------|------|--------------|
 | v1.0 | 55 | 52 | 191 |
-| v2.0 | 77 | 34 | 308 |
-| **Grand Total** | **132** | **86** | **499** |
+| v2.0 | 77 | 41 | 308 |
+| **Grand Total** | **132** | **93** | **499** |
 
 ## v2.0 Phase Breakdown
 
 | Phase | Epics | Story Points | Status | Focus |
 |-------|-------|--------------|--------|-------|
 | Phase 1 (Alpha) | EP0008, EP0009, EP0013, EP0015 | 107 | ✅ Complete | Foundation, Connectivity, Commands, Credentials |
-| Phase 2 (Beta) | EP0011, EP0012, EP0014, EP0016, EP0017 | 159 | 🔶 In Progress | UI Revolution, Widgets, Docker, Discovery, UX |
+| Phase 2 (Beta) | EP0011, EP0012, EP0014, EP0016, EP0017 | 159 | 🔶 In Progress (EP0016, EP0017 Done) | UI Revolution, Widgets, Docker, Discovery, UX |
 | Phase 3 (GA) | EP0010 | 42 | ⬜ Not Started | Configuration Management |
 | **v2.0 Total** | **10 epics** | **308** | | |
 

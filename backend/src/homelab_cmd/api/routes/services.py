@@ -173,6 +173,9 @@ async def create_expected_service(
     await session.flush()
     await session.refresh(expected_service)
 
+    # Commit before background task to ensure data is persisted
+    await session.commit()
+
     # Sync to agent in background (after commit)
     background_tasks.add_task(_sync_agent_background, server_id)
 
@@ -239,6 +242,9 @@ async def update_expected_service(
     await session.flush()
     await session.refresh(expected_service)
 
+    # Commit before background task to ensure data is persisted
+    await session.commit()
+
     # Sync to agent in background if enabled status changed
     if "enabled" in update_data:
         background_tasks.add_task(_sync_agent_background, server_id)
@@ -299,6 +305,9 @@ async def delete_expected_service(
         )
 
     await session.delete(expected_service)
+
+    # Commit before background task to ensure deletion is persisted
+    await session.commit()
 
     # Sync to agent in background (after commit)
     background_tasks.add_task(_sync_agent_background, server_id)

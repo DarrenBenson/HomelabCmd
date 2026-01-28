@@ -68,20 +68,21 @@ class TestTailscaleServiceConnection:
         # Mock the httpx client response on the instance
         mock_response = MagicMock()
         mock_response.status_code = 200
+        # Tailscale API format: 'name' is FQDN, 'hostname' is short name
         mock_response.json.return_value = {
             "devices": [
                 {
                     "id": "12345",
-                    "name": "homeserver",
-                    "hostname": "homeserver.darren-homelab.ts.net",
+                    "name": "homeserver.darren-homelab.ts.net",
+                    "hostname": "homeserver",
                     "addresses": ["100.64.0.1"],
                     "os": "linux",
                     "online": True,
                 },
                 {
                     "id": "12346",
-                    "name": "desktop",
-                    "hostname": "desktop.darren-homelab.ts.net",
+                    "name": "desktop.darren-homelab.ts.net",
+                    "hostname": "desktop",
                     "addresses": ["100.64.0.2"],
                     "os": "windows",
                     "online": True,

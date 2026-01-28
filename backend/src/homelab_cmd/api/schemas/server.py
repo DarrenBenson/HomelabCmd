@@ -201,6 +201,12 @@ class ServerResponse(BaseModel):
     created_at: datetime = Field(..., description="Server registration timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
     latest_metrics: LatestMetrics | None = Field(None, description="Most recent metrics snapshot")
+    # US0110: Warning state visual treatment - active alert information
+    active_alert_count: int = Field(0, description="Number of active (open) alerts for this server")
+    active_alert_summaries: list[str] = Field(
+        default_factory=list,
+        description="Alert titles for tooltip display (max 3)",
+    )
 
 
 class ServerListResponse(BaseModel):

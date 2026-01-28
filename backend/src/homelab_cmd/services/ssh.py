@@ -17,7 +17,6 @@ import asyncio
 import base64
 import hashlib
 import io
-import json
 import logging
 import os
 import re
@@ -348,9 +347,7 @@ class SSHConnectionService:
             logger.warning("Could not get metadata for key %s: %s", key_path, e)
             return None
 
-    def list_keys_with_metadata(
-        self, default_key_id: str | None = None
-    ) -> list[SSHKeyMetadata]:
+    def list_keys_with_metadata(self, default_key_id: str | None = None) -> list[SSHKeyMetadata]:
         """List all SSH keys with their metadata.
 
         US0071: SSH Key Manager UI - AC1

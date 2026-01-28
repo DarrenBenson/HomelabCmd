@@ -2,6 +2,7 @@
  * Tests for ImportDeviceModal component.
  *
  * US0082: Tailscale Import with Agent Installation
+ * US0093: Unified SSH Key Management - updated to use listSSHKeys
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -9,7 +10,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ImportDeviceModal } from './ImportDeviceModal';
 import { importTailscaleDevice, checkTailscaleImport } from '../api/tailscale';
-import { getSSHStatus } from '../api/ssh';
+import { listSSHKeys } from '../api/scans';
 import { installAgent } from '../api/agents';
 import type { TailscaleDevice } from '../types/tailscale';
 
@@ -18,8 +19,8 @@ vi.mock('../api/tailscale', () => ({
   checkTailscaleImport: vi.fn(),
 }));
 
-vi.mock('../api/ssh', () => ({
-  getSSHStatus: vi.fn(),
+vi.mock('../api/scans', () => ({
+  listSSHKeys: vi.fn(),
 }));
 
 vi.mock('../api/agents', () => ({
@@ -34,6 +35,16 @@ const mockDevice: TailscaleDevice = {
   online: true,
   last_seen: '2026-01-27T10:00:00Z',
   already_imported: false,
+};
+
+// US0093: Mock SSH key for configured state
+const mockSSHKey = {
+  id: 'test-key',
+  name: 'test-key',
+  type: 'ED25519',
+  fingerprint: 'SHA256:abc123',
+  created_at: '2026-01-27T09:00:00Z',
+  is_default: true,
 };
 
 function renderModal(
@@ -54,16 +65,12 @@ function renderModal(
 describe('ImportDeviceModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no duplicate, SSH not configured
+    // Default: no duplicate, SSH not configured (no keys)
     (checkTailscaleImport as ReturnType<typeof vi.fn>).mockResolvedValue({
       imported: false,
     });
-    (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-      configured: false,
-      key_type: null,
-      fingerprint: null,
-      uploaded_at: null,
-      username: 'homelabcmd',
+    (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+      keys: [],
     });
   });
 
@@ -92,9 +99,9 @@ describe('ImportDeviceModal', () => {
       const onSuccess = vi.fn();
       renderModal({ onSuccess });
 
-      // Wait for SSH status check to complete
+      // Wait for SSH keys check to complete
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       // Submit the form
@@ -120,9 +127,9 @@ describe('ImportDeviceModal', () => {
     it('shows "Install monitoring agent after import" checkbox', async () => {
       renderModal();
 
-      // Wait for SSH status check
+      // Wait for SSH keys check
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       expect(
@@ -130,19 +137,15 @@ describe('ImportDeviceModal', () => {
       ).toBeInTheDocument();
     });
 
-    it('checkbox is disabled when SSH is not configured', async () => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: false,
-        key_type: null,
-        fingerprint: null,
-        uploaded_at: null,
-        username: 'homelabcmd',
+    it('checkbox is disabled when SSH is not configured (no keys)', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [],
       });
 
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       const checkbox = screen.getByLabelText(
@@ -152,38 +155,31 @@ describe('ImportDeviceModal', () => {
     });
 
     it('shows tooltip when SSH is not configured', async () => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: false,
-        key_type: null,
-        fingerprint: null,
-        uploaded_at: null,
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [],
       });
 
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
+      // Text is split between Link and span, so check for the Link text
       expect(
-        screen.getByText(/configure ssh key in settings to enable/i)
+        screen.getByText(/configure ssh key in settings/i)
       ).toBeInTheDocument();
     });
 
-    it('checkbox is enabled when SSH is configured', async () => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+    it('checkbox is enabled when SSH keys are configured', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
 
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       const checkbox = screen.getByLabelText(
@@ -197,19 +193,15 @@ describe('ImportDeviceModal', () => {
   // US0082: AC2 - Checkbox defaults based on SSH configuration
   // ==========================================================================
   describe('AC2: Checkbox defaults based on SSH configuration', () => {
-    it('checkbox is checked by default when SSH is configured', async () => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+    it('checkbox is checked by default when SSH keys are configured', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
 
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       const checkbox = screen.getByLabelText(
@@ -219,18 +211,14 @@ describe('ImportDeviceModal', () => {
     });
 
     it('checkbox is unchecked and disabled when SSH is not configured', async () => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: false,
-        key_type: null,
-        fingerprint: null,
-        uploaded_at: null,
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [],
       });
 
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       const checkbox = screen.getByLabelText(
@@ -246,12 +234,8 @@ describe('ImportDeviceModal', () => {
   // ==========================================================================
   describe('AC3: Import with agent installation', () => {
     beforeEach(() => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
     });
 
@@ -291,7 +275,7 @@ describe('ImportDeviceModal', () => {
       renderModal({ onSuccess });
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       // Checkbox should be checked by default
@@ -335,7 +319,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -373,7 +357,7 @@ describe('ImportDeviceModal', () => {
       renderModal({ onSuccess });
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -394,12 +378,8 @@ describe('ImportDeviceModal', () => {
   // ==========================================================================
   describe('AC4: Import without agent installation', () => {
     beforeEach(() => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
     });
 
@@ -418,7 +398,7 @@ describe('ImportDeviceModal', () => {
       renderModal({ onSuccess });
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       // Uncheck the checkbox
@@ -454,7 +434,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       // Uncheck the checkbox
@@ -476,12 +456,8 @@ describe('ImportDeviceModal', () => {
   // ==========================================================================
   describe('AC5: Handle agent installation failure', () => {
     beforeEach(() => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
     });
 
@@ -509,7 +485,7 @@ describe('ImportDeviceModal', () => {
       renderModal({ onSuccess });
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -548,7 +524,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -585,7 +561,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -635,7 +611,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       // First attempt
@@ -661,12 +637,8 @@ describe('ImportDeviceModal', () => {
   // ==========================================================================
   describe('AC6: Progress feedback during installation', () => {
     beforeEach(() => {
-      (getSSHStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-        configured: true,
-        key_type: 'ssh-ed25519',
-        fingerprint: 'SHA256:abc123',
-        uploaded_at: '2026-01-27T09:00:00Z',
-        username: 'homelabcmd',
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
       });
     });
 
@@ -694,7 +666,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -748,7 +720,7 @@ describe('ImportDeviceModal', () => {
       renderModal();
 
       await waitFor(() => {
-        expect(getSSHStatus).toHaveBeenCalled();
+        expect(listSSHKeys).toHaveBeenCalled();
       });
 
       fireEvent.click(screen.getByRole('button', { name: /import machine/i }));
@@ -769,6 +741,78 @@ describe('ImportDeviceModal', () => {
         message: 'Agent installed',
         error: null,
         agent_version: '1.0.0',
+      });
+    });
+  });
+
+  // ==========================================================================
+  // US0093: SSH Key Selection
+  // ==========================================================================
+  describe('US0093: SSH Key Selection', () => {
+    it('shows key dropdown when multiple keys are configured', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [
+          mockSSHKey,
+          { ...mockSSHKey, id: 'second-key', name: 'second-key', is_default: false },
+        ],
+      });
+
+      renderModal();
+
+      await waitFor(() => {
+        expect(listSSHKeys).toHaveBeenCalled();
+      });
+
+      // Checkbox should be enabled
+      const checkbox = screen.getByLabelText(/install monitoring agent after import/i);
+      expect(checkbox).toBeEnabled();
+      expect(checkbox).toBeChecked();
+
+      // Key dropdown should appear
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+    });
+
+    it('does not show key dropdown when single key is configured', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [mockSSHKey],
+      });
+
+      renderModal();
+
+      await waitFor(() => {
+        expect(listSSHKeys).toHaveBeenCalled();
+      });
+
+      // Checkbox should be enabled
+      const checkbox = screen.getByLabelText(/install monitoring agent after import/i);
+      expect(checkbox).toBeEnabled();
+
+      // Key dropdown should NOT appear (single key)
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+      // Should show single key info
+      expect(screen.getByText(/using: test-key/i)).toBeInTheDocument();
+    });
+
+    it('pre-selects default key', async () => {
+      (listSSHKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
+        keys: [
+          { ...mockSSHKey, is_default: false },
+          { ...mockSSHKey, id: 'default-key', name: 'default-key', is_default: true },
+        ],
+      });
+
+      renderModal();
+
+      await waitFor(() => {
+        expect(listSSHKeys).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        const dropdown = screen.getByRole('combobox') as HTMLSelectElement;
+        expect(dropdown.value).toBe('default-key');
       });
     });
   });

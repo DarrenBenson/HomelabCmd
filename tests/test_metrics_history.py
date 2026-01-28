@@ -1,8 +1,10 @@
-"""Tests for Metrics History API (TSP0006: TC077).
+"""Tests for Metrics History API (TSP0006: TC077) and Sparkline API (US0113).
 
-These tests verify the metrics time-series endpoint for historical charts.
+These tests verify the metrics time-series endpoint for historical charts
+and the sparkline endpoint for inline dashboard charts.
 
 Spec Reference: sdlc-studio/testing/specs/TSP0006-server-detail-charts.md
+                sdlc-studio/stories/US0113-inline-metric-sparklines.md
 """
 
 from datetime import UTC, datetime, timedelta
@@ -245,3 +247,283 @@ class TestMetricsHistoryEndpoint:
 
         timestamps = [point["timestamp"] for point in data["data_points"]]
         assert timestamps == sorted(timestamps)
+
+
+class TestSparklineEndpoint:
+    """US0113: Sparkline API for inline metric charts on server cards."""
+
+    def _create_server_with_recent_metrics(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        server_id: str,
+        metrics_count: int = 10,
+    ) -> None:
+        """Helper to create a server with recent metrics (within 30 minutes)."""
+        base_time = datetime.now(UTC) - timedelta(minutes=metrics_count)
+        for i in range(metrics_count):
+            heartbeat_data = {
+                "server_id": server_id,
+                "hostname": f"{server_id}.local",
+                "timestamp": (base_time + timedelta(minutes=i)).isoformat(),
+                "metrics": {
+                    "cpu_percent": 20.0 + (i * 3),
+                    "memory_percent": 50.0 + (i * 2),
+                    "disk_percent": 45.0,
+                },
+            }
+            response = client.post(
+                "/api/v1/agents/heartbeat", json=heartbeat_data, headers=auth_headers
+            )
+            assert response.status_code == 200
+
+    def test_sparkline_returns_200(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """GET /servers/{id}/metrics/sparkline should return 200."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-server")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-server/metrics/sparkline",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+
+    def test_sparkline_returns_server_id(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Response should include server_id field."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-id-test")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-id-test/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert "server_id" in data
+        assert data["server_id"] == "sparkline-id-test"
+
+    def test_sparkline_returns_metric_field(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Response should include metric field."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-metric-test")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-metric-test/metrics/sparkline?metric=cpu_percent",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert "metric" in data
+        assert data["metric"] == "cpu_percent"
+
+    def test_sparkline_returns_period_field(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Response should include period field."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-period-test")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-period-test/metrics/sparkline?period=30m",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert "period" in data
+        assert data["period"] == "30m"
+
+    def test_sparkline_returns_data_array(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Response should include data array with timestamp and value."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-data-test")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-data-test/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert "data" in data
+        assert isinstance(data["data"], list)
+        if len(data["data"]) > 0:
+            point = data["data"][0]
+            assert "timestamp" in point
+            assert "value" in point
+
+    def test_sparkline_default_metric_is_cpu(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Default metric should be cpu_percent."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-default-metric")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-default-metric/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert data["metric"] == "cpu_percent"
+
+    def test_sparkline_default_period_is_30m(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Default period should be 30m."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-default-period")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-default-period/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert data["period"] == "30m"
+
+    def test_sparkline_supports_memory_metric(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should support memory_percent metric."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-memory")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-memory/metrics/sparkline?metric=memory_percent",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["metric"] == "memory_percent"
+
+    def test_sparkline_supports_disk_metric(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should support disk_percent metric."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-disk")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-disk/metrics/sparkline?metric=disk_percent",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["metric"] == "disk_percent"
+
+    def test_sparkline_rejects_invalid_metric(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should return 400 for invalid metric type."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-invalid-metric")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-invalid-metric/metrics/sparkline?metric=invalid",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["detail"]["code"] == "INVALID_METRIC"
+
+    def test_sparkline_rejects_invalid_period(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should return 400 for invalid period."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-invalid-period")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-invalid-period/metrics/sparkline?period=5h",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["detail"]["code"] == "INVALID_PERIOD"
+
+    def test_sparkline_404_for_nonexistent_server(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should return 404 for nonexistent server."""
+        response = client.get(
+            "/api/v1/servers/nonexistent-sparkline-server/metrics/sparkline",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 404
+
+    def test_sparkline_requires_auth(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Endpoint should require authentication."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-auth-test")
+
+        response = client.get("/api/v1/servers/sparkline-auth-test/metrics/sparkline")
+
+        assert response.status_code == 401
+
+    def test_sparkline_empty_for_no_data(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should return empty data when no metrics exist."""
+        # Create server without metrics
+        server_data = {"id": "no-sparkline-data", "hostname": "no-sparkline.local"}
+        client.post("/api/v1/servers", json=server_data, headers=auth_headers)
+
+        response = client.get(
+            "/api/v1/servers/no-sparkline-data/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        assert response.status_code == 200
+        assert data["data"] == []
+
+    def test_sparkline_1h_period(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should support 1h period."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-1h")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-1h/metrics/sparkline?period=1h",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["period"] == "1h"
+
+    def test_sparkline_6h_period(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Should support 6h period."""
+        self._create_server_with_recent_metrics(client, auth_headers, "sparkline-6h")
+
+        response = client.get(
+            "/api/v1/servers/sparkline-6h/metrics/sparkline?period=6h",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["period"] == "6h"
+
+    def test_sparkline_data_ordered_by_timestamp(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Data points should be ordered by timestamp ascending."""
+        self._create_server_with_recent_metrics(
+            client, auth_headers, "sparkline-ordered", metrics_count=10
+        )
+
+        response = client.get(
+            "/api/v1/servers/sparkline-ordered/metrics/sparkline",
+            headers=auth_headers,
+        )
+        data = response.json()
+
+        if len(data["data"]) > 1:
+            timestamps = [point["timestamp"] for point in data["data"]]
+            assert timestamps == sorted(timestamps)

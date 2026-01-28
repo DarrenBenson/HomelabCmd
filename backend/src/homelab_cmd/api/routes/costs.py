@@ -173,9 +173,7 @@ async def get_cost_summary(
             if is_workstation:
                 workstation_count += 1
                 hours_used = uptime_data.get(server.id, 0.0)
-                monthly = calculate_workstation_cost(
-                    power_config.max_watts, hours_used, rate
-                )
+                monthly = calculate_workstation_cost(power_config.max_watts, hours_used, rate)
                 daily = round(monthly / 30, 2) if monthly > 0 else 0.0
                 workstation_cost_total += monthly
                 workstation_daily_total += daily
@@ -342,9 +340,7 @@ async def get_cost_breakdown(
             # Fallback: TDP-only mode (AC5)
             # US0092: Calculate cost based on machine type
             if is_workstation:
-                monthly = calculate_workstation_cost(
-                    server.tdp_watts, hours_used or 0.0, rate
-                )
+                monthly = calculate_workstation_cost(server.tdp_watts, hours_used or 0.0, rate)
                 daily = round(monthly / 30, 2) if monthly > 0 else 0.0
             else:
                 daily = calc_daily_cost(server.tdp_watts, rate)

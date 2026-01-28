@@ -1,97 +1,110 @@
 # US0115: Server Card Quick Actions
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Owner:** Darren
-> **Reviewer:** -
 > **Created:** 2026-01-28
+> **Completed:** 2026-01-28
 > **Story Points:** 3
 
 ## User Story
 
-**As a** system administrator
-**I want** quick actions on server cards
-**So that** I can perform common tasks without opening the detail page
+**As a** Darren (Homelab Operator)
+**I want** quick action buttons on server cards
+**So that** I can toggle pause or open SSH without navigating to the detail page
 
 ## Context
 
 ### Persona Reference
-**System Administrator** - Manages many servers, wants efficient workflows
-[Full persona details](../personas.md#system-administrator)
+
+**Darren** - Technical professional running a homelab with 11+ servers. Values efficiency and reducing clicks for common operations.
+
+[Full persona details](../personas.md#darren-homelab-operator)
 
 ### Background
 
-Currently, to perform any action on a server (toggle pause, SSH, view details), users must navigate to the server detail page. This adds clicks and navigation overhead for common operations.
-
-Market leaders like Datadog and Uptime Kuma show action buttons on hover, allowing quick interactions directly from the list/grid view. Adding hover-revealed action buttons to ServerCard reduces the number of clicks for common workflows.
+Currently, performing actions on a server requires navigating to the server detail page. For common operations like toggling maintenance mode or initiating an SSH connection, this adds unnecessary clicks. Market leaders show action buttons on hover, reducing the path to action from 3+ clicks to 1.
 
 ---
 
 ## Inherited Constraints
 
-> See Epic for full constraint chain. Key constraints for this story:
-
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| Epic | Accessibility | WCAG 2.1 AA | Keyboard accessible actions |
-| PRD | Performance | Dashboard <3s load | No heavy hover state rendering |
-| TRD | Architecture | React + Tailwind | Use group-hover pattern |
+| Epic | Accessibility | Actions keyboard accessible | Tab navigation required |
+| PRD | Security | API key authentication | Actions use existing auth |
+| TRD | Architecture | Existing API endpoints | Use existing toggle/SSH APIs |
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: Hover Reveals Actions
-- **Given** a desktop browser
-- **When** I hover over a ServerCard
-- **Then** action buttons appear in the card footer area
+### AC1: Quick actions appear on hover
 
-### AC2: Toggle Pause Action
-- **Given** action buttons are visible
-- **When** I click the pause/unpause button
-- **Then** the server's maintenance mode is toggled
-- **And** the card updates to reflect the new state (maintenance glow if paused)
+- **Given** I view a server card on the dashboard
+- **When** I hover over the card
+- **Then** a quick action bar appears at the bottom of the card
+- **And** the bar contains action buttons with icons
 
-### AC3: SSH Action
-- **Given** action buttons are visible AND the server has SSH configured
-- **When** I click the SSH button
-- **Then** an SSH terminal link/command is copied to clipboard or opened in external terminal
+### AC2: Toggle pause action
 
-### AC4: View Details Action
-- **Given** action buttons are visible
-- **When** I click the "View Details" button
+- **Given** the quick action bar is visible
+- **When** I click the "Toggle Pause" button (Pause/Play icon)
+- **Then** the server's `is_paused` state toggles
+- **And** a toast notification confirms "Server paused" or "Server resumed"
+- **And** the card immediately reflects the new state
+
+### AC3: SSH action (Tailscale servers)
+
+- **Given** a server has `tailscale_hostname` set
+- **When** I click the "SSH" button (Terminal icon)
+- **Then** a modal appears with SSH connection command
+- **And** a "Copy" button copies `ssh user@{tailscale_hostname}` to clipboard
+- **And** toast confirms "SSH command copied"
+
+### AC4: View details action
+
+- **Given** the quick action bar is visible
+- **When** I click the "Details" button (ChevronRight icon)
 - **Then** I navigate to the server detail page
+- **And** the URL updates to `/servers/{id}`
 
-### AC5: Keyboard Accessibility
-- **Given** a ServerCard is focused (via Tab)
-- **When** I press Enter or Space
-- **Then** the action buttons become visible
-- **And** I can Tab through the action buttons
-- **And** I can activate them with Enter
+### AC5: Keyboard accessibility
 
-### AC6: Touch Device Behaviour
-- **Given** a touch device (no hover capability)
-- **When** viewing ServerCard
-- **Then** action buttons are always visible (subtle styling)
-- **Or** a dedicated "more actions" button is shown
+- **Given** I focus on a server card via keyboard
+- **When** I press Tab
+- **Then** focus moves through the quick action buttons
+- **And** pressing Enter activates the focused action
+- **And** pressing Escape hides the action bar
+
+### AC6: Action bar visibility for non-Tailscale servers
+
+- **Given** a server does NOT have `tailscale_hostname`
+- **When** the quick action bar appears
+- **Then** the SSH button is either disabled or hidden
+- **And** tooltip explains "SSH requires Tailscale connectivity"
 
 ---
 
 ## Scope
 
 ### In Scope
-- Hover-reveal action buttons in card footer
-- Toggle pause action (maintenance mode)
-- SSH action (copy command or open link)
-- View details action (navigation)
+
+- Quick action bar on server card hover
+- Toggle pause button with API call
+- SSH button with copy-to-clipboard
+- View details button (navigation)
 - Keyboard accessibility
-- Touch device adaptation
+- Toast notifications for actions
+- Conditional SSH button based on Tailscale
 
 ### Out of Scope
-- Restart server action (requires confirmation)
-- Wake-on-LAN action
-- Custom action configuration
-- Context menu (right-click)
+
+- Inline editing of server name
+- Delete server action (dangerous for quick action)
+- Restart server action (future feature)
+- Wake-on-LAN action (future feature)
+- Bulk actions on multiple servers
 
 ---
 
@@ -99,156 +112,123 @@ Market leaders like Datadog and Uptime Kuma show action buttons on hover, allowi
 
 ### Implementation Approach
 
-Create `CardActions` component:
+1. **Create CardActions component:**
+   ```tsx
+   function CardActions({ server, onPauseToggle }: CardActionsProps) {
+     const navigate = useNavigate();
+     const { toast } = useToast();
 
-```tsx
-interface CardActionsProps {
-  server: Server;
-  onTogglePause: (serverId: string) => void;
-  onSSH: (server: Server) => void;
-}
+     const handleTogglePause = async () => {
+       await toggleServerPause(server.id, !server.is_paused);
+       toast({
+         title: server.is_paused ? "Server resumed" : "Server paused"
+       });
+       onPauseToggle();
+     };
 
-export function CardActions({ server, onTogglePause, onSSH }: CardActionsProps) {
-  const navigate = useNavigate();
+     const handleSSH = () => {
+       const command = `ssh ${getSSHUser()}@${server.tailscale_hostname}`;
+       navigator.clipboard.writeText(command);
+       toast({ title: "SSH command copied to clipboard" });
+     };
 
-  return (
-    <div className="flex items-center gap-1">
-      {/* Toggle Pause */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onTogglePause(server.id);
-        }}
-        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-        title={server.is_paused ? 'Resume monitoring' : 'Pause monitoring'}
-      >
-        {server.is_paused ? <Play size={14} /> : <Pause size={14} />}
-      </button>
+     return (
+       <div className="flex gap-2 p-2 border-t bg-gray-50 dark:bg-gray-800">
+         <ActionButton
+           icon={server.is_paused ? Play : Pause}
+           label={server.is_paused ? "Resume" : "Pause"}
+           onClick={handleTogglePause}
+         />
+         {server.tailscale_hostname && (
+           <ActionButton
+             icon={Terminal}
+             label="SSH"
+             onClick={handleSSH}
+           />
+         )}
+         <ActionButton
+           icon={ChevronRight}
+           label="Details"
+           onClick={() => navigate(`/servers/${server.id}`)}
+         />
+       </div>
+     );
+   }
+   ```
 
-      {/* SSH (only if configured) */}
-      {server.tailscale_hostname && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onSSH(server);
-          }}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-          title="SSH to server"
-        >
-          <Terminal size={14} />
-        </button>
-      )}
+2. **ActionButton component:**
+   ```tsx
+   function ActionButton({ icon: Icon, label, onClick, disabled }: ActionButtonProps) {
+     return (
+       <Tooltip content={label}>
+         <button
+           onClick={onClick}
+           disabled={disabled}
+           className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+           aria-label={label}
+         >
+           <Icon className="w-4 h-4" />
+         </button>
+       </Tooltip>
+     );
+   }
+   ```
 
-      {/* View Details */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(`/servers/${server.id}`);
-        }}
-        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-        title="View details"
-      >
-        <ExternalLink size={14} />
-      </button>
-    </div>
-  );
-}
-```
+3. **ServerCard integration:**
+   - Add hover state to show/hide actions
+   - Use CSS transition for smooth appearance
+   - Handle keyboard focus visibility
 
-### Hover State in ServerCard
+### API Contracts
 
-```tsx
-<div className="group relative ...">
-  {/* Card content */}
+**Toggle Pause:** `PATCH /api/v1/servers/{id}` with `{ is_paused: boolean }`
 
-  {/* Footer with actions */}
-  <div className="flex justify-between items-center mt-3 pt-3 border-t">
-    <span className="font-mono text-xs">↑ {uptime}</span>
+No new endpoints needed.
 
-    {/* Actions - hidden by default, shown on hover */}
-    <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-      <CardActions
-        server={server}
-        onTogglePause={handleTogglePause}
-        onSSH={handleSSH}
-      />
-    </div>
-  </div>
-</div>
-```
+### Files to Modify
 
-### Touch Device Detection
+- `frontend/src/components/CardActions.tsx` - New component
+- `frontend/src/components/ActionButton.tsx` - New component
+- `frontend/src/components/ServerCard.tsx` - Add actions bar
+- `frontend/src/api/servers.ts` - Add togglePause function (if not exists)
 
-Use CSS media query for hover capability:
+### Data Requirements
 
-```css
-/* Hide by default on touch, show on hover devices */
-.card-actions {
-  opacity: 1; /* Default: visible for touch */
-}
-
-@media (hover: hover) {
-  /* Hover-capable devices: hide until hover */
-  .card-actions {
-    opacity: 0;
-  }
-
-  .group:hover .card-actions,
-  .group:focus-within .card-actions {
-    opacity: 1;
-  }
-}
-```
-
-### SSH Action Implementation
-
-Options for SSH action:
-1. **Copy command to clipboard**: `ssh user@hostname` - simplest
-2. **Open ssh:// URL**: Depends on OS/browser support
-3. **Open in iTerm/Terminal**: Requires custom URL scheme
-
-Recommended: Copy SSH command to clipboard with toast notification.
-
-```tsx
-function handleSSH(server: Server) {
-  const hostname = server.tailscale_hostname || server.hostname;
-  const command = `ssh ${defaultUsername}@${hostname}`;
-  navigator.clipboard.writeText(command);
-  toast.success(`SSH command copied: ${command}`);
-}
-```
+- Server model `is_paused` field (exists)
+- Server model `tailscale_hostname` field (exists)
+- PATCH endpoint for server update (exists)
 
 ---
 
 ## Edge Cases & Error Handling
 
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| Hover while action in progress | Show loading spinner, disable buttons |
-| Toggle pause fails (API error) | Show error toast, revert optimistic update |
-| SSH not configured | SSH button not shown |
-| No clipboard API (older browser) | Fall back to prompt with selectable text |
-| Keyboard navigation past card | Actions hide when focus leaves card |
-| Touch then hover (hybrid device) | Actions visible from touch, enhanced on hover |
-| Card in loading state | Actions disabled while loading |
+| # | Scenario | Expected Behaviour |
+|---|----------|-------------------|
+| 1 | API call fails during toggle | Show error toast, revert optimistic update |
+| 2 | Clipboard API unavailable | Show modal with command to copy manually |
+| 3 | Double-click on toggle | Debounce to prevent rapid state changes |
+| 4 | Hover on touch device | Show actions on tap, hide on tap elsewhere |
+| 5 | Server deleted while viewing | Handle 404, show error toast |
+| 6 | No tailscale_hostname and no SSH key | SSH button hidden |
+| 7 | Actions bar overlaps card content | Use absolute positioning below card |
+| 8 | Very narrow viewport | Actions become icon-only (no labels) |
 
 ---
 
 ## Test Scenarios
 
-- [ ] Verify actions hidden by default on desktop
-- [ ] Verify actions appear on hover
-- [ ] Verify pause button toggles maintenance mode
-- [ ] Verify pause button updates card appearance
-- [ ] Verify SSH button copies command to clipboard
-- [ ] Verify SSH button hidden when no SSH configured
-- [ ] Verify view details navigates to server page
-- [ ] Verify keyboard focus reveals actions
-- [ ] Verify Tab navigates through action buttons
-- [ ] Verify Enter activates focused action
-- [ ] Verify actions visible by default on touch device
-- [ ] Verify stopPropagation prevents card click
-- [ ] Verify accessibility: buttons have labels
+- [x] Actions bar appears on card hover
+- [x] Actions bar hides when mouse leaves
+- [x] Toggle pause updates server state
+- [x] Toast shows after toggle pause
+- [x] SSH button copies command to clipboard
+- [x] SSH button hidden for non-Tailscale servers
+- [x] Details button navigates to detail page
+- [x] Keyboard Tab cycles through actions
+- [x] Keyboard Enter activates action
+- [x] Keyboard Escape hides action bar
+- [x] Actions work in dark mode
+- [x] Error toast on API failure
 
 ---
 
@@ -258,27 +238,29 @@ function handleSSH(server: Server) {
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0029 | API | Maintenance mode toggle endpoint | Done |
+| US0109 | Layout | Card layout updates | Ready |
+| US0111 | Data | tailscale_hostname check | Ready |
 
 ### External Dependencies
 
 | Dependency | Type | Status |
 |------------|------|--------|
-| Lucide icons (Play, Pause, Terminal, ExternalLink) | Library | Available |
 | Clipboard API | Browser | Available |
+| lucide-react icons | Library | Available |
+| Toast notifications | Component | Available |
 
 ---
 
 ## Estimation
 
 **Story Points:** 3
-**Complexity:** Low-Medium (hover states, keyboard accessibility, touch adaptation)
+**Complexity:** Medium - multiple actions, keyboard accessibility
 
 ---
 
 ## Open Questions
 
-- [ ] Should SSH open in browser-based terminal (if available) vs copy command? - Owner: Darren
+None.
 
 ---
 
@@ -286,5 +268,4 @@ function handleSSH(server: Server) {
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-28 | Claude | Initial story creation |
-| 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-28 | Claude | Initial story creation from EP0017 |

@@ -163,3 +163,53 @@ export interface DiscoverySettingsUpdate {
   /** Connection timeout in milliseconds (100-5000) */
   timeout_ms?: number;
 }
+
+// =============================================================================
+// Unified Discovery Types (EP0016)
+// =============================================================================
+
+/** Source of device discovery */
+export type DiscoverySource = 'network' | 'tailscale';
+
+/** Availability status for unified device cards */
+export type AvailabilityStatus = 'available' | 'unavailable' | 'untested';
+
+/**
+ * Unified device representation for both Network and Tailscale discovery.
+ *
+ * EP0016: Unified Discovery Experience
+ */
+export interface UnifiedDevice {
+  /** Unique identifier (IP for network, device ID for Tailscale) */
+  id: string;
+  /** Device hostname */
+  hostname: string;
+  /** IP address (local for network, Tailscale IP for Tailscale) */
+  ip: string;
+  /** Operating system */
+  os: string;
+  /** Discovery source */
+  source: DiscoverySource;
+  /** Availability status based on SSH test or online status */
+  availability: AvailabilityStatus;
+  /** Reason for unavailability (shown in tooltip) */
+  unavailableReason: string | null;
+  /** Whether device is already registered as a server */
+  isMonitored: boolean;
+  /** Server ID if already monitored */
+  serverId?: string;
+  /** Response time in ms (network) or null */
+  responseTimeMs: number | null;
+  /** Last seen timestamp (ISO string) */
+  lastSeen: string | null;
+  /** SSH key that was used for successful connection */
+  sshKeyUsed: string | null;
+
+  // Tailscale-specific fields
+  /** Tailscale device ID */
+  tailscaleDeviceId?: string;
+  /** Tailscale hostname (full FQDN) */
+  tailscaleHostname?: string;
+  /** Whether device is online on Tailscale */
+  tailscaleOnline?: boolean;
+}

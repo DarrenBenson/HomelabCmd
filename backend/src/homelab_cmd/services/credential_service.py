@@ -26,12 +26,14 @@ from homelab_cmd.db.models.credential import Credential
 logger = logging.getLogger(__name__)
 
 # Allowed credential types (EP0015: added sudo_password, ssh_password)
-ALLOWED_CREDENTIAL_TYPES = frozenset({
-    "tailscale_token",
-    "ssh_private_key",
-    "sudo_password",
-    "ssh_password",
-})
+ALLOWED_CREDENTIAL_TYPES = frozenset(
+    {
+        "tailscale_token",
+        "ssh_private_key",
+        "sudo_password",
+        "ssh_password",
+    }
+)
 
 
 class CredentialDecryptionError(Exception):

@@ -88,9 +88,7 @@ class TailscaleDeviceListResponse(BaseModel):
     Part of US0077: Tailscale Device Discovery.
     """
 
-    devices: list[TailscaleDeviceSchema] = Field(
-        ..., description="List of Tailscale devices"
-    )
+    devices: list[TailscaleDeviceSchema] = Field(..., description="List of Tailscale devices")
     count: int = Field(..., description="Number of devices in the list")
     cache_hit: bool = Field(..., description="Whether the response was served from cache")
     cached_at: datetime | None = Field(
@@ -116,12 +114,8 @@ class TailscaleImportRequest(BaseModel):
     display_name: str = Field(
         ..., min_length=1, max_length=100, description="Display name for the server"
     )
-    machine_type: Literal["server", "workstation"] = Field(
-        "server", description="Machine type"
-    )
-    tdp: int | None = Field(
-        None, gt=0, description="TDP in watts (optional, must be positive)"
-    )
+    machine_type: Literal["server", "workstation"] = Field("server", description="Machine type")
+    tdp: int | None = Field(None, gt=0, description="TDP in watts (optional, must be positive)")
     category_id: str | None = Field(None, description="Machine category ID (optional)")
 
 
@@ -162,3 +156,58 @@ class TailscaleImportCheckResponse(BaseModel):
     machine_id: str | None = Field(None, description="Machine ID if imported")
     display_name: str | None = Field(None, description="Display name if imported")
     imported_at: datetime | None = Field(None, description="Import timestamp if imported")
+
+
+# =============================================================================
+# SSH Testing Schemas (EP0016)
+# =============================================================================
+
+
+class TailscaleSSHTestRequest(BaseModel):
+    """Request to test SSH connection to a Tailscale device.
+
+    EP0016: Unified Discovery Experience (US0096).
+    """
+
+    key_id: str | None = Field(None, description="Specific SSH key ID to test (optional)")
+
+
+class TailscaleSSHTestResponse(BaseModel):
+    """Response from SSH connection test.
+
+    EP0016: Unified Discovery Experience (US0096).
+    """
+
+    success: bool = Field(..., description="Whether SSH connection succeeded")
+    latency_ms: int | None = Field(None, description="Connection latency in milliseconds")
+    key_used: str | None = Field(None, description="Name of SSH key that succeeded")
+    error: str | None = Field(None, description="Error message if connection failed")
+
+
+class TailscaleDeviceWithSSHSchema(TailscaleDeviceSchema):
+    """Device schema with SSH status.
+
+    EP0016: Unified Discovery Experience (US0097).
+    """
+
+    ssh_status: Literal["available", "unavailable", "untested"] = Field(
+        "untested", description="SSH connectivity status"
+    )
+    ssh_error: str | None = Field(None, description="SSH error message if unavailable")
+    ssh_key_used: str | None = Field(None, description="Name of SSH key that succeeded")
+
+
+class TailscaleDeviceListWithSSHResponse(BaseModel):
+    """Response for device list with SSH testing.
+
+    EP0016: Unified Discovery Experience (US0097).
+    """
+
+    devices: list[TailscaleDeviceWithSSHSchema] = Field(
+        ..., description="List of Tailscale devices with SSH status"
+    )
+    count: int = Field(..., description="Number of devices in the list")
+    cache_hit: bool = Field(..., description="Whether the response was served from cache")
+    cached_at: datetime | None = Field(
+        None, description="When the cache was populated (None if not cached)"
+    )
