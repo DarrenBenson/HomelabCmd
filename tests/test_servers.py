@@ -218,6 +218,96 @@ class TestUpdateServer:
         assert response.json()["tdp_watts"] == 75
 
 
+class TestUpdateServerMachineType:
+    """TC-US0137: Machine type update tests for cross-section drag-and-drop."""
+
+    def test_update_server_machine_type_to_workstation(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Changing machine_type from server to workstation should succeed."""
+        # Create server with default type (server)
+        server_data = {
+            "id": "type-change-server",
+            "hostname": "type-change-server",
+            "machine_type": "server",
+        }
+        client.post("/api/v1/servers", json=server_data, headers=auth_headers)
+
+        # Update to workstation
+        update_data = {"machine_type": "workstation"}
+        response = client.put(
+            "/api/v1/servers/type-change-server", json=update_data, headers=auth_headers
+        )
+        assert response.status_code == 200
+        assert response.json()["machine_type"] == "workstation"
+
+    def test_update_server_machine_type_to_server(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Changing machine_type from workstation to server should succeed."""
+        # Create workstation
+        server_data = {
+            "id": "workstation-to-server",
+            "hostname": "workstation-to-server",
+            "machine_type": "workstation",
+        }
+        client.post("/api/v1/servers", json=server_data, headers=auth_headers)
+
+        # Update to server
+        update_data = {"machine_type": "server"}
+        response = client.put(
+            "/api/v1/servers/workstation-to-server", json=update_data, headers=auth_headers
+        )
+        assert response.status_code == 200
+        assert response.json()["machine_type"] == "server"
+
+    def test_update_server_invalid_machine_type_rejected(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Invalid machine_type value should be rejected with 422."""
+        server_data = {
+            "id": "invalid-type-test",
+            "hostname": "invalid-type-test",
+        }
+        client.post("/api/v1/servers", json=server_data, headers=auth_headers)
+
+        update_data = {"machine_type": "invalid"}
+        response = client.put(
+            "/api/v1/servers/invalid-type-test", json=update_data, headers=auth_headers
+        )
+        assert response.status_code == 422  # Validation error
+
+    def test_update_machine_type_preserves_other_fields(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Updating machine_type should not affect other fields."""
+        # Create server with all fields
+        server_data = {
+            "id": "preserve-fields-test",
+            "hostname": "preserve-fields-test",
+            "display_name": "My Test Server",
+            "ip_address": "192.168.1.50",
+            "tdp_watts": 65,
+            "machine_type": "server",
+        }
+        client.post("/api/v1/servers", json=server_data, headers=auth_headers)
+
+        # Update only machine_type
+        update_data = {"machine_type": "workstation"}
+        response = client.put(
+            "/api/v1/servers/preserve-fields-test", json=update_data, headers=auth_headers
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # machine_type changed
+        assert data["machine_type"] == "workstation"
+        # Other fields preserved
+        assert data["display_name"] == "My Test Server"
+        assert data["ip_address"] == "192.168.1.50"
+        assert data["tdp_watts"] == 65
+        assert data["hostname"] == "preserve-fields-test"
+
+
 class TestDeleteServer:
     """TC012: Delete server removes server and metrics."""
 

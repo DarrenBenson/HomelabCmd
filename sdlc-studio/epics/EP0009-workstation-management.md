@@ -4,7 +4,7 @@
 > **Owner:** Darren
 > **Created:** 2026-01-26
 > **Target Release:** Phase 1 (Alpha)
-> **Story Points:** 26
+> **Story Points:** 27
 
 ---
 
@@ -513,12 +513,12 @@ def check_offline_machines():
 |-------|-------------|--------|--------|-------|
 | US0082 | Machine Type Field and Migration | 3 | ✅ Done | 1 |
 | US0083 | Workstation Registration Workflow | 4 | ✅ Done | 1 |
-| US0089 | Workstation-Aware Alerting | 5 | ✅ Done | 1 |
-| [US0090](../stories/US0090-last-seen-ui-workstations.md) | Last Seen UI for Workstations | 4 | Ready | 1 |
-| [US0091](../stories/US0091-visual-distinction-workstations.md) | Visual Distinction (Server vs Workstation) | 3 | Ready | 1 |
-| [US0092](../stories/US0092-workstation-cost-tracking.md) | Workstation Cost Tracking | 5 | Ready | 1 |
+| [US0089](../stories/US0089-workstation-aware-alerting.md) | Workstation-Aware Alerting | 5 | ✅ Done | 1 |
+| [US0090](../stories/US0090-last-seen-ui-workstations.md) | Last Seen UI for Workstations | 3 | ✅ Done | 1 |
+| [US0091](../stories/US0091-visual-distinction-workstations.md) | Visual Distinction (Server vs Workstation) | 5 | ✅ Done | 1 |
+| [US0092](../stories/US0092-workstation-cost-tracking.md) | Workstation Cost Tracking | 5 | ✅ Done | 1 |
 | US0088 | Workstation Metrics Collection | 2 | ✅ Done | 1 |
-| **Total** | | **26** | **14/26 pts (54%)** | |
+| **Total** | | **27** | **27/27 pts (100%)** | |
 
 **Note:** Stories renumbered to avoid ID conflicts with EP0015: US0084→US0089, US0085→US0090, US0086→US0091, US0087→US0092.
 
@@ -537,3 +537,4 @@ def check_offline_machines():
 | 2026-01-27 | Claude | US0089 (Workstation-Aware Alerting) implemented via TDD. Epic now 54% complete (14/26 pts). |
 | 2026-01-27 | Claude | Generated story files for remaining work: US0090 (Last Seen UI), US0091 (Visual Distinction), US0092 (Cost Tracking). Renumbered from US0085-87 to avoid EP0015 conflict. |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-28 | Claude | Epic review: All 7 stories complete (27/27 pts, 100%). US0090, US0091, US0092 implemented via TDD. |

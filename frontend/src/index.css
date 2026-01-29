@@ -55,3 +55,175 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* React Grid Layout overrides for dark theme (EP0012) */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+
+.react-grid-item.resizing {
+  z-index: 1;
+  will-change: width, height;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  will-change: transform;
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-status-info);
+  opacity: 0.2;
+  transition-duration: 100ms;
+  z-index: 2;
+  border-radius: 0.5rem;
+}
+
+/* Resize handles - only visible in edit mode */
+.react-resizable-handle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background-color: var(--color-status-info);
+  border-radius: 6px 0 6px 0;
+  opacity: 0.9;
+  transition: opacity 0.15s, background-color 0.15s;
+  z-index: 10;
+}
+
+.react-resizable-handle:hover {
+  opacity: 1;
+  background-color: var(--color-status-success);
+}
+
+/* Diagonal grip lines */
+.react-resizable-handle-se::before,
+.react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  background-color: white;
+  border-radius: 1px;
+}
+
+.react-resizable-handle-se::before {
+  width: 12px;
+  height: 2px;
+  bottom: 8px;
+  right: 6px;
+  transform: rotate(-45deg);
+}
+
+.react-resizable-handle-se::after {
+  width: 8px;
+  height: 2px;
+  bottom: 12px;
+  right: 4px;
+  transform: rotate(-45deg);
+}
+
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+  transform: rotate(90deg);
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+  transform: rotate(180deg);
+}
+
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+  transform: rotate(270deg);
+}
+
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  top: 50%;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-w {
+  left: 0;
+  transform: rotate(135deg);
+}
+
+.react-resizable-handle-e {
+  right: 0;
+  transform: rotate(315deg);
+}
+
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+
+.react-resizable-handle-n {
+  top: 0;
+  transform: rotate(225deg);
+}
+
+.react-resizable-handle-s {
+  bottom: 0;
+  transform: rotate(45deg);
+}
+
+/* Widget grid edit mode indicator */
+.widget-grid--edit-mode .react-grid-item {
+  border: 1px dashed var(--color-border-strong);
+}
+
+.widget-grid--edit-mode .react-grid-item:hover {
+  border-color: var(--color-status-info);
+}
+
+/* Mobile touch handling (US0177: Responsive Widget Layout) */
+@media (max-width: 767px) {
+  /* Ensure smooth scrolling on mobile - no drag conflicts */
+  .widget-grid {
+    touch-action: pan-y;
+  }
+
+  /* Disable resize handles on mobile */
+  .react-resizable-handle {
+    display: none !important;
+  }
+
+  /* Disable drag cursor styling on mobile */
+  .widget-header {
+    cursor: default !important;
+  }
+
+  /* Ensure widgets don't capture touch for drag */
+  .react-grid-item {
+    touch-action: pan-y;
+  }
+}

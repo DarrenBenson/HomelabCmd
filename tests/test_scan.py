@@ -941,7 +941,7 @@ class TestExecuteScan:
             )
 
         with patch.object(service.ssh_service, "execute_command", side_effect=mock_execute_command):
-            results = await service.execute_scan(scan, db_session)
+            await service.execute_scan(scan, db_session)
 
         await db_session.refresh(scan)
         assert scan.status == ScanStatus.FAILED.value
@@ -969,7 +969,7 @@ class TestExecuteScan:
         with patch.object(
             service.ssh_service, "execute_command", side_effect=Exception("Unexpected error")
         ):
-            results = await service.execute_scan(scan, db_session)
+            await service.execute_scan(scan, db_session)
 
         await db_session.refresh(scan)
         assert scan.status == ScanStatus.FAILED.value

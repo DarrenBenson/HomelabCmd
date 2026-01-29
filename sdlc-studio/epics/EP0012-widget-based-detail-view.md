@@ -1,10 +1,10 @@
 # EP0012: Widget-Based Detail View
 
-> **Status:** Draft
+> **Status:** Done
 > **Owner:** Darren
 > **Created:** 2026-01-26
 > **Target Release:** Phase 2 (Beta)
-> **Story Points:** 48
+> **Story Points:** 53
 
 ---
 
@@ -234,27 +234,6 @@ Transform machine detail pages from static layouts into customisable widget grid
 - [ ] Filter: show all / show expected only
 - [ ] Sortable by name or status
 - [ ] Minimum size: 4x4
-
----
-
-### US0143: Containers Widget
-**Story Points:** 5
-**Priority:** P1
-**Dependencies:** US0137, EP0014 (Docker Monitoring)
-
-**As a** system administrator
-**I want** a Docker containers widget
-**So that** I can see container status
-
-**Acceptance Criteria:**
-- [ ] Widget ID: `containers`
-- [ ] Only shown if Docker is installed on machine
-- [ ] Lists all containers with status (running, stopped, exited)
-- [ ] Shows uptime for running containers
-- [ ] Quick actions: start, stop, restart
-- [ ] Container name, image, ports displayed
-- [ ] Colour-coded status indicators
-- [ ] Minimum size: 6x4
 
 ---
 
@@ -523,28 +502,29 @@ CREATE TABLE widget_layout (
 
 ## Story Breakdown
 
-| Story | Description | Points | Priority |
-|-------|-------------|--------|----------|
-| US0137 | Widget Grid System | 8 | P0 |
-| US0138 | CPU Usage Widget | 3 | P0 |
-| US0139 | Memory Usage Widget | 3 | P0 |
-| US0140 | Load Average Widget | 2 | P0 |
-| US0141 | Disk Usage Widget | 3 | P0 |
-| US0142 | Services Widget | 3 | P0 |
-| US0143 | Containers Widget | 5 | P1 |
-| US0144 | Network Widget | 3 | P1 |
-| US0145 | System Info Widget | 2 | P1 |
-| US0146 | Widget Layout Persistence | 5 | P0 |
-| US0147 | Default Widget Layout | 3 | P0 |
-| US0148 | Edit Layout Mode | 3 | P1 |
-| US0149 | Widget Visibility Toggle | 3 | P2 |
-| US0150 | Responsive Widget Layout | 3 | P1 |
-| **Total** | | **48** | |
+| Story | Description | Points | Priority | Status |
+|-------|-------------|--------|----------|--------|
+| [US0164](../stories/US0164-widget-grid-system.md) | Widget Grid System | 8 | P0 | Done |
+| [US0165](../stories/US0165-cpu-usage-widget.md) | CPU Usage Widget | 3 | P0 | Done |
+| [US0166](../stories/US0166-memory-usage-widget.md) | Memory Usage Widget | 3 | P0 | Done |
+| [US0167](../stories/US0167-load-average-widget.md) | Load Average Widget | 2 | P0 | Done |
+| [US0168](../stories/US0168-disk-usage-widget.md) | Disk Usage Widget | 3 | P0 | Done |
+| [US0169](../stories/US0169-services-widget.md) | Services Widget | 3 | P0 | Done |
+| [US0171](../stories/US0171-network-widget.md) | Network Widget | 3 | P1 | Done |
+| [US0172](../stories/US0172-system-info-widget.md) | System Info Widget | 2 | P1 | Done |
+| [US0173](../stories/US0173-widget-layout-persistence.md) | Widget Layout Persistence | 5 | P0 | Done |
+| [US0174](../stories/US0174-default-widget-layout.md) | Default Widget Layout | 3 | P0 | Done |
+| [US0175](../stories/US0175-edit-layout-mode.md) | Edit Layout Mode | 3 | P1 | Done |
+| [US0176](../stories/US0176-widget-visibility-toggle.md) | Widget Visibility Toggle | 3 | P2 | Done |
+| [US0177](../stories/US0177-responsive-widget-layout.md) | Responsive Widget Layout | 3 | P1 | Done |
+| [US0178](../stories/US0178-per-filesystem-metrics-api.md) | Per-Filesystem Metrics API | 5 | P1 | Done |
+| [US0179](../stories/US0179-per-interface-network-metrics-api.md) | Per-Interface Network Metrics API | 5 | P1 | Done |
+| **Total** | | **53** | | **15/15 Done** |
 
 ---
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 **Epic Owner:** Darren
 
 ---
@@ -556,3 +536,7 @@ CREATE TABLE widget_layout (
 | 2026-01-26 | Darren | Initial epic creation |
 | 2026-01-28 | Claude | Renumbered stories US0109-US0122 to US0137-US0150 to resolve conflicts with EP0017/EP0010 |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-28 | Claude | Renumbered stories US0137-US0150 to US0164-US0177 to resolve conflict with EP0011. Story files generated. |
+| 2026-01-29 | Claude | Removed US0170 (Containers Widget) - duplicate of US0159 in EP0014. |
+| 2026-01-29 | Claude | Added US0178 (Per-Filesystem Metrics API) and US0179 (Per-Interface Network Metrics API) to complete US0168/US0171. 15 stories, 53 points. |
+| 2026-01-29 | Claude | Epic complete: All 15 stories Done. Widget grid with drag/resize, 8 widget types, layout persistence, responsive design, per-filesystem and per-interface metrics. |

@@ -8,10 +8,10 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 
 | Status | Count | Test Cases |
 |--------|-------|------------|
-| Draft | 3 | 38 |
+| Draft | 8 | 127 |
 | In Progress | 3 | 62 |
-| Complete | 12 | 258 |
-| **Total** | **18** | **358** |
+| Complete | 15 | 303 |
+| **Total** | **26** | **492** |
 
 ## Specifications by Epic
 
@@ -62,6 +62,25 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | [TS0015](TS0015-scan-results-display.md) | Scan Results Display Tests | US0039 | 20 | Draft |
 | [TS0019](TS0019-ssh-key-manager-ui.md) | SSH Key Manager UI Tests | US0071 | 18 | In Progress |
 
+### [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
+
+| ID | Title | Stories | Test Cases | Status |
+|----|-------|---------|------------|--------|
+| [TS0130](TS0130-drag-drop-card-reordering.md) | Drag-and-Drop Card Reordering Tests | US0130 | 15 | Complete |
+| [TS0131](TS0131-card-order-persistence.md) | Card Order Persistence Tests | US0131 | 16 | Complete |
+| [TS0132](TS0132-server-workstation-grouping.md) | Server and Workstation Grouping Tests | US0132 | 20 | Complete |
+| [TS0133](TS0133-responsive-dashboard-layout.md) | Responsive Dashboard Layout Tests | US0133 | 14 | Draft |
+| [TS0134](TS0134-dashboard-summary-bar.md) | Dashboard Summary Bar Tests | US0134 | 19 | Complete |
+| [TS0135](TS0135-card-visual-enhancements.md) | Card Visual Enhancements Tests | US0135 | 10 | Complete |
+| [TS0136](TS0136-dashboard-preferences-sync.md) | Dashboard Preferences Sync Tests | US0136 | 17 | Draft |
+| [TS0137](TS0137-cross-section-machine-type-change.md) | Cross-Section Machine Type Change Tests | US0137 | 23 | Draft |
+
+### [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
+
+| ID | Title | Stories | Test Cases | Status |
+|----|-------|---------|------------|--------|
+| [TS0177](TS0177-responsive-widget-layout.md) | Responsive Widget Layout Tests | US0177 | 12 | Draft |
+
 ### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 
 | ID | Title | Stories | Test Cases | Status |
@@ -97,6 +116,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 - **TS0015**: Scan Results Display Tests - 20 test cases (0 automated)
 - **TS0020**: Remove Agent API SSH Credentials Tests - 9 test cases (0 automated)
 - **TS0109**: Enhanced Maintenance Mode Indicator Tests - 9 test cases (0 automated)
+- **TS0132**: Server and Workstation Grouping Tests - 20 test cases (0 automated)
 
 ### In Progress
 

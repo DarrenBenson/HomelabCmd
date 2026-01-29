@@ -8,10 +8,10 @@ This document provides an overview of all Implementation Plans in the project.
 
 | Status | Count |
 |--------|-------|
-| Draft | 12 |
+| Draft | 17 |
 | In Progress | 0 |
-| Complete | 55 |
-| **Total** | **67** |
+| Complete | 58 |
+| **Total** | **75** |
 
 ## Plans by Epic
 
@@ -188,6 +188,27 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0090](PL0090-last-seen-ui-workstations.md) | US0090 | Last Seen UI for Workstations | Complete | 2026-01-27 |
 | [PL0091](PL0091-visual-distinction-workstations.md) | US0091 | Visual Distinction (Server vs Workstation) | Complete | 2026-01-27 |
 | [PL0092](PL0092-workstation-cost-tracking.md) | US0092 | Workstation Cost Tracking | Draft | 2026-01-27 |
+
+### [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
+
+| ID | Story | Title | Status | Created |
+|----|-------|-------|--------|---------|
+| [PL0130](PL0130-drag-drop-card-reordering.md) | US0130 | Drag-and-Drop Card Reordering | Complete | 2026-01-28 |
+| [PL0131](PL0131-card-order-persistence.md) | US0131 | Card Order Persistence | Complete | 2026-01-28 |
+| [PL0132](PL0132-server-workstation-grouping.md) | US0132 | Server and Workstation Grouping | Complete | 2026-01-28 |
+| [PL0133](PL0133-responsive-dashboard-layout.md) | US0133 | Responsive Dashboard Layout | Draft | 2026-01-28 |
+| [PL0134](PL0134-dashboard-summary-bar.md) | US0134 | Dashboard Summary Bar | Complete | 2026-01-28 |
+| [PL0135](PL0135-card-visual-enhancements.md) | US0135 | Card Visual Enhancements | Complete | 2026-01-28 |
+| [PL0136](PL0136-dashboard-preferences-sync.md) | US0136 | Dashboard Preferences Sync | Draft | 2026-01-28 |
+| [PL0137](PL0137-cross-section-machine-type-change.md) | US0137 | Cross-Section Machine Type Change | Draft | 2026-01-28 |
+
+### [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
+
+| ID | Story | Title | Status | Created |
+|----|-------|-------|--------|---------|
+| [PL0164](PL0164-widget-grid-system.md) | US0164 | Widget Grid System | Complete | 2026-01-28 |
+| [PL0165](PL0165-cpu-usage-widget.md) | US0165 | CPU Usage Widget | Draft | 2026-01-28 |
+| [PL0177](PL0177-responsive-widget-layout.md) | US0177 | Responsive Widget Layout | Draft | 2026-01-29 |
 
 ### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 

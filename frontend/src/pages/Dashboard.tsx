@@ -1,8 +1,24 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
+import { MachineSection } from '../components/MachineSection';
+import { SectionDropZone } from '../components/SectionDropZone';
 import { ServerCard } from '../components/ServerCard';
 import { DashboardFilters } from '../components/DashboardFilters';
 import type { StatusFilter, TypeFilter } from '../components/DashboardFilters';
+import { SummaryBar } from '../components/SummaryBar';
+import type { SummaryFilterCallback } from '../components/SummaryBar';
 import { AlertBanner } from '../components/AlertBanner';
 import { AlertDetailPanel } from '../components/AlertDetailPanel';
 import { PendingActionsPanel } from '../components/PendingActionsPanel';
@@ -10,18 +26,27 @@ import { RejectModal } from '../components/RejectModal';
 import { CostBadge } from '../components/CostBadge';
 import { ConnectivityStatusBar } from '../components/ConnectivityStatusBar';
 import { AddServerModal } from '../components/AddServerModal';
-import { getServers } from '../api/servers';
+import { getServers, updateMachineType } from '../api/servers';
 import { getAlerts, acknowledgeAlert, resolveAlert } from '../api/alerts';
 import { restartService } from '../api/services';
 import { ApiError } from '../api/client';
 import { getActions, approveAction, rejectAction } from '../api/actions';
+import { useDashboardPreferences } from '../hooks/useDashboardPreferences';
 import type { Server } from '../types/server';
 import type { Alert, AlertSeverity, AlertStatus } from '../types/alert';
 import type { Action } from '../types/action';
-import { Loader2, ServerOff, AlertCircle, Settings, Radar, ListTodo, Plus, Globe } from 'lucide-react';
+import { Loader2, ServerOff, AlertCircle, Settings, Radar, ListTodo, Plus, Globe, Check, Undo2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const POLL_INTERVAL_MS = 30000; // 30 seconds
+
+// US0137: Undo state for machine type change
+interface UndoState {
+  machineId: string;
+  machineName: string;
+  previousType: 'server' | 'workstation';
+  previousOrder: string[];
+}
 
 const severityOrder: Record<AlertSeverity, number> = {
   critical: 0,
@@ -74,6 +99,296 @@ export function Dashboard() {
   const [showAddServerModal, setShowAddServerModal] = useState(false);
   // US0115: Quick action message state
   const [quickActionMessage, setQuickActionMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+
+  // US0137: Cross-section drag-and-drop state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<'server' | 'workstation' | null>(null);
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [typeChangeMessage, setTypeChangeMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+    showUndo: boolean;
+  } | null>(null);
+  const [typeChangeLoading, setTypeChangeLoading] = useState(false);
+
+  // US0137: DnD sensors - lifted to Dashboard level for cross-section support
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 300,
+        tolerance: 5,
+      },
+    })
+  );
+
+  // US0137: Clear undo state after 5 seconds
+  useEffect(() => {
+    if (undoState) {
+      const timer = setTimeout(() => {
+        setUndoState(null);
+        setTypeChangeMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [undoState]);
+
+  // US0136: Unified dashboard preferences hook
+  const {
+    preferences,
+    isLoading: preferencesLoading,
+    loadError: preferencesLoadError,
+    isSaving,
+    showSavedIndicator,
+    saveError,
+    updateCardOrder,
+    updateCollapsedSections,
+    retrySave,
+    dismissSaveError,
+  } = useDashboardPreferences();
+
+  // Track when preferences have been applied to server list
+  const [preferencesApplied, setPreferencesApplied] = useState(false);
+
+  // US0132: Handle section reorder (using unified hook)
+  const handleServerReorder = useCallback((newOrder: string[]) => {
+    updateCardOrder('servers', newOrder);
+  }, [updateCardOrder]);
+
+  const handleWorkstationReorder = useCallback((newOrder: string[]) => {
+    updateCardOrder('workstations', newOrder);
+  }, [updateCardOrder]);
+
+  // US0132: Handle section collapse toggle (using unified hook)
+  const handleToggleServerCollapse = useCallback(() => {
+    const isCollapsed = preferences.collapsed_sections.includes('servers');
+    const updated = isCollapsed
+      ? preferences.collapsed_sections.filter((s) => s !== 'servers')
+      : [...preferences.collapsed_sections, 'servers'];
+    updateCollapsedSections(updated);
+  }, [preferences.collapsed_sections, updateCollapsedSections]);
+
+  const handleToggleWorkstationCollapse = useCallback(() => {
+    const isCollapsed = preferences.collapsed_sections.includes('workstations');
+    const updated = isCollapsed
+      ? preferences.collapsed_sections.filter((s) => s !== 'workstations')
+      : [...preferences.collapsed_sections, 'workstations'];
+    updateCollapsedSections(updated);
+  }, [preferences.collapsed_sections, updateCollapsedSections]);
+
+  // US0137: Handle machine type change (cross-section drop)
+  const handleMachineTypeChange = useCallback(
+    async (machine: Server, newType: 'server' | 'workstation') => {
+      const previousType = machine.machine_type as 'server' | 'workstation';
+      const machineName = machine.display_name || machine.hostname;
+      const previousOrderKey = previousType === 'server' ? 'servers' : 'workstations';
+      const previousOrder = [...preferences.card_order[previousOrderKey]];
+
+      // Optimistic update - move server to new section in UI
+      setServers((current) =>
+        current.map((s) =>
+          s.id === machine.id ? { ...s, machine_type: newType } : s
+        )
+      );
+
+      // Update card order - remove from old section, add to new
+      const oldSectionKey = previousType === 'server' ? 'servers' : 'workstations';
+      const newSectionKey = newType === 'server' ? 'servers' : 'workstations';
+      updateCardOrder(
+        oldSectionKey,
+        preferences.card_order[oldSectionKey].filter((id) => id !== machine.id)
+      );
+      updateCardOrder(newSectionKey, [...preferences.card_order[newSectionKey], machine.id]);
+
+      setTypeChangeLoading(true);
+
+      try {
+        await updateMachineType(machine.id, newType);
+
+        // Store undo state
+        setUndoState({
+          machineId: machine.id,
+          machineName,
+          previousType,
+          previousOrder,
+        });
+
+        // Show success toast with undo
+        setTypeChangeMessage({
+          type: 'success',
+          text: `Changed ${machineName} to ${newType}`,
+          showUndo: true,
+        });
+      } catch (err) {
+        // Revert on error
+        setServers((current) =>
+          current.map((s) =>
+            s.id === machine.id ? { ...s, machine_type: previousType } : s
+          )
+        );
+        // Revert card order
+        updateCardOrder(oldSectionKey, previousOrder);
+        updateCardOrder(
+          newSectionKey,
+          preferences.card_order[newSectionKey].filter((id) => id !== machine.id)
+        );
+
+        setTypeChangeMessage({
+          type: 'error',
+          text: `Failed to change ${machineName} type: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          showUndo: false,
+        });
+        setTimeout(() => setTypeChangeMessage(null), 5000);
+      } finally {
+        setTypeChangeLoading(false);
+      }
+    },
+    [preferences.card_order, updateCardOrder]
+  );
+
+  // US0137: Handle undo type change
+  const handleUndoTypeChange = useCallback(async () => {
+    if (!undoState) return;
+
+    const { machineId, machineName, previousType, previousOrder } = undoState;
+    const currentType = previousType === 'server' ? 'workstation' : 'server';
+
+    setTypeChangeLoading(true);
+
+    try {
+      await updateMachineType(machineId, previousType);
+
+      // Update UI
+      setServers((current) =>
+        current.map((s) =>
+          s.id === machineId ? { ...s, machine_type: previousType } : s
+        )
+      );
+
+      // Restore card order
+      const oldSectionKey = previousType === 'server' ? 'servers' : 'workstations';
+      const currentSectionKey = currentType === 'server' ? 'servers' : 'workstations';
+      updateCardOrder(oldSectionKey, previousOrder);
+      updateCardOrder(
+        currentSectionKey,
+        preferences.card_order[currentSectionKey].filter((id) => id !== machineId)
+      );
+
+      setUndoState(null);
+      setTypeChangeMessage({
+        type: 'success',
+        text: `Reverted ${machineName} to ${previousType}`,
+        showUndo: false,
+      });
+      setTimeout(() => setTypeChangeMessage(null), 3000);
+    } catch (err) {
+      setTypeChangeMessage({
+        type: 'error',
+        text: `Failed to undo: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        showUndo: false,
+      });
+      setTimeout(() => setTypeChangeMessage(null), 5000);
+    } finally {
+      setTypeChangeLoading(false);
+    }
+  }, [undoState, preferences.card_order, updateCardOrder]);
+
+  // US0137: DnD drag start handler
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const machineId = event.active.id as string;
+      setActiveDragId(machineId);
+
+      // Determine which section the dragged item belongs to
+      const machine = servers.find((m) => m.id === machineId);
+      setActiveSection((machine?.machine_type as 'server' | 'workstation') || null);
+    },
+    [servers]
+  );
+
+  // US0137: DnD drag end handler - detects cross-section drops
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveDragId(null);
+      setActiveSection(null);
+
+      if (!over) return;
+
+      const overData = over.data.current;
+      const machine = servers.find((m) => m.id === active.id);
+
+      if (!machine) return;
+
+      // Check if dropped on a section drop zone (cross-section drag)
+      if (overData?.isDropZone) {
+        const targetSection = overData.section as 'server' | 'workstation';
+        if (machine.machine_type !== targetSection) {
+          handleMachineTypeChange(machine, targetSection);
+        }
+        return;
+      }
+
+      // Same-section reorder - handle within-section card reordering
+      const overId = over.id as string;
+      const overMachine = servers.find((m) => m.id === overId);
+
+      if (!overMachine || machine.id === overId) return;
+
+      // Only reorder if both cards are in the same section
+      if (machine.machine_type === overMachine.machine_type) {
+        const sectionType = machine.machine_type as 'server' | 'workstation';
+        const orderKey = sectionType === 'server' ? 'servers' : 'workstations';
+        const currentOrder = preferences.card_order[orderKey];
+
+        const oldIndex = currentOrder.indexOf(machine.id);
+        const newIndex = currentOrder.indexOf(overId);
+
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+          updateCardOrder(orderKey, newOrder);
+
+          // Update local servers array to reflect new order immediately
+          setServers((current) => {
+            const sectionMachines = current.filter((m) => m.machine_type === sectionType);
+            const otherMachines = current.filter((m) => m.machine_type !== sectionType);
+
+            // Create a map for fast lookup
+            const machineMap = new Map(sectionMachines.map((m) => [m.id, m]));
+
+            // Reorder section machines based on new order
+            const reorderedSection: Server[] = [];
+            for (const id of newOrder) {
+              const m = machineMap.get(id);
+              if (m) reorderedSection.push(m);
+            }
+
+            // Append any machines not in the order (shouldn't happen but be safe)
+            for (const m of sectionMachines) {
+              if (!newOrder.includes(m.id)) reorderedSection.push(m);
+            }
+
+            // Return servers first, then workstations
+            return sectionType === 'server'
+              ? [...reorderedSection, ...otherMachines]
+              : [...otherMachines, ...reorderedSection];
+          });
+        }
+      }
+    },
+    [servers, handleMachineTypeChange, preferences.card_order, updateCardOrder]
+  );
+
+  // US0137: DnD drag cancel handler
+  const handleDragCancel = useCallback(() => {
+    setActiveDragId(null);
+    setActiveSection(null);
+  }, []);
 
   // US0112: Filter state from URL parameters
   const searchQuery = searchParams.get('q') || '';
@@ -152,6 +467,18 @@ export function Dashboard() {
     setSearchParams(new URLSearchParams(), { replace: true });
   }, [setSearchParams]);
 
+  // US0134: Handle summary bar filter clicks
+  const handleSummaryFilter: SummaryFilterCallback = useCallback(
+    (status?: StatusFilter, type?: TypeFilter) => {
+      updateSearchParams({
+        status: status ?? 'all',
+        type: type ?? 'all',
+        q: '', // Clear search when using summary filters
+      });
+    },
+    [updateSearchParams]
+  );
+
   // US0112: Check if any filters are active
   const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || typeFilter !== 'all';
 
@@ -219,6 +546,65 @@ export function Dashboard() {
     }
   }, []);
 
+  // US0134: Refreshing state for summary bar
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // US0134: Handle refresh with loading state
+  const handleRefreshWithState = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshData]);
+
+  // US0136: Apply preferences to server list when both servers and preferences are loaded
+  useEffect(() => {
+    if (preferencesLoading || servers.length === 0 || preferencesApplied) return;
+
+    // Apply saved order from unified preferences
+    const serverMap = new Map(servers.map((s: Server) => [s.id, s]));
+    const orderedServers: Server[] = [];
+    const orderedWorkstations: Server[] = [];
+    const seenServers = new Set<string>();
+    const seenWorkstations = new Set<string>();
+
+    // Apply saved server order
+    for (const id of preferences.card_order.servers) {
+      const server = serverMap.get(id);
+      if (server && server.machine_type === 'server') {
+        orderedServers.push(server);
+        seenServers.add(id);
+      }
+    }
+
+    // Apply saved workstation order
+    for (const id of preferences.card_order.workstations) {
+      const server = serverMap.get(id);
+      if (server && server.machine_type === 'workstation') {
+        orderedWorkstations.push(server);
+        seenWorkstations.add(id);
+      }
+    }
+
+    // Append new machines not in saved order
+    for (const server of servers) {
+      if (server.machine_type === 'server' && !seenServers.has(server.id)) {
+        orderedServers.push(server);
+      } else if (server.machine_type === 'workstation' && !seenWorkstations.has(server.id)) {
+        orderedWorkstations.push(server);
+      } else if (!server.machine_type && !seenServers.has(server.id)) {
+        // Default to server if no type set
+        orderedServers.push(server);
+      }
+    }
+
+    // Set servers with combined order (servers first, then workstations)
+    setServers([...orderedServers, ...orderedWorkstations]);
+    setPreferencesApplied(true);
+  }, [preferencesLoading, servers.length, preferencesApplied, preferences.card_order, servers]);
+
   useEffect(() => {
     let ignore = false;
 
@@ -230,7 +616,35 @@ export function Dashboard() {
           getActions(), // Fetch all actions, filter client-side
         ]);
         if (!ignore) {
-          setServers(sortServers(serverData.servers));
+          if (!preferencesApplied) {
+            // Initial load - set servers, preferences effect will reorder
+            setServers(sortServers(serverData.servers));
+          } else {
+            // On refresh, preserve current section order but update server data
+            setServers((currentServers) => {
+              const serverMap = new Map(serverData.servers.map((s: Server) => [s.id, s]));
+              const ordered: Server[] = [];
+              const seen = new Set<string>();
+
+              // Preserve current order for existing servers
+              for (const server of currentServers) {
+                const updated = serverMap.get(server.id);
+                if (updated) {
+                  ordered.push(updated);
+                  seen.add(server.id);
+                }
+              }
+
+              // Add new servers at the end
+              for (const server of serverData.servers) {
+                if (!seen.has(server.id)) {
+                  ordered.push(server);
+                }
+              }
+
+              return ordered;
+            });
+          }
           setAlerts(sortAlerts(alertData.alerts));
           // Pending actions for the panel display
           setPendingActions(actionsData.actions.filter((a) => a.status === 'pending'));
@@ -262,7 +676,7 @@ export function Dashboard() {
       ignore = true;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [preferencesApplied]);
 
   async function handleAcknowledge(alertId: number) {
     // Optimistic update
@@ -570,6 +984,112 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* US0136: Preferences load error toast */}
+      {preferencesLoadError && (
+        <div
+          className="mx-6 mt-4 p-3 bg-status-warning/10 border border-status-warning/30 rounded-lg flex items-center gap-2"
+          data-testid="preferences-load-error-toast"
+        >
+          <AlertCircle className="w-4 h-4 text-status-warning flex-shrink-0" />
+          <span className="text-sm text-text-secondary">{preferencesLoadError}</span>
+        </div>
+      )}
+
+      {/* US0136: Card order save error toast with retry */}
+      {saveError && (
+        <div
+          className="mx-6 mt-4 p-3 bg-status-error/10 border border-status-error/30 rounded-lg flex items-center justify-between gap-2"
+          data-testid="save-order-error-toast"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-status-error flex-shrink-0" />
+            <span className="text-sm text-text-secondary">{saveError}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={retrySave}
+              className="px-2 py-1 bg-status-error text-white rounded text-sm hover:bg-status-error/90 transition-colors"
+              data-testid="save-order-retry-button"
+            >
+              Retry
+            </button>
+            <button
+              onClick={dismissSaveError}
+              className="text-text-tertiary hover:text-text-secondary text-sm"
+              aria-label="Dismiss error"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* US0137: Type change toast with undo */}
+      {typeChangeMessage && (
+        <div
+          className={`mx-6 mt-4 p-3 rounded-lg flex items-center justify-between gap-2 ${
+            typeChangeMessage.type === 'error'
+              ? 'bg-status-error/10 border border-status-error/30'
+              : 'bg-status-success/10 border border-status-success/30'
+          }`}
+          data-testid="type-change-toast"
+        >
+          <div className="flex items-center gap-2">
+            {typeChangeMessage.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-status-error flex-shrink-0" />
+            ) : (
+              <Check className="w-4 h-4 text-status-success flex-shrink-0" />
+            )}
+            <span className="text-sm text-text-secondary">{typeChangeMessage.text}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {typeChangeMessage.showUndo && undoState && (
+              <button
+                onClick={handleUndoTypeChange}
+                disabled={typeChangeLoading}
+                className="flex items-center gap-1 px-2 py-1 bg-status-info text-white rounded text-sm hover:bg-status-info/90 transition-colors disabled:opacity-50"
+                data-testid="undo-type-change-button"
+              >
+                <Undo2 className="w-3 h-3" />
+                Undo
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setTypeChangeMessage(null);
+                if (!typeChangeMessage.showUndo) setUndoState(null);
+              }}
+              className="text-text-tertiary hover:text-text-secondary text-sm"
+              aria-label="Dismiss"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* US0136: Saving indicator */}
+      {isSaving && (
+        <div
+          className="fixed bottom-4 right-4 bg-bg-secondary px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm text-text-secondary z-50"
+          data-testid="saving-indicator"
+        >
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Saving...
+        </div>
+      )}
+
+      {/* US0136 AC3: Saved indicator */}
+      {showSavedIndicator && !isSaving && (
+        <div
+          className="fixed bottom-4 right-4 bg-status-success/10 border border-status-success/30 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm text-status-success z-50"
+          data-testid="saved-indicator"
+        >
+          <Check className="w-4 h-4" />
+          Saved
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="p-6 space-y-6">
         {hasServers ? (
@@ -590,6 +1110,14 @@ export function Dashboard() {
               approvingIds={approvingIds}
             />
 
+            {/* US0134: Summary Bar */}
+            <SummaryBar
+              machines={servers}
+              onFilter={handleSummaryFilter}
+              onRefresh={handleRefreshWithState}
+              isRefreshing={isRefreshing}
+            />
+
             {/* US0112: Dashboard Filters */}
             <DashboardFilters
               searchQuery={searchQuery}
@@ -602,36 +1130,96 @@ export function Dashboard() {
               hasActiveFilters={hasActiveFilters}
             />
 
-            {/* Server Grid or Empty State */}
-            {filteredServers.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredServers.map((server) => (
-                  <ServerCard
-                    key={server.id}
-                    server={server}
-                    onClick={() => navigate(`/servers/${server.id}`)}
-                    onPauseToggle={refreshData}
-                    onMessage={handleQuickActionMessage}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* US0112 AC7: Empty state when filters match no servers */
-              <div
-                className="flex flex-col items-center justify-center py-12 gap-3"
-                data-testid="no-matches-message"
-              >
-                <ServerOff className="w-10 h-10 text-text-tertiary" />
-                <p className="text-text-secondary">No servers match your filters</p>
-                <button
-                  onClick={handleClearFilters}
-                  className="text-status-info hover:text-status-info/80 text-sm font-medium transition-colors"
-                  data-testid="clear-filters-link"
+            {/* US0132/US0137: Machine Sections with cross-section drag-and-drop */}
+            {(() => {
+              // Check which sections have machines after filtering
+              // Note: machines without machine_type default to 'server' section
+              const hasFilteredServers = filteredServers.some((s) => s.machine_type === 'server' || !s.machine_type);
+              const hasFilteredWorkstations = filteredServers.some((s) => s.machine_type === 'workstation');
+              // Show servers section: not filtering by workstations AND has servers (or no active filters)
+              const showServersSection = typeFilter !== 'workstation' && (hasFilteredServers || !hasActiveFilters);
+              // Show workstations section: not filtering by servers AND has workstations (or no active filters)
+              const showWorkstationsSection = typeFilter !== 'server' && (hasFilteredWorkstations || !hasActiveFilters);
+
+              return filteredServers.length > 0 ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
                 >
-                  Clear filters
-                </button>
-              </div>
-            )}
+                  {/* Servers section - hide when filtering by workstations or empty after filter */}
+                  {showServersSection && (
+                    <SectionDropZone
+                      sectionType="server"
+                      isActiveSection={activeSection === 'server'}
+                      isCollapsed={preferences.collapsed_sections.includes('servers')}
+                    >
+                      <MachineSection
+                        title="Servers"
+                        type="server"
+                        machines={filteredServers}
+                        collapsed={preferences.collapsed_sections.includes('servers')}
+                        onToggleCollapse={handleToggleServerCollapse}
+                        onReorder={handleServerReorder}
+                        onCardClick={(server) => navigate(`/servers/${server.id}`)}
+                        onPauseToggle={refreshData}
+                        onMessage={handleQuickActionMessage}
+                      />
+                    </SectionDropZone>
+                  )}
+
+                  {/* Workstations section - hide when filtering by servers or empty after filter */}
+                  {showWorkstationsSection && (
+                    <SectionDropZone
+                      sectionType="workstation"
+                      isActiveSection={activeSection === 'workstation'}
+                      isCollapsed={preferences.collapsed_sections.includes('workstations')}
+                    >
+                      <MachineSection
+                        title="Workstations"
+                        type="workstation"
+                        machines={filteredServers}
+                        collapsed={preferences.collapsed_sections.includes('workstations')}
+                        onToggleCollapse={handleToggleWorkstationCollapse}
+                        onReorder={handleWorkstationReorder}
+                        onCardClick={(server) => navigate(`/servers/${server.id}`)}
+                        onPauseToggle={refreshData}
+                        onMessage={handleQuickActionMessage}
+                      />
+                    </SectionDropZone>
+                  )}
+
+                {/* US0137: DragOverlay for cross-section drag visual feedback */}
+                <DragOverlay>
+                  {activeDragId ? (
+                    <div className="opacity-90 shadow-2xl rotate-2">
+                      <ServerCard
+                        server={servers.find((s) => s.id === activeDragId)!}
+                      />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+                </DndContext>
+              ) : (
+                /* US0112 AC7: Empty state when filters match no servers */
+                <div
+                  className="flex flex-col items-center justify-center py-12 gap-3"
+                  data-testid="no-matches-message"
+                >
+                  <ServerOff className="w-10 h-10 text-text-tertiary" />
+                  <p className="text-text-secondary">No servers match your filters</p>
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-status-info hover:text-status-info/80 text-sm font-medium transition-colors"
+                    data-testid="clear-filters-link"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">

@@ -10,6 +10,7 @@ import logging
 import os
 import platform
 import re
+import shutil
 import socket
 import subprocess
 import time
@@ -194,6 +195,224 @@ def get_metrics() -> dict[str, float | int | None | bool]:
         metrics["uptime_seconds"] = None
 
     return metrics
+
+
+# Virtual filesystem types to exclude (US0178 AC4)
+_VIRTUAL_FS_TYPES = frozenset({
+    "tmpfs",
+    "devtmpfs",
+    "squashfs",
+    "overlay",
+    "proc",
+    "sysfs",
+    "devpts",
+    "cgroup",
+    "cgroup2",
+    "pstore",
+    "securityfs",
+    "debugfs",
+    "tracefs",
+    "configfs",
+    "fusectl",
+    "hugetlbfs",
+    "mqueue",
+    "binfmt_misc",
+    "autofs",
+    "efivarfs",
+    "bpf",
+})
+
+# Mount point prefixes to exclude
+_EXCLUDED_MOUNT_PREFIXES = (
+    "/sys",
+    "/proc",
+    "/dev",
+    "/run",
+    "/snap",
+)
+
+
+def get_filesystem_metrics() -> list[dict[str, Any]]:
+    """Collect per-filesystem disk metrics (US0178).
+
+    Parses /proc/mounts to enumerate filesystems and collects usage
+    metrics for each physical filesystem.
+
+    Virtual filesystems (tmpfs, devtmpfs, squashfs, etc.) and system
+    mount points (/sys, /proc, /dev, /run, /snap) are excluded.
+
+    Returns:
+        List of dictionaries, each containing:
+            mount_point: Filesystem mount point (e.g., /, /data)
+            device: Block device path (e.g., /dev/sda1)
+            fs_type: Filesystem type (e.g., ext4, xfs)
+            total_bytes: Total filesystem size
+            used_bytes: Used space
+            available_bytes: Available space
+            percent: Usage percentage (0-100)
+
+        Returns empty list on errors or if no filesystems found.
+    """
+    filesystems: list[dict[str, Any]] = []
+    seen_devices: set[str] = set()
+
+    mounts_path = Path("/proc/mounts")
+    if not mounts_path.exists():
+        logger.debug("/proc/mounts not found - skipping filesystem metrics")
+        return filesystems
+
+    try:
+        content = mounts_path.read_text()
+    except OSError as e:
+        logger.warning("Failed to read /proc/mounts: %s", e)
+        return filesystems
+
+    for line in content.splitlines():
+        if not line.strip():
+            continue
+
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+
+        device, mount_point, fs_type = parts[0], parts[1], parts[2]
+
+        # Skip virtual filesystems (AC4)
+        if fs_type in _VIRTUAL_FS_TYPES:
+            continue
+
+        # Skip system mount points (AC4)
+        if mount_point.startswith(_EXCLUDED_MOUNT_PREFIXES):
+            continue
+
+        # Skip if we've already seen this device (handles bind mounts)
+        if device in seen_devices:
+            continue
+
+        # Try to get disk usage for this mount point
+        try:
+            usage = shutil.disk_usage(mount_point)
+            total = usage.total
+            used = usage.used
+            available = usage.free
+
+            # Calculate percentage
+            if total > 0:
+                percent = round(used / total * 100, 1)
+            else:
+                percent = 0.0
+
+            filesystems.append({
+                "mount_point": mount_point,
+                "device": device,
+                "fs_type": fs_type,
+                "total_bytes": total,
+                "used_bytes": used,
+                "available_bytes": available,
+                "percent": percent,
+            })
+            seen_devices.add(device)
+
+        except PermissionError:
+            logger.debug("Permission denied accessing mount point: %s", mount_point)
+            continue
+        except OSError as e:
+            logger.debug("Failed to get disk usage for %s: %s", mount_point, e)
+            continue
+
+    return filesystems
+
+
+def get_network_interfaces() -> list[dict[str, Any]]:
+    """Collect per-interface network metrics (US0179).
+
+    Parses /proc/net/dev to enumerate network interfaces and collects
+    traffic statistics for each physical interface.
+
+    Loopback (lo) is excluded. Virtual interfaces (tailscale, docker, veth,
+    bridge) are included as they are useful for container/VPN networking.
+
+    Returns:
+        List of dictionaries, each containing:
+            name: Interface name (e.g., eth0, tailscale0)
+            rx_bytes: Total bytes received since boot
+            tx_bytes: Total bytes transmitted since boot
+            rx_packets: Total packets received since boot
+            tx_packets: Total packets transmitted since boot
+            is_up: Whether interface is up
+
+        Returns empty list on errors or if no interfaces found.
+    """
+    interfaces: list[dict[str, Any]] = []
+
+    net_dev_path = Path("/proc/net/dev")
+    if not net_dev_path.exists():
+        logger.debug("/proc/net/dev not found - skipping network interface metrics")
+        return interfaces
+
+    try:
+        content = net_dev_path.read_text()
+    except OSError as e:
+        logger.warning("Failed to read /proc/net/dev: %s", e)
+        return interfaces
+
+    # Skip the first two header lines
+    lines = content.splitlines()[2:]
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            # Format: "interface: rx_bytes rx_packets ... tx_bytes tx_packets ..."
+            # Split on ':' first to get interface name
+            parts = line.split(":")
+            if len(parts) < 2:
+                continue
+
+            name = parts[0].strip()
+
+            # Skip loopback interface (AC4)
+            if name == "lo":
+                continue
+
+            # Parse the statistics
+            stats = parts[1].split()
+            if len(stats) < 10:
+                logger.debug("Malformed line for interface %s - skipping", name)
+                continue
+
+            rx_bytes = int(stats[0])
+            rx_packets = int(stats[1])
+            tx_bytes = int(stats[8])
+            tx_packets = int(stats[9])
+
+            # Check if interface is up by reading operstate
+            is_up = True  # Default to up if we can't read state
+            try:
+                operstate_path = Path(f"/sys/class/net/{name}/operstate")
+                if operstate_path.exists():
+                    state = operstate_path.read_text().strip()
+                    is_up = state == "up"
+            except (OSError, PermissionError):
+                # If we can't read operstate, assume interface is up
+                pass
+
+            interfaces.append({
+                "name": name,
+                "rx_bytes": rx_bytes,
+                "tx_bytes": tx_bytes,
+                "rx_packets": rx_packets,
+                "tx_packets": tx_packets,
+                "is_up": is_up,
+            })
+
+        except (ValueError, IndexError) as e:
+            logger.debug("Failed to parse interface line '%s': %s", line, e)
+            continue
+
+    return interfaces
 
 
 def get_mac_address() -> str | None:

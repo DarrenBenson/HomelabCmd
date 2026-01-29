@@ -23,8 +23,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from cryptography.fernet import Fernet
-from fastapi.testclient import TestClient
-
 
 # =============================================================================
 # Test Fixtures
@@ -488,7 +486,7 @@ class TestSSHConfigurationShared:
         self, db_session, encryption_key
     ) -> None:
         """AC6: SSH username is shared between connectivity modes."""
-        from homelab_cmd.api.routes.config import get_config_value, set_config_value
+        from homelab_cmd.api.routes.config import get_config_value
         from homelab_cmd.services.connectivity_service import ConnectivityService
         from homelab_cmd.services.credential_service import CredentialService
 

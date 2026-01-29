@@ -60,6 +60,27 @@ vi.mock('../api/costs', () => ({
   }),
 }));
 
+// US0136: Mock the useDashboardPreferences hook
+vi.mock('../hooks/useDashboardPreferences', () => ({
+  useDashboardPreferences: vi.fn().mockReturnValue({
+    preferences: {
+      card_order: { servers: [], workstations: [] },
+      collapsed_sections: [],
+      view_mode: 'grid',
+      updated_at: null,
+    },
+    isLoading: false,
+    loadError: null,
+    isSaving: false,
+    showSavedIndicator: false,
+    saveError: null,
+    updateCardOrder: vi.fn(),
+    updateCollapsedSections: vi.fn(),
+    retrySave: vi.fn(),
+    dismissSaveError: vi.fn(),
+  }),
+}));
+
 // Mock useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

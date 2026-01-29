@@ -87,6 +87,8 @@ def send_heartbeat(
     command_results: list[dict[str, Any]] | None = None,
     cpu_info: dict[str, Any] | None = None,
     packages: list[dict[str, Any]] | None = None,
+    filesystems: list[dict[str, Any]] | None = None,
+    network_interfaces: list[dict[str, Any]] | None = None,
 ) -> HeartbeatResult:
     """Send heartbeat to hub API with retry logic.
 
@@ -100,6 +102,8 @@ def send_heartbeat(
         command_results: List of command execution results to report (US0027).
         cpu_info: CPU model and core count for power profile detection.
         packages: Detailed package update list (US0051).
+        filesystems: Per-filesystem disk metrics (US0178).
+        network_interfaces: Per-interface network metrics (US0179).
 
     Returns:
         HeartbeatResult with success status and pending commands.
@@ -134,6 +138,14 @@ def send_heartbeat(
     # Include detailed package list if provided (US0051)
     if packages:
         payload["packages"] = packages
+
+    # Include per-filesystem disk metrics (US0178)
+    if filesystems:
+        payload["filesystems"] = filesystems
+
+    # Include per-interface network metrics (US0179)
+    if network_interfaces:
+        payload["network_interfaces"] = network_interfaces
 
     # Build authentication headers (per-agent token preferred, fall back to legacy key)
     headers: dict[str, str] = {

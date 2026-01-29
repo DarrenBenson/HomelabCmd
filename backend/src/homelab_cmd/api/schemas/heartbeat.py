@@ -53,6 +53,102 @@ class CPUInfo(BaseModel):
     )
 
 
+class FilesystemMetric(BaseModel):
+    """Per-filesystem disk metrics (US0178).
+
+    Provides detailed metrics for individual mounted filesystems,
+    enabling the disk widget to show per-mount usage.
+    """
+
+    mount_point: str = Field(
+        ...,
+        max_length=255,
+        description="Filesystem mount point (e.g., /, /data)",
+        examples=["/", "/data", "/mnt/storage"],
+    )
+    device: str = Field(
+        ...,
+        max_length=255,
+        description="Block device path (e.g., /dev/sda1)",
+        examples=["/dev/sda1", "/dev/nvme0n1p1", "/dev/mapper/vg0-root"],
+    )
+    fs_type: str = Field(
+        ...,
+        max_length=50,
+        description="Filesystem type (e.g., ext4, xfs, btrfs)",
+        examples=["ext4", "xfs", "btrfs", "zfs"],
+    )
+    total_bytes: int = Field(
+        ...,
+        ge=0,
+        description="Total filesystem size in bytes",
+        examples=[107374182400],
+    )
+    used_bytes: int = Field(
+        ...,
+        ge=0,
+        description="Used space in bytes",
+        examples=[64424509440],
+    )
+    available_bytes: int = Field(
+        ...,
+        ge=0,
+        description="Available space in bytes",
+        examples=[42949672960],
+    )
+    percent: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Usage percentage (0-100)",
+        examples=[60.0, 85.5],
+    )
+
+
+class NetworkInterfaceMetric(BaseModel):
+    """Per-interface network metrics (US0179).
+
+    Provides detailed metrics for individual network interfaces,
+    enabling the network widget to show per-interface traffic.
+    """
+
+    name: str = Field(
+        ...,
+        max_length=64,
+        description="Network interface name (e.g., eth0, tailscale0)",
+        examples=["eth0", "tailscale0", "docker0", "br-abcd1234"],
+    )
+    rx_bytes: int = Field(
+        ...,
+        ge=0,
+        description="Total bytes received since boot",
+        examples=[1073741824],
+    )
+    tx_bytes: int = Field(
+        ...,
+        ge=0,
+        description="Total bytes transmitted since boot",
+        examples=[536870912],
+    )
+    rx_packets: int = Field(
+        ...,
+        ge=0,
+        description="Total packets received since boot",
+        examples=[1000000],
+    )
+    tx_packets: int = Field(
+        ...,
+        ge=0,
+        description="Total packets transmitted since boot",
+        examples=[500000],
+    )
+    is_up: bool = Field(
+        ...,
+        description="Whether the interface is up",
+        examples=[True, False],
+    )
+
+
 class MetricsPayload(BaseModel):
     """Metrics collected by agent (all fields optional)."""
 
@@ -315,6 +411,14 @@ class HeartbeatRequest(BaseModel):
     cpu_info: CPUInfo | None = Field(
         None,
         description="CPU information for power profile detection",
+    )
+    filesystems: list[FilesystemMetric] | None = Field(
+        None,
+        description="Per-filesystem disk metrics (US0178)",
+    )
+    network_interfaces: list[NetworkInterfaceMetric] | None = Field(
+        None,
+        description="Per-interface network metrics (US0179)",
     )
 
 

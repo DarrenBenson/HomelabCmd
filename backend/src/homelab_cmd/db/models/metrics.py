@@ -12,7 +12,7 @@ Retention tiers (US0046):
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from homelab_cmd.db.base import Base
@@ -160,6 +160,125 @@ class MetricsHourly(Base):
         return (
             f"<MetricsHourly(id={self.id}, server_id={self.server_id!r}, "
             f"timestamp={self.timestamp}, samples={self.sample_count})>"
+        )
+
+
+class FilesystemMetrics(Base):
+    """Per-filesystem metrics storage (US0178).
+
+    Stores historical per-filesystem disk metrics for trend analysis.
+    Each record represents a single filesystem's metrics at a specific time.
+
+    Retention: Same as raw metrics (7 days), then purged.
+    For longer retention, implement FilesystemMetricsHourly/Daily if needed.
+
+    Attributes:
+        id: Auto-incrementing primary key
+        server_id: Foreign key to the server
+        timestamp: When the metrics were collected
+        mount_point: Filesystem mount point (e.g., /, /data)
+        device: Block device path (e.g., /dev/sda1)
+        fs_type: Filesystem type (e.g., ext4, xfs)
+        total_bytes: Total filesystem size
+        used_bytes: Used space
+        available_bytes: Available space
+        percent: Usage percentage
+    """
+
+    __tablename__ = "filesystem_metrics"
+
+    __table_args__ = (
+        Index("idx_fs_metrics_server_ts", "server_id", "timestamp"),
+        Index("idx_fs_metrics_server_mount_ts", "server_id", "mount_point", "timestamp"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    server_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("servers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    # Filesystem identification
+    mount_point: Mapped[str] = mapped_column(String(255), nullable=False)
+    device: Mapped[str] = mapped_column(String(255), nullable=False)
+    fs_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Metrics (using BigInteger for large disk sizes)
+    total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    used_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    available_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    percent: Mapped[float] = mapped_column(Float, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return string representation of the filesystem metrics."""
+        return (
+            f"<FilesystemMetrics(id={self.id}, server_id={self.server_id!r}, "
+            f"mount_point={self.mount_point!r}, percent={self.percent}%)>"
+        )
+
+
+class NetworkInterfaceMetrics(Base):
+    """Per-interface network metrics storage (US0179).
+
+    Stores historical per-interface network metrics for trend analysis.
+    Each record represents a single interface's metrics at a specific time.
+
+    Retention: Same as raw metrics (7 days), then purged.
+
+    Attributes:
+        id: Auto-incrementing primary key
+        server_id: Foreign key to the server
+        timestamp: When the metrics were collected
+        interface_name: Network interface name (e.g., eth0, tailscale0)
+        rx_bytes: Total bytes received
+        tx_bytes: Total bytes transmitted
+        rx_packets: Total packets received
+        tx_packets: Total packets transmitted
+        is_up: Whether interface is up
+    """
+
+    __tablename__ = "network_interface_metrics"
+
+    __table_args__ = (
+        Index("idx_net_iface_server_ts", "server_id", "timestamp"),
+        Index("idx_net_iface_server_name_ts", "server_id", "interface_name", "timestamp"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    server_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("servers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    # Interface identification
+    interface_name: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # Network metrics (using BigInteger for large byte counts)
+    rx_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tx_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    rx_packets: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tx_packets: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    # Interface state
+    is_up: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return string representation of the network interface metrics."""
+        return (
+            f"<NetworkInterfaceMetrics(id={self.id}, server_id={self.server_id!r}, "
+            f"interface_name={self.interface_name!r}, rx_bytes={self.rx_bytes})>"
         )
 
 

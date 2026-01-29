@@ -115,6 +115,35 @@ class ServerUpdate(BaseModel):
         pattern=r"^(passwordless|password)$",
         description="Sudo mode: 'passwordless' or 'password'",
     )
+    # US0137: Machine type change via drag-and-drop
+    machine_type: str | None = Field(
+        None,
+        pattern=r"^(server|workstation)$",
+        description="Machine type: 'server' or 'workstation'",
+    )
+
+
+class FilesystemMetricResponse(BaseModel):
+    """Per-filesystem disk metrics for API response (US0178)."""
+
+    mount_point: str = Field(..., description="Filesystem mount point")
+    device: str = Field(..., description="Block device path")
+    fs_type: str = Field(..., description="Filesystem type")
+    total_bytes: int = Field(..., description="Total filesystem size in bytes")
+    used_bytes: int = Field(..., description="Used space in bytes")
+    available_bytes: int = Field(..., description="Available space in bytes")
+    percent: float = Field(..., description="Usage percentage (0-100)")
+
+
+class NetworkInterfaceMetricResponse(BaseModel):
+    """Per-interface network metrics for API response (US0179)."""
+
+    name: str = Field(..., description="Network interface name")
+    rx_bytes: int = Field(..., description="Total bytes received since boot")
+    tx_bytes: int = Field(..., description="Total bytes transmitted since boot")
+    rx_packets: int = Field(..., description="Total packets received since boot")
+    tx_packets: int = Field(..., description="Total packets transmitted since boot")
+    is_up: bool = Field(..., description="Whether the interface is up")
 
 
 class LatestMetrics(BaseModel):
@@ -201,6 +230,14 @@ class ServerResponse(BaseModel):
     created_at: datetime = Field(..., description="Server registration timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
     latest_metrics: LatestMetrics | None = Field(None, description="Most recent metrics snapshot")
+    # US0178: Per-filesystem disk metrics
+    filesystems: list[FilesystemMetricResponse] | None = Field(
+        None, description="Per-filesystem disk metrics for detailed storage view"
+    )
+    # US0179: Per-interface network metrics
+    network_interfaces: list[NetworkInterfaceMetricResponse] | None = Field(
+        None, description="Per-interface network metrics for detailed network view"
+    )
     # US0110: Warning state visual treatment - active alert information
     active_alert_count: int = Field(0, description="Number of active (open) alerts for this server")
     active_alert_summaries: list[str] = Field(

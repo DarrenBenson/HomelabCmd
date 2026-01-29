@@ -26,11 +26,13 @@ from homelab_cmd.api.routes import (
     costs,
     discovery,
     metrics,
+    preferences,
     scan,
     servers,
     services,
     system,
     tailscale,
+    widget_layout,
 )
 from homelab_cmd.config import get_settings
 from homelab_cmd.db import dispose_engine, init_database
@@ -195,6 +197,10 @@ OPENAPI_TAGS = [
         "name": "Tailscale",
         "description": "Tailscale API integration for device discovery.",
     },
+    {
+        "name": "Preferences",
+        "description": "Dashboard preferences and personalisation settings.",
+    },
 ]
 
 
@@ -293,6 +299,12 @@ homelab infrastructure. Features include:
     # Mount discovery routes (auth required) - US0041: Network Discovery
     app.include_router(discovery.router, prefix="/api/v1")
     app.include_router(discovery.settings_router, prefix="/api/v1")
+
+    # Mount preferences routes (auth required) - US0131: Card Order Persistence
+    app.include_router(preferences.router, prefix="/api/v1")
+
+    # Mount widget layout routes (auth required) - US0173: Widget Layout Persistence
+    app.include_router(widget_layout.router, prefix="/api/v1")
 
     return app
 

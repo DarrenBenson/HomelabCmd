@@ -17,7 +17,6 @@ from homelab_cmd.services.uptime import (
     update_server_uptime,
 )
 
-
 # =============================================================================
 # AC1: Uptime tracking from heartbeats
 # =============================================================================

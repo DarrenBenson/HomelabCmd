@@ -21,7 +21,7 @@ from homelab_cmd.api.schemas.heartbeat import (
     HeartbeatResponse,
     PendingCommand,
 )
-from homelab_cmd.db.models.metrics import Metrics
+from homelab_cmd.db.models.metrics import FilesystemMetrics, Metrics, NetworkInterfaceMetrics
 from homelab_cmd.db.models.remediation import ActionStatus, RemediationAction
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.db.models.service import ServiceStatus
@@ -364,6 +364,66 @@ async def receive_heartbeat(
                 timestamp=heartbeat.timestamp,
             )
             session.add(service_status)
+
+    # Store per-filesystem metrics if provided (US0178)
+    if heartbeat.filesystems:
+        # Store latest snapshot in server record (for quick API response)
+        server.filesystems = [
+            {
+                "mount_point": fs.mount_point,
+                "device": fs.device,
+                "fs_type": fs.fs_type,
+                "total_bytes": fs.total_bytes,
+                "used_bytes": fs.used_bytes,
+                "available_bytes": fs.available_bytes,
+                "percent": fs.percent,
+            }
+            for fs in heartbeat.filesystems
+        ]
+
+        # Store historical records (for trend analysis)
+        for fs in heartbeat.filesystems:
+            fs_metrics = FilesystemMetrics(
+                server_id=heartbeat.server_id,
+                timestamp=heartbeat.timestamp,
+                mount_point=fs.mount_point,
+                device=fs.device,
+                fs_type=fs.fs_type,
+                total_bytes=fs.total_bytes,
+                used_bytes=fs.used_bytes,
+                available_bytes=fs.available_bytes,
+                percent=fs.percent,
+            )
+            session.add(fs_metrics)
+
+    # Store per-interface network metrics if provided (US0179)
+    if heartbeat.network_interfaces:
+        # Store latest snapshot in server record (for quick API response)
+        server.network_interfaces = [
+            {
+                "name": iface.name,
+                "rx_bytes": iface.rx_bytes,
+                "tx_bytes": iface.tx_bytes,
+                "rx_packets": iface.rx_packets,
+                "tx_packets": iface.tx_packets,
+                "is_up": iface.is_up,
+            }
+            for iface in heartbeat.network_interfaces
+        ]
+
+        # Store historical records (for trend analysis)
+        for iface in heartbeat.network_interfaces:
+            iface_metrics = NetworkInterfaceMetrics(
+                server_id=heartbeat.server_id,
+                timestamp=heartbeat.timestamp,
+                interface_name=iface.name,
+                rx_bytes=iface.rx_bytes,
+                tx_bytes=iface.tx_bytes,
+                rx_packets=iface.rx_packets,
+                tx_packets=iface.tx_packets,
+                is_up=iface.is_up,
+            )
+            session.add(iface_metrics)
 
     # Process package updates if provided (US0051 - AC2)
     if heartbeat.packages is not None:

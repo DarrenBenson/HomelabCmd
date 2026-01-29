@@ -25,8 +25,10 @@ if __name__ == "__main__" and __package__ is None:
     from collectors import (
         get_all_services_status,
         get_cpu_info,
+        get_filesystem_metrics,
         get_mac_address,
         get_metrics,
+        get_network_interfaces,
         get_os_info,
         get_package_update_list,
         get_package_updates,
@@ -39,8 +41,10 @@ else:
     from .collectors import (
         get_all_services_status,
         get_cpu_info,
+        get_filesystem_metrics,
         get_mac_address,
         get_metrics,
+        get_network_interfaces,
         get_os_info,
         get_package_update_list,
         get_package_updates,
@@ -300,6 +304,8 @@ Examples:
             metrics = get_metrics()
             mac_address = get_mac_address()
             packages = get_package_update_list()
+            filesystems = get_filesystem_metrics()
+            network_interfaces = get_network_interfaces()
 
             # Derive counts from detailed package list to ensure consistency
             # (apt-get -s upgrade can miss packages that need dist-upgrade)
@@ -334,6 +340,8 @@ Examples:
                 command_results=_pending_results if _pending_results else None,
                 cpu_info=cpu_info,
                 packages=packages if packages else None,
+                filesystems=filesystems if filesystems else None,
+                network_interfaces=network_interfaces if network_interfaces else None,
             )
 
             # Clear results that were acknowledged

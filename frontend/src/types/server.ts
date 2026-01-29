@@ -31,6 +31,27 @@ export type AgentMode = 'readonly' | 'readwrite';
 
 export type MachineType = 'server' | 'workstation';
 
+// US0178: Per-filesystem disk metrics
+export interface FilesystemMetric {
+  mount_point: string;
+  device: string;
+  fs_type: string;
+  total_bytes: number;
+  used_bytes: number;
+  available_bytes: number;
+  percent: number;
+}
+
+// US0179: Per-interface network metrics
+export interface NetworkInterfaceMetric {
+  name: string;
+  rx_bytes: number;
+  tx_bytes: number;
+  rx_packets: number;
+  tx_packets: number;
+  is_up: boolean;
+}
+
 export interface Server {
   id: string;
   hostname: string;
@@ -52,6 +73,10 @@ export interface Server {
   active_alert_summaries?: string[];
   // US0111: Connectivity badge
   tailscale_hostname?: string | null;
+  // US0178: Per-filesystem disk metrics
+  filesystems?: FilesystemMetric[] | null;
+  // US0179: Per-interface network metrics
+  network_interfaces?: NetworkInterfaceMetric[] | null;
 }
 
 export interface ServersResponse {
@@ -104,12 +129,18 @@ export interface ServerDetail {
   security_updates: number | null;
   // Tailscale integration (EP0008)
   tailscale_hostname: string | null;
+  // Machine type (US0174: Default Widget Layout)
+  machine_type?: MachineType;
   // Per-server credential settings (US0088)
   ssh_username: string | null;
   sudo_mode: SudoMode;
   created_at: string;
   updated_at: string;
   latest_metrics: LatestMetrics | null;
+  // US0178: Per-filesystem disk metrics
+  filesystems?: FilesystemMetric[] | null;
+  // US0179: Per-interface network metrics
+  network_interfaces?: NetworkInterfaceMetric[] | null;
 }
 
 // Types for Historical Metrics

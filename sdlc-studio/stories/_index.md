@@ -9,13 +9,13 @@ This document provides an overview of all User Stories in the project.
 
 | Status | Count |
 |--------|-------|
-| Draft | 8 |
+| Draft | 22 |
 | Ready | 0 |
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 96 |
-| **Total** | **104** |
+| Done | 107 |
+| **Total** | **129** |
 ...
 | [US0052](US0052-trigger-package-updates.md) | Trigger Package Updates from Dashboard | Done | 5 | Darren |
 | [US0074](US0074-robust-package-management.md) | Robust Package Management Architecture | Done | 5 | Darren |
@@ -40,12 +40,15 @@ This document provides an overview of all User Stories in the project.
 
 | Story | Title | Status | Points | Owner |
 |-------|-------|--------|--------|-------|
+| US0082 | Machine Type Field and Migration | Done | 3 | Darren |
+| US0083 | Workstation Registration Workflow | Done | 4 | Darren |
+| US0088 | Workstation Metrics Collection | Done | 2 | Darren |
 | [US0089](US0089-workstation-aware-alerting.md) | Workstation-Aware Alerting | Done | 5 | Darren |
 | [US0090](US0090-last-seen-ui-workstations.md) | Last Seen UI for Workstations | Done | 3 | Darren |
 | [US0091](US0091-visual-distinction-workstations.md) | Visual Distinction for Workstations | Done | 5 | Darren |
 | [US0092](US0092-workstation-cost-tracking.md) | Workstation Cost Tracking | Done | 5 | Darren |
 
-**EP0009 Total:** 4 stories, 18 points (4 Done)
+**EP0009 Total:** 7 stories, 27 points (7 Done)
 
 ### EP0015: Per-Host Credential Management (v2.0)
 
@@ -90,6 +93,43 @@ This document provides an overview of all User Stories in the project.
 
 **EP0017 Total:** 7 stories, 23 points (7 Done)
 
+### EP0011: Advanced Dashboard UI (v2.0)
+
+| Story | Title | Status | Points | Owner |
+|-------|-------|--------|--------|-------|
+| [US0130](US0130-drag-drop-card-reordering.md) | Drag-and-Drop Card Reordering | Done | 8 | Darren |
+| [US0131](US0131-card-order-persistence.md) | Card Order Persistence | Done | 5 | Darren |
+| [US0132](US0132-server-workstation-grouping.md) | Server and Workstation Grouping | Done | 5 | Darren |
+| [US0133](US0133-responsive-dashboard-layout.md) | Responsive Dashboard Layout | Done | 5 | Darren |
+| [US0134](US0134-dashboard-summary-bar.md) | Dashboard Summary Bar | Done | 3 | Darren |
+| [US0135](US0135-card-visual-enhancements.md) | Card Visual Enhancements | Done | 3 | Darren |
+| [US0136](US0136-dashboard-preferences-sync.md) | Dashboard Preferences Sync | Done | 3 | Darren |
+| [US0137](US0137-cross-section-machine-type-change.md) | Cross-Section Machine Type Change | Done | 5 | Darren |
+
+**EP0011 Total:** 8 stories, 37 points (8 Done)
+
+### EP0012: Widget-Based Detail View (v2.0)
+
+| Story | Title | Status | Points | Owner |
+|-------|-------|--------|--------|-------|
+| [US0164](US0164-widget-grid-system.md) | Widget Grid System | Draft | 8 | Darren |
+| [US0165](US0165-cpu-usage-widget.md) | CPU Usage Widget | Draft | 3 | Darren |
+| [US0166](US0166-memory-usage-widget.md) | Memory Usage Widget | Draft | 3 | Darren |
+| [US0167](US0167-load-average-widget.md) | Load Average Widget | Draft | 2 | Darren |
+| [US0168](US0168-disk-usage-widget.md) | Disk Usage Widget | Draft | 3 | Darren |
+| [US0169](US0169-services-widget.md) | Services Widget | Draft | 3 | Darren |
+| [US0171](US0171-network-widget.md) | Network Widget | Draft | 3 | Darren |
+| [US0172](US0172-system-info-widget.md) | System Info Widget | Draft | 2 | Darren |
+| [US0173](US0173-widget-layout-persistence.md) | Widget Layout Persistence | Draft | 5 | Darren |
+| [US0174](US0174-default-widget-layout.md) | Default Widget Layout | Draft | 3 | Darren |
+| [US0175](US0175-edit-layout-mode.md) | Edit Layout Mode | Draft | 3 | Darren |
+| [US0176](US0176-widget-visibility-toggle.md) | Widget Visibility Toggle | Draft | 3 | Darren |
+| [US0177](US0177-responsive-widget-layout.md) | Responsive Widget Layout | Draft | 3 | Darren |
+| [US0178](US0178-per-filesystem-metrics-api.md) | Per-Filesystem Metrics API | Draft | 5 | Darren |
+| [US0179](US0179-per-interface-network-metrics-api.md) | Per-Interface Network Metrics API | Draft | 5 | Darren |
+
+**EP0012 Total:** 15 stories, 53 points (10 Done, 2 Partial)
+
 ### EP0010: Configuration Management (v2.0)
 
 | Story | Title | Status | Points | Owner |
@@ -120,6 +160,23 @@ None
 None
 
 ### Draft
+
+**EP0012: Widget-Based Detail View** (53 pts)
+- [US0164: Widget Grid System](US0164-widget-grid-system.md) (8 pts)
+- [US0165: CPU Usage Widget](US0165-cpu-usage-widget.md) (3 pts)
+- [US0166: Memory Usage Widget](US0166-memory-usage-widget.md) (3 pts)
+- [US0167: Load Average Widget](US0167-load-average-widget.md) (2 pts)
+- [US0168: Disk Usage Widget](US0168-disk-usage-widget.md) (3 pts)
+- [US0169: Services Widget](US0169-services-widget.md) (3 pts)
+- [US0171: Network Widget](US0171-network-widget.md) (3 pts)
+- [US0172: System Info Widget](US0172-system-info-widget.md) (2 pts)
+- [US0173: Widget Layout Persistence](US0173-widget-layout-persistence.md) (5 pts)
+- [US0174: Default Widget Layout](US0174-default-widget-layout.md) (3 pts)
+- [US0175: Edit Layout Mode](US0175-edit-layout-mode.md) (3 pts)
+- [US0176: Widget Visibility Toggle](US0176-widget-visibility-toggle.md) (3 pts)
+- [US0177: Responsive Widget Layout](US0177-responsive-widget-layout.md) (3 pts)
+- [US0178: Per-Filesystem Metrics API](US0178-per-filesystem-metrics-api.md) (5 pts)
+- [US0179: Per-Interface Network Metrics API](US0179-per-interface-network-metrics-api.md) (5 pts)
 
 **EP0010: Configuration Management** (42 pts)
 - [US0116: Configuration Pack Definitions](US0116-configuration-pack-definitions.md) (5 pts)
@@ -217,7 +274,10 @@ None
 - US0081: Credential Encryption and Storage (3 pts)
 - US0082: Tailscale Import with Agent Install (3 pts)
 
-**EP0009: Workstation Management** (18 pts done)
+**EP0009: Workstation Management** (27 pts done)
+- US0082: Machine Type Field and Migration (3 pts)
+- US0083: Workstation Registration Workflow (4 pts)
+- US0088: Workstation Metrics Collection (2 pts)
 - US0089: Workstation-Aware Alerting (5 pts)
 - US0090: Last Seen UI for Workstations (3 pts)
 - US0091: Visual Distinction for Workstations (5 pts)
@@ -251,12 +311,21 @@ None
 - US0114: Accessible Status Indicators (2 pts)
 - US0115: Server Card Quick Actions (3 pts)
 
+**EP0011: Advanced Dashboard UI** (32 pts done)
+- US0130: Drag-and-Drop Card Reordering (8 pts)
+- US0131: Card Order Persistence (5 pts)
+- US0132: Server and Workstation Grouping (5 pts)
+- US0133: Responsive Dashboard Layout (5 pts)
+- US0134: Dashboard Summary Bar (3 pts)
+- US0135: Card Visual Enhancements (3 pts)
+- US0136: Dashboard Preferences Sync (3 pts)
+
 ## Estimation Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Story Points | 408 |
-| Estimated Stories | 104 |
+| Total Story Points | 449 |
+| Estimated Stories | 114 |
 | Unestimated Stories | 0 |
 | Average Points/Story | 3.9 |
 
@@ -428,6 +497,7 @@ US0037 (SSH Key Config)
 - EP0017 stories (US0109-US0111) generated on 2026-01-28 for Desktop UX Improvements
 - EP0017 stories (US0112-US0115) added on 2026-01-28 from UX review (search/filter, sparklines, accessibility, quick actions)
 - EP0010 stories (US0116-US0123) generated on 2026-01-28 for Configuration Management
+- EP0011 stories (US0130-US0136) generated on 2026-01-28 for Advanced Dashboard UI
 
 ### Phase 7: EP0008 Tailscale Integration (v2.0)
 
@@ -543,4 +613,36 @@ US0116 (Pack Definitions) ── foundation (YAML schema)
   │
   └─► US0121 (Pack Assignment)
         └─► US0122 (Drift Detection)
+```
+
+### Phase 11: EP0011 Advanced Dashboard UI (v2.0)
+
+**Recommended Order:**
+1. **US0130** - Drag-and-Drop Card Reordering (foundation - @dnd-kit integration)
+2. **US0131** - Card Order Persistence (depends on US0130)
+3. **US0132** - Server and Workstation Grouping (depends on US0130, US0131, EP0009)
+4. **US0134** - Dashboard Summary Bar (parallel with US0132, depends on EP0009)
+5. **US0135** - Card Visual Enhancements (parallel with US0134, depends on EP0009)
+6. **US0133** - Responsive Dashboard Layout (depends on US0130, US0132)
+7. **US0136** - Dashboard Preferences Sync (depends on US0131, US0132)
+
+### EP0011: Advanced Dashboard UI Dependency Graph
+
+```
+US0130 (Drag-and-Drop) ── foundation (@dnd-kit)
+  │
+  ├─► US0131 (Order Persistence) ── backend API
+  │     └─► US0136 (Preferences Sync)
+  │           ▲
+  │           │
+  ├─► US0132 (Grouping) ◄── EP0009 (machine_type)
+  │     ├─► US0133 (Responsive Layout)
+  │     └─► US0136 (Preferences Sync)
+  │
+  └─► US0133 (Responsive Layout)
+
+EP0009 (Workstation Management) ◄── dependency
+  ├─► US0132 (Grouping)
+  ├─► US0134 (Summary Bar)
+  └─► US0135 (Visual Enhancements)
 ```

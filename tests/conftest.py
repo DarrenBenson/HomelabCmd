@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from cryptography.fernet import Fernet as _Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -21,8 +22,6 @@ os.environ["HOMELAB_CMD_DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["HOMELAB_CMD_TESTING"] = "true"
 
 # Test encryption key (valid Fernet key for credential service tests)
-# Generate a valid Fernet key for tests
-from cryptography.fernet import Fernet as _Fernet
 TEST_ENCRYPTION_KEY = _Fernet.generate_key().decode()
 os.environ["HOMELAB_CMD_ENCRYPTION_KEY"] = TEST_ENCRYPTION_KEY
 
@@ -57,11 +56,13 @@ def client() -> Generator[TestClient, None, None]:
         costs,
         discovery,
         metrics,
+        preferences,
         scan,
         servers,
         services,
         system,
         tailscale,
+        widget_layout,
     )
     from homelab_cmd.config import get_settings
     from homelab_cmd.db import dispose_engine, init_database
@@ -132,6 +133,10 @@ homelab infrastructure. Features include:
         app.include_router(tailscale.devices_router, prefix="/api/v1")
         # US0093: ssh_settings router removed - SSH key management now in scan.router
         app.include_router(connectivity_settings.router, prefix="/api/v1")
+        # US0131: Card Order Persistence
+        app.include_router(preferences.router, prefix="/api/v1")
+        # US0173: Widget Layout Persistence
+        app.include_router(widget_layout.router, prefix="/api/v1")
         return app
 
     test_app = create_test_app()

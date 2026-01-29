@@ -5,6 +5,8 @@ actions created against them. These tests verify the API guard in the
 actions endpoint rejects action creation with 409 Conflict.
 """
 
+from contextlib import asynccontextmanager
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 

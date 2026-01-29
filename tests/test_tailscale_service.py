@@ -7,6 +7,7 @@ Tests cover:
 - No token configured scenario
 """
 
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -424,7 +425,8 @@ class TestTailscaleCache:
 
     def test_cache_set_returns_timestamp(self) -> None:
         """set() returns a timestamp and stores devices."""
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from homelab_cmd.services.tailscale_service import TailscaleCache
 
         cache = TailscaleCache()
@@ -434,7 +436,7 @@ class TestTailscaleCache:
 
         assert cached_at is not None
         assert isinstance(cached_at, datetime)
-        assert cached_at.tzinfo == timezone.utc
+        assert cached_at.tzinfo == UTC
 
     def test_cache_get_returns_cached_devices(self) -> None:
         """get() returns cached devices before TTL expires."""
@@ -464,8 +466,9 @@ class TestTailscaleCache:
 
     def test_cache_returns_none_after_ttl(self) -> None:
         """get() returns (None, None) after TTL expires."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
         from unittest.mock import patch
+
         from homelab_cmd.services.tailscale_service import TailscaleCache
 
         cache = TailscaleCache()
@@ -473,7 +476,7 @@ class TestTailscaleCache:
         cache.set(devices)
 
         # Simulate time passing beyond TTL (5 minutes + 1 second)
-        future_time = datetime.now(timezone.utc) + timedelta(minutes=5, seconds=1)
+        future_time = datetime.now(UTC) + timedelta(minutes=5, seconds=1)
         with patch(
             "homelab_cmd.services.tailscale_service.datetime"
         ) as mock_datetime:

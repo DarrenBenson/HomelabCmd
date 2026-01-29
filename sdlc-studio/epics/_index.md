@@ -35,7 +35,7 @@ This document provides an overview of all Epics in the project.
 | ID | Title | Status | Owner | Stories | Points | Target |
 |----|-------|--------|-------|---------|--------|--------|
 | [EP0008](EP0008-tailscale-integration.md) | Tailscale Integration | Done | Darren | 7 | 34 | Phase 1 (Alpha) |
-| [EP0009](EP0009-workstation-management.md) | Workstation Management | Done | Darren | 7 | 26 | Phase 1 (Alpha) |
+| [EP0009](EP0009-workstation-management.md) | Workstation Management | Done | Darren | 7 | 27 | Phase 1 (Alpha) |
 | [EP0010](EP0010-configuration-management.md) | Configuration Management | Draft | Darren | 8 | 42 | Phase 3 (GA) |
 | [EP0011](EP0011-advanced-dashboard-ui.md) | Advanced Dashboard UI | Draft | Darren | 7 | 32 | Phase 2 (Beta) |
 | [EP0012](EP0012-widget-based-detail-view.md) | Widget-Based Detail View | Draft | Darren | 14 | 48 | Phase 2 (Beta) |

@@ -1,10 +1,10 @@
 # EP0011: Advanced Dashboard UI
 
-> **Status:** Draft
+> **Status:** Done
 > **Owner:** Darren
 > **Created:** 2026-01-26
 > **Target Release:** Phase 2 (Beta)
-> **Story Points:** 32
+> **Story Points:** 37
 
 ---
 
@@ -443,16 +443,17 @@ PUT    /api/v1/preferences/dashboard       # Save all dashboard preferences
 
 ## Story Breakdown
 
-| Story | Description | Points | Priority |
-|-------|-------------|--------|----------|
-| US0130 | Drag-and-Drop Card Reordering | 8 | P0 |
-| US0131 | Card Order Persistence | 5 | P0 |
-| US0132 | Server and Workstation Grouping | 5 | P0 |
-| US0133 | Responsive Dashboard Layout | 5 | P1 |
-| US0134 | Dashboard Summary Bar | 3 | P1 |
-| US0135 | Card Visual Enhancements | 3 | P1 |
-| US0136 | Dashboard Preferences Sync | 3 | P2 |
-| **Total** | | **32** | |
+| Story | Description | Points | Priority | Status |
+|-------|-------------|--------|----------|--------|
+| [US0130](../stories/US0130-drag-drop-card-reordering.md) | Drag-and-Drop Card Reordering | 8 | P0 | Done |
+| [US0131](../stories/US0131-card-order-persistence.md) | Card Order Persistence | 5 | P0 | Done |
+| [US0132](../stories/US0132-server-workstation-grouping.md) | Server and Workstation Grouping | 5 | P0 | Done |
+| [US0133](../stories/US0133-responsive-dashboard-layout.md) | Responsive Dashboard Layout | 5 | P1 | Done |
+| [US0134](../stories/US0134-dashboard-summary-bar.md) | Dashboard Summary Bar | 3 | P1 | Done |
+| [US0135](../stories/US0135-card-visual-enhancements.md) | Card Visual Enhancements | 3 | P1 | Done |
+| [US0136](../stories/US0136-dashboard-preferences-sync.md) | Dashboard Preferences Sync | 3 | P2 | Done |
+| [US0137](../stories/US0137-cross-section-machine-type-change.md) | Cross-Section Machine Type Change | 5 | P1 | Done |
+| **Total** | | **37** | | 8/8 Done |
 
 ---
 
@@ -463,9 +464,15 @@ PUT    /api/v1/preferences/dashboard       # Save all dashboard preferences
 | 2026-01-26 | Darren | Initial epic creation |
 | 2026-01-28 | Claude | Renumbered stories US0102-US0108 to US0130-US0136 to resolve conflict with EP0016 |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-28 | Claude | Generated story files US0130-US0136 with full AC and technical details |
+| 2026-01-28 | Claude | Epic review: All 7 stories Done, 32 points delivered. Status: Done |
+| 2026-01-28 | Claude | Added US0137: Cross-Section Machine Type Change (5 pts). Status: In Progress |
+| 2026-01-28 | Claude | US0137 planned: PL0137, TS0137 created |
+| 2026-01-28 | Claude | US0137 Done. All 8 stories complete, 37 points. Epic Done |
+| 2026-01-28 | Claude | Epic review: User confirmed "All works". Bug fixes for cross-section drag, filter hiding. |
 
 ---
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-01-28
 **Epic Owner:** Darren

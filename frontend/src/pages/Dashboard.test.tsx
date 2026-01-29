@@ -41,6 +41,27 @@ vi.mock('../api/costs', () => ({
   }),
 }));
 
+// US0136: Mock the useDashboardPreferences hook
+vi.mock('../hooks/useDashboardPreferences', () => ({
+  useDashboardPreferences: vi.fn().mockReturnValue({
+    preferences: {
+      card_order: { servers: [], workstations: [] },
+      collapsed_sections: [],
+      view_mode: 'grid',
+      updated_at: null,
+    },
+    isLoading: false,
+    loadError: null,
+    isSaving: false,
+    showSavedIndicator: false,
+    saveError: null,
+    updateCardOrder: vi.fn(),
+    updateCollapsedSections: vi.fn(),
+    retrySave: vi.fn(),
+    dismissSaveError: vi.fn(),
+  }),
+}));
+
 function renderWithRouter() {
   return render(
     <MemoryRouter>
@@ -604,7 +625,14 @@ describe('Dashboard', () => {
 
     it('removes alert from list after acknowledge', async () => {
       (getServers as Mock).mockResolvedValue(mockServersResponse);
-      (getAlerts as Mock).mockResolvedValue(mockAlertsResponse);
+      // Mock getAlerts to return fewer alerts on subsequent calls (acknowledged alert not in 'open' results)
+      (getAlerts as Mock)
+        .mockResolvedValueOnce(mockAlertsResponse)
+        .mockResolvedValue({
+          ...mockAlertsResponse,
+          alerts: mockAlertsResponse.alerts.slice(1), // Remove first alert
+          total: 2,
+        });
       (acknowledgeAlert as Mock).mockResolvedValue({
         id: 1,
         status: 'acknowledged',
@@ -623,8 +651,10 @@ describe('Dashboard', () => {
         fireEvent.click(acknowledgeButtons[0]);
       });
 
-      // Now 2 alerts
-      expect(screen.getAllByTestId('alert-card')).toHaveLength(2);
+      // Wait for async acknowledge to complete and alert to be removed
+      await waitFor(() => {
+        expect(screen.getAllByTestId('alert-card')).toHaveLength(2);
+      });
     });
 
     it('sorts alerts by severity (critical first)', async () => {
@@ -811,7 +841,16 @@ describe('Dashboard', () => {
 
     it('removes action from list after approve (AC4)', async () => {
       (getServers as Mock).mockResolvedValue(mockServersResponse);
-      (getActions as Mock).mockResolvedValue(mockActionsResponse);
+      // Mock getActions to return approved action on subsequent calls
+      (getActions as Mock)
+        .mockResolvedValueOnce(mockActionsResponse)
+        .mockResolvedValue({
+          ...mockActionsResponse,
+          actions: [
+            { ...mockActionsResponse.actions[0], status: 'approved' },
+            mockActionsResponse.actions[1],
+          ],
+        });
       (approveAction as Mock).mockResolvedValue({
         ...mockActionsResponse.actions[0],
         status: 'approved',
@@ -830,8 +869,10 @@ describe('Dashboard', () => {
         fireEvent.click(approveButtons[0]);
       });
 
-      // Action 1 should be removed
-      expect(screen.queryByTestId('pending-action-1')).not.toBeInTheDocument();
+      // Wait for async approve to complete and action to be removed
+      await waitFor(() => {
+        expect(screen.queryByTestId('pending-action-1')).not.toBeInTheDocument();
+      });
       expect(screen.getByTestId('pending-action-2')).toBeInTheDocument();
     });
 
@@ -900,8 +941,14 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      // Verify both actions are present initially
+      expect(screen.getByTestId('pending-action-1')).toBeInTheDocument();
+      expect(screen.getByTestId('pending-action-2')).toBeInTheDocument();
+
       const rejectButtons = screen.getAllByTestId('reject-button');
-      fireEvent.click(rejectButtons[0]);
+      await act(async () => {
+        fireEvent.click(rejectButtons[0]);
+      });
 
       // Enter reason and submit
       fireEvent.change(screen.getByTestId('reject-reason-input'), {
@@ -912,10 +959,13 @@ describe('Dashboard', () => {
         fireEvent.click(screen.getByTestId('reject-modal-submit'));
       });
 
-      // Modal should close
-      expect(screen.queryByTestId('reject-modal')).not.toBeInTheDocument();
-      // Action should be removed
-      expect(screen.queryByTestId('pending-action-1')).not.toBeInTheDocument();
+      // Wait for async reject to complete - both modal closes and action removed
+      await waitFor(() => {
+        expect(screen.queryByTestId('reject-modal')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('pending-action-1')).not.toBeInTheDocument();
+      });
+      // Second action should still be present
+      expect(screen.getByTestId('pending-action-2')).toBeInTheDocument();
     });
 
     it('calls rejectAction API with reason', async () => {

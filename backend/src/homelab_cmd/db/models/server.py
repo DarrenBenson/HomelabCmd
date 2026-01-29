@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from homelab_cmd.db.base import Base, TimestampMixin
@@ -113,6 +113,14 @@ class Server(TimestampMixin, Base):
     # Package updates (from agent heartbeat)
     updates_available: Mapped[int | None] = mapped_column(Integer, nullable=True)
     security_updates: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # US0178: Per-filesystem metrics snapshot (latest heartbeat data)
+    # Stored as JSON array of filesystem metric objects
+    filesystems: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+    # US0179: Per-interface network metrics snapshot (latest heartbeat data)
+    # Stored as JSON array of network interface metric objects
+    network_interfaces: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     # Maintenance mode - when paused, new remediation actions require manual approval
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

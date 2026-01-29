@@ -56,6 +56,20 @@ export async function updateServer(
 export interface ServerUpdateRequest {
   ssh_username?: string | null;
   sudo_mode?: SudoMode;
+  machine_type?: 'server' | 'workstation';
+}
+
+/**
+ * Update server machine type (US0137: Cross-section drag-and-drop).
+ * Changes a server between 'server' and 'workstation' types.
+ */
+export async function updateMachineType(
+  serverId: string,
+  machineType: 'server' | 'workstation'
+): Promise<ServerDetail> {
+  return api.put<ServerDetail>(`/api/v1/servers/${serverId}`, {
+    machine_type: machineType,
+  });
 }
 
 /**

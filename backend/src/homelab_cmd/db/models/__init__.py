@@ -10,7 +10,7 @@ from homelab_cmd.db.models.alert_state import AlertSeverity, AlertState, MetricT
 from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.credential import Credential
 from homelab_cmd.db.models.discovery import Discovery, DiscoveryStatus
-from homelab_cmd.db.models.metrics import Metrics
+from homelab_cmd.db.models.metrics import FilesystemMetrics, Metrics, NetworkInterfaceMetrics
 from homelab_cmd.db.models.pending_package import PendingPackage
 from homelab_cmd.db.models.registration_token import AgentMode, RegistrationToken
 from homelab_cmd.db.models.remediation import ActionStatus, RemediationAction
@@ -38,8 +38,10 @@ __all__ = [
     "Discovery",
     "DiscoveryStatus",
     "ExpectedService",
+    "FilesystemMetrics",
     "MetricType",
     "Metrics",
+    "NetworkInterfaceMetrics",
     "PendingPackage",
     "RegistrationToken",
     "RemediationAction",

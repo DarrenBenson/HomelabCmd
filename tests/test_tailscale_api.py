@@ -8,6 +8,7 @@ Tests cover:
 - Error handling
 """
 
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
@@ -382,7 +383,8 @@ class TestTailscaleDeviceListEndpoint:
         with patch(
             "homelab_cmd.api.routes.tailscale.TailscaleService"
         ) as mock_service_class:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from homelab_cmd.services.tailscale_service import (
                 TailscaleDevice,
                 TailscaleDeviceListResult,
@@ -398,7 +400,7 @@ class TestTailscaleDeviceListEndpoint:
                         tailscale_ip="100.64.0.1",
                         os="linux",
                         os_version="1.56.0",
-                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
                         online=True,
                         authorized=True,
                         already_imported=False,
@@ -406,7 +408,7 @@ class TestTailscaleDeviceListEndpoint:
                 ],
                 count=1,
                 cache_hit=False,
-                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
             )
             mock_service.get_devices_cached = AsyncMock(return_value=mock_result)
             mock_service.close = AsyncMock()
@@ -445,7 +447,8 @@ class TestTailscaleDeviceListEndpoint:
         with patch(
             "homelab_cmd.api.routes.tailscale.TailscaleService"
         ) as mock_service_class:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from homelab_cmd.services.tailscale_service import (
                 TailscaleDevice,
                 TailscaleDeviceListResult,
@@ -458,19 +461,19 @@ class TestTailscaleDeviceListEndpoint:
                     TailscaleDevice(
                         id="1", name="online-server", hostname="online",
                         tailscale_ip="100.64.0.1", os="linux", os_version=None,
-                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
                         online=True, authorized=True, already_imported=False,
                     ),
                     TailscaleDevice(
                         id="2", name="offline-server", hostname="offline",
                         tailscale_ip="100.64.0.2", os="linux", os_version=None,
-                        last_seen=datetime(2025, 1, 26, 9, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 9, 0, 0, tzinfo=UTC),
                         online=False, authorized=True, already_imported=False,
                     ),
                 ],
                 count=2,
                 cache_hit=False,
-                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
             )
             mock_service.get_devices_cached = AsyncMock(return_value=mock_result)
             mock_service.close = AsyncMock()
@@ -500,7 +503,8 @@ class TestTailscaleDeviceListEndpoint:
         with patch(
             "homelab_cmd.api.routes.tailscale.TailscaleService"
         ) as mock_service_class:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from homelab_cmd.services.tailscale_service import (
                 TailscaleDevice,
                 TailscaleDeviceListResult,
@@ -512,19 +516,19 @@ class TestTailscaleDeviceListEndpoint:
                     TailscaleDevice(
                         id="1", name="linux-server", hostname="linux-server",
                         tailscale_ip="100.64.0.1", os="linux", os_version=None,
-                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
                         online=True, authorized=True, already_imported=False,
                     ),
                     TailscaleDevice(
                         id="2", name="windows-pc", hostname="windows-pc",
                         tailscale_ip="100.64.0.2", os="windows", os_version=None,
-                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
                         online=True, authorized=True, already_imported=False,
                     ),
                 ],
                 count=2,
                 cache_hit=False,
-                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
             )
             mock_service.get_devices_cached = AsyncMock(return_value=mock_result)
             mock_service.close = AsyncMock()
@@ -554,7 +558,8 @@ class TestTailscaleDeviceListEndpoint:
         with patch(
             "homelab_cmd.api.routes.tailscale.TailscaleService"
         ) as mock_service_class:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from homelab_cmd.services.tailscale_service import TailscaleDeviceListResult
 
             mock_service = AsyncMock()
@@ -562,7 +567,7 @@ class TestTailscaleDeviceListEndpoint:
                 devices=[],
                 count=0,
                 cache_hit=False,
-                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
             )
             mock_service.get_devices_cached = AsyncMock(return_value=mock_result)
             mock_service.close = AsyncMock()
@@ -596,7 +601,8 @@ class TestTailscaleDeviceListEndpoint:
         with patch(
             "homelab_cmd.api.routes.tailscale.TailscaleService"
         ) as mock_service_class:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from homelab_cmd.services.tailscale_service import (
                 TailscaleDevice,
                 TailscaleDeviceListResult,
@@ -608,13 +614,13 @@ class TestTailscaleDeviceListEndpoint:
                     TailscaleDevice(
                         id="1", name="server", hostname="server",
                         tailscale_ip="100.64.0.1", os="linux", os_version=None,
-                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                        last_seen=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
                         online=True, authorized=True, already_imported=False,
                     ),
                 ],
                 count=1,
                 cache_hit=False,
-                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=timezone.utc),
+                cached_at=datetime(2025, 1, 26, 10, 0, 0, tzinfo=UTC),
             )
             mock_service.get_devices_cached = AsyncMock(return_value=mock_result)
             mock_service.close = AsyncMock()

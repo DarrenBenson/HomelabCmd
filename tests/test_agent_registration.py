@@ -111,12 +111,11 @@ class TestCancelRegistrationToken:
     ) -> None:
         """Should cancel pending token."""
         # Create a token
-        create_response = client.post(
+        client.post(
             "/api/v1/agents/register/tokens",
             json={"mode": "readonly"},
             headers=auth_headers,
         )
-        token = create_response.json()["token"]
 
         # Get the token ID from the list
         list_response = client.get(

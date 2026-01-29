@@ -16,6 +16,8 @@ import { AgentRemoveModal } from '../components/AgentRemoveModal';
 import { AgentInstallModal } from '../components/AgentInstallModal';
 import { AgentCredentialCard } from '../components/AgentCredentialCard';
 import { ServerCredentials } from '../components/ServerCredentials';
+import { ServerDetailWidgetView } from '../components/widgets';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { cn } from '../lib/utils';
 import {
   formatUptime,
@@ -79,6 +81,22 @@ export function ServerDetail() {
 
   // Advanced section collapsed state
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
+
+  // View mode state (EP0012: Widget-based detail view)
+  const [viewMode, setViewMode] = useState<'classic' | 'widget'>('classic');
+
+  // Edit layout mode state (US0175: Edit Layout Mode)
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  // Mobile detection (US0177: Responsive Widget Layout)
+  const isMobile = useIsMobile();
+
+  // Auto-exit edit mode when switching to mobile (US0177 AC5)
+  useEffect(() => {
+    if (isMobile && isEditMode) {
+      setIsEditMode(false);
+    }
+  }, [isMobile, isEditMode]);
 
   const fetchServerData = useCallback(async (showLoading = false, ignore = false) => {
     if (!serverId) return;
@@ -414,27 +432,77 @@ export function ServerDetail() {
               {displayName}
             </h1>
           </div>
-          <button
-            onClick={handleRefresh}
-            className="flex items-center gap-2 rounded-md bg-bg-secondary px-4 py-2 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
-            data-testid="refresh-button"
-            aria-label="Refresh server data"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle (EP0012) */}
+            <div className="flex rounded-md border border-border-default">
+              <button
+                onClick={() => {
+                  setViewMode('classic');
+                  setIsEditMode(false); // Exit edit mode when switching views
+                }}
+                className={cn(
+                  'px-3 py-2 text-sm transition-colors',
+                  viewMode === 'classic'
+                    ? 'bg-bg-tertiary text-text-primary'
+                    : 'text-text-secondary hover:text-text-primary'
+                )}
+                data-testid="view-mode-classic"
+                aria-label="Classic view"
+              >
+                Classic
+              </button>
+              <button
+                onClick={() => setViewMode('widget')}
+                className={cn(
+                  'px-3 py-2 text-sm transition-colors',
+                  viewMode === 'widget'
+                    ? 'bg-bg-tertiary text-text-primary'
+                    : 'text-text-secondary hover:text-text-primary'
+                )}
+                data-testid="view-mode-widget"
+                aria-label="Widget view"
+              >
+                Widget
+              </button>
+            </div>
+            {/* Edit Layout Button (US0175) - only visible in widget view on non-mobile (US0177) */}
+            {viewMode === 'widget' && !isMobile && (
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={cn(
+                  'rounded-md px-4 py-2 text-sm transition-colors',
+                  isEditMode
+                    ? 'bg-status-info text-white'
+                    : 'bg-bg-secondary text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                )}
+                data-testid="edit-layout-button"
+                aria-label={isEditMode ? 'Exit edit mode' : 'Edit layout'}
+              >
+                {isEditMode ? 'Done Editing' : 'Edit Layout'}
+              </button>
+            )}
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-2 rounded-md bg-bg-secondary px-4 py-2 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+              data-testid="refresh-button"
+              aria-label="Refresh server data"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Refresh
-          </button>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </header>
 
         {/* Offline warning */}
@@ -447,7 +515,27 @@ export function ServerDetail() {
           </div>
         )}
 
-        {/* Main content grid */}
+        {/* Widget View (EP0012) */}
+        {viewMode === 'widget' && (
+          <ServerDetailWidgetView
+            server={server}
+            isEditMode={isEditMode}
+            onExitEditMode={() => setIsEditMode(false)}
+            estimatedPower={calculateEstimatedPower()}
+            dailyCost={calculateDailyCost()}
+            currencySymbol={currencySymbol}
+            onToggleMaintenance={handleToggleMaintenance}
+            onTestSSH={server.tailscale_hostname ? handleTestSSH : undefined}
+            onPowerEdit={handlePowerEdit}
+            pauseLoading={pauseLoading}
+            sshTesting={sshTesting}
+            sshTestResult={sshTestResult}
+          />
+        )}
+
+        {/* Classic View - Main content grid */}
+        {viewMode === 'classic' && (
+        <>
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Server Information */}
           <div
@@ -1016,6 +1104,10 @@ export function ServerDetail() {
             </div>
           </div>
         </div>
+
+        {/* End Classic View conditional (EP0012) */}
+        </>
+        )}
 
       </div>
 
