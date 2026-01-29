@@ -1,6 +1,6 @@
 # US0116: Configuration Pack Definitions
 
-> **Status:** Draft
+> **Status:** Planned
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
