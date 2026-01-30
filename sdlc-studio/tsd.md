@@ -2,7 +2,7 @@
 
 > **Project:** HomelabCmd
 > **Version:** 2.1.0
-> **Last Updated:** 2026-01-28
+> **Last Updated:** 2026-01-29
 > **Owner:** Darren
 
 ---
@@ -13,11 +13,12 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Backend unit/integration tests | ✅ Implemented | 60 test files, 90% coverage |
-| Frontend unit tests | ✅ Implemented | 4 test files, 70% threshold |
+| Backend unit/integration tests | ✅ Implemented | 64+ test files, 90% coverage |
+| Frontend unit tests | ✅ Implemented | 8+ test files, 70% threshold |
 | Frontend E2E tests | ✅ Implemented | 7 spec files (v1.0 coverage) |
 | GitHub Actions CI/CD | 🔄 Planned | No `.github/workflows/` yet |
 | v2.0 E2E specs | 🔄 Planned | ~7 additional spec files planned |
+| **EP0010 Config Management tests** | ✅ Implemented | 4 test files: packs, check, apply API |
 
 ---
 
@@ -111,7 +112,7 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 
 | Layer | Target | Achieved | Evidence |
 |-------|--------|----------|----------|
-| Backend Unit/Integration | 90% | 90% | ~1,500 tests in 60 files |
+| Backend Unit/Integration | 90% | 90% | ~1,702 tests in 64+ files |
 | Frontend Unit | 70% | 74.89% | Vitest with @vitest/coverage-v8 |
 | E2E | 100% feature coverage | 100% | 7 spec files covering all v1.0 features |
 
@@ -452,7 +453,7 @@ cd frontend && npm run test:e2e
 | Tailscale Integration | `tailscale.spec.ts` | ~15 | 🔄 Planned |
 | Workstation Management | `workstations.spec.ts` | ~12 | 🔄 Planned |
 | Command Execution | `commands.spec.ts` | ~18 | 🔄 Planned |
-| Configuration Management | `config-compliance.spec.ts` | ~20 | 🔄 Planned |
+| Configuration Management | `config-compliance.spec.ts` | ~20 | 🔄 Planned (backend tests ✅) |
 | Widget Customisation | `widgets.spec.ts` | ~15 | 🔄 Planned |
 | Dashboard Preferences | `dashboard-v2.spec.ts` | ~10 | 🔄 Planned |
 | Docker Monitoring | `docker.spec.ts` | ~12 | 🔄 Planned |
@@ -901,7 +902,7 @@ Common causes:
 
 | Category | Count | Location |
 |----------|-------|----------|
-| Backend tests | ~1,500 | `tests/test_*.py` (60 files) |
+| Backend tests | ~1,702 | `tests/test_*.py` (64+ files) |
 | Backend coverage | 90% | coverage.py with greenlet/thread concurrency |
 | Frontend unit test files | 4 | `frontend/src/__tests__/` |
 | Frontend unit coverage | 74.89% | Vitest with @vitest/coverage-v8 |
@@ -947,6 +948,9 @@ Common causes:
 | test_services_api.py | Services API endpoints |
 | test_status_detection.py | Server status detection |
 | test_webhook.py | Webhook delivery |
+| test_config_packs.py | Config pack definitions (EP0010/US0116) |
+| test_config_check_api.py | Config compliance checking (EP0010/US0117) |
+| test_config_apply_api.py | Config pack apply API (EP0010/US0119) |
 
 ### Frontend Test Files
 
@@ -1113,3 +1117,4 @@ concurrency = ["greenlet", "thread"]
 | 2026-01-27 | Claude | **TSD Review:** Updated metrics - backend tests increased from 1,027 to 1,559 (59 files). Backend coverage at 89% (target 90%). v2.0 backend tests implemented: test_tailscale_service.py, test_tailscale_api.py, test_credential_service.py, test_ssh_settings.py, test_connectivity_settings.py, test_server_credentials.py. Frontend coverage at 74.89% (target 90%, needs improvement). v2.0 E2E tests still planned. Note: SSH implementation uses Paramiko (sync via thread pool) not asyncssh. |
 | 2026-01-28 | Claude | **v2.0.2 TSD Review Corrections:** Added Implementation Status section. Corrected coverage tool from pytest-cov to coverage.py throughout. Updated test file count to 60 files. Updated backend coverage threshold to 90% (was incorrectly stated as 60%). Clarified frontend unit target is 70% (not 90%). Added Framework Versions table with actual package versions (vitest ^4.0.17, playwright ^1.57.0). Marked GitHub Actions CI/CD as "planned - not yet implemented". |
 | 2026-01-28 | Claude | **SDLC-Studio v2 Upgrade:** Version updated to 2.1.0. Schema upgraded to v2 modular format. Created .version file for version tracking. No structural changes required for TSD - content already follows v2 patterns. |
+| 2026-01-29 | Claude | **TSD Review (EP0010):** Updated test counts - backend tests now ~1,702 in 64+ files. Added EP0010 Configuration Management test files to Implementation Status (test_config_packs.py, test_config_check_api.py, test_config_apply_api.py). Backend tests complete for US0116, US0117, US0118, US0119. E2E config-compliance.spec.ts still planned. |

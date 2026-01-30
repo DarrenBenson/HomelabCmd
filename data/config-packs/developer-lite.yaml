@@ -1,0 +1,30 @@
+# Developer Lite Pack - Basic development environment
+# Can be combined with server or workstation pack
+
+name: Developer Lite
+description: Basic development tools (Python, Node.js, Git)
+extends: base
+
+items:
+  files: []
+
+  packages:
+    - name: python3
+      description: Python interpreter
+
+    - name: python3-pip
+      description: Python package manager
+
+    - name: python3-venv
+      description: Python virtual environments
+
+    # Node.js typically managed via nvm on developer machines
+    # so we don't require system nodejs/npm packages
+
+    - name: git
+      description: Version control system
+
+    - name: jq
+      description: JSON processor
+
+  settings: []

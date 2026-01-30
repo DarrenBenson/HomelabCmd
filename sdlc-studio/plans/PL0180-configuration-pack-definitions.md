@@ -1,6 +1,6 @@
 # PL0180: Configuration Pack Definitions - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Complete
 > **Story:** [US0116: Configuration Pack Definitions](../stories/US0116-configuration-pack-definitions.md)
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29
@@ -78,16 +78,16 @@ Implement the foundation for configuration management by defining YAML-based con
 
 | # | Task | File | Depends On | Status |
 |---|------|------|------------|--------|
-| 1 | Create config-packs directory structure | `data/config-packs/` | - | [ ] |
-| 2 | Write Base Pack YAML | `data/config-packs/base.yaml` | 1 | [ ] |
-| 3 | Write Developer Lite Pack YAML | `data/config-packs/developer-lite.yaml` | 2 | [ ] |
-| 4 | Write Developer Max Pack YAML | `data/config-packs/developer-max.yaml` | 3 | [ ] |
-| 5 | Create template files | `data/config-packs/templates/*.sh` | 1 | [ ] |
-| 6 | Create Pydantic schemas | `backend/src/homelab_cmd/api/schemas/config_pack.py` | - | [ ] |
-| 7 | Create pack loader service | `backend/src/homelab_cmd/services/config_pack_service.py` | 6 | [ ] |
-| 8 | Create API route | `backend/src/homelab_cmd/api/routes/config_packs.py` | 6, 7 | [ ] |
-| 9 | Register router in main.py | `backend/src/homelab_cmd/main.py` | 8 | [ ] |
-| 10 | Write unit tests | `tests/test_config_packs.py` | 7, 8 | [ ] |
+| 1 | Create config-packs directory structure | `data/config-packs/` | - | [x] |
+| 2 | Write Base Pack YAML | `data/config-packs/base.yaml` | 1 | [x] |
+| 3 | Write Developer Lite Pack YAML | `data/config-packs/developer-lite.yaml` | 2 | [x] |
+| 4 | Write Developer Max Pack YAML | `data/config-packs/developer-max.yaml` | 3 | [x] |
+| 5 | Create template files | `data/config-packs/templates/*.sh` | 1 | [x] |
+| 6 | Create Pydantic schemas | `backend/src/homelab_cmd/api/schemas/config_pack.py` | - | [x] |
+| 7 | Create pack loader service | `backend/src/homelab_cmd/services/config_pack_service.py` | 6 | [x] |
+| 8 | Create API route | `backend/src/homelab_cmd/api/routes/config_packs.py` | 6, 7 | [x] |
+| 9 | Register router in main.py | `backend/src/homelab_cmd/main.py` | 8 | [x] |
+| 10 | Write unit tests | `tests/test_config_packs.py` | 7, 8 | [x] |
 
 ### Parallel Execution Groups
 
@@ -106,12 +106,12 @@ Implement the foundation for configuration management by defining YAML-based con
 ### Phase 1: Pack Data Structure
 **Goal:** Create YAML pack files and directory structure
 
-- [ ] Create `data/config-packs/` directory
-- [ ] Create `data/config-packs/templates/` subdirectory
-- [ ] Write `base.yaml` with files, packages, settings
-- [ ] Write `developer-lite.yaml` extending base
-- [ ] Write `developer-max.yaml` extending developer-lite
-- [ ] Create placeholder template files (bashrc-aliases.sh, starship.toml, ghostty-config)
+- [x] Create `data/config-packs/` directory
+- [x] Create `data/config-packs/templates/` subdirectory
+- [x] Write `base.yaml` with files, packages, settings
+- [x] Write `developer-lite.yaml` extending base
+- [x] Write `developer-max.yaml` extending developer-lite
+- [x] Create placeholder template files (bashrc-aliases.sh, starship.toml, ghostty-config)
 
 **Files:**
 - `data/config-packs/base.yaml` - Base pack definition
@@ -122,12 +122,12 @@ Implement the foundation for configuration management by defining YAML-based con
 ### Phase 2: Backend Service
 **Goal:** Implement pack loading and validation service
 
-- [ ] Create Pydantic schemas for pack structure
-- [ ] Create `ConfigPackService` class
-- [ ] Implement `load_pack()` method with YAML parsing
-- [ ] Implement `resolve_extends()` for pack inheritance
-- [ ] Implement `list_packs()` returning metadata
-- [ ] Handle validation errors gracefully
+- [x] Create Pydantic schemas for pack structure
+- [x] Create `ConfigPackService` class
+- [x] Implement `load_pack()` method with YAML parsing
+- [x] Implement `resolve_extends()` for pack inheritance
+- [x] Implement `list_packs()` returning metadata
+- [x] Handle validation errors gracefully
 
 **Files:**
 - `backend/src/homelab_cmd/api/schemas/config_pack.py` - Pydantic models
@@ -136,10 +136,10 @@ Implement the foundation for configuration management by defining YAML-based con
 ### Phase 3: API Endpoint
 **Goal:** Expose pack listing via REST API
 
-- [ ] Create router for `/api/v1/config/packs`
-- [ ] Implement `GET` endpoint returning pack list
-- [ ] Add authentication via `verify_api_key`
-- [ ] Register router in `main.py`
+- [x] Create router for `/api/v1/config/packs`
+- [x] Implement `GET` endpoint returning pack list
+- [x] Add authentication via `verify_api_key`
+- [x] Register router in `main.py`
 
 **Files:**
 - `backend/src/homelab_cmd/api/routes/config_packs.py` - API routes
@@ -150,12 +150,12 @@ Implement the foundation for configuration management by defining YAML-based con
 
 | AC | Verification Method | File Evidence | Status |
 |----|---------------------|---------------|--------|
-| AC1 | Unit test loads Base Pack | `tests/test_config_packs.py` | Pending |
-| AC2 | Unit test loads Developer Lite with Base items | `tests/test_config_packs.py` | Pending |
-| AC3 | Unit test loads Developer Max with all items | `tests/test_config_packs.py` | Pending |
-| AC4 | Schema validation test | `tests/test_config_packs.py` | Pending |
-| AC5 | API integration test | `tests/test_config_packs.py` | Pending |
-| AC6 | Service reads from data/config-packs/ | `config_pack_service.py` | Pending |
+| AC1 | Unit test loads Base Pack | `tests/test_config_packs.py` | Pass |
+| AC2 | Unit test loads Developer Lite with Base items | `tests/test_config_packs.py` | Pass |
+| AC3 | Unit test loads Developer Max with all items | `tests/test_config_packs.py` | Pass |
+| AC4 | Schema validation test | `tests/test_config_packs.py` | Pass |
+| AC5 | API integration test | `tests/test_config_packs.py` | Pass |
+| AC6 | Service reads from data/config-packs/ | `config_pack_service.py` | Pass |
 
 ---
 
@@ -186,12 +186,12 @@ Implement the foundation for configuration management by defining YAML-based con
 
 ## Definition of Done
 
-- [ ] All acceptance criteria implemented
-- [ ] Unit tests written and passing
-- [ ] Edge cases handled
-- [ ] Code follows best practices
-- [ ] No linting errors
-- [ ] Documentation updated (if needed)
+- [x] All acceptance criteria implemented
+- [x] Unit tests written and passing (25 tests)
+- [x] Edge cases handled
+- [x] Code follows best practices
+- [x] No linting errors
+- [x] Documentation updated (if needed)
 
 ---
 

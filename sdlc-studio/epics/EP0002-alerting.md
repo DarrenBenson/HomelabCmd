@@ -189,7 +189,22 @@ Proactive alerts catch 90% of issues before they cause service outages. Slack no
 | [US0015](../stories/US0015-dashboard-alerts.md) | Dashboard Alert Display | 5 | Done |
 | [US0016](../stories/US0016-alert-list-view.md) | Alert List and Detail Views | 5 | Done |
 
-**Total:** 7 stories, 28 story points (all Done)
+**Phase 1 Total:** 7 stories, 28 story points (all Done)
+
+### Future Enhancements
+
+| ID | Title | Points | Status |
+|----|-------|--------|--------|
+| [US0181](../stories/US0181-alert-sustained-duration.md) | Alert Sustained Duration Configuration | 5 | Done |
+| [US0182](../stories/US0182-alert-auto-resolve-notifications.md) | Alert Auto-Resolve Notifications | 3 | Done |
+
+**Enhancement Total:** 2 stories, 8 story points (2 Done)
+
+### Won't Implement
+
+| ID | Title | Reason |
+|----|-------|--------|
+| [US0187](../stories/US0187-slack-thread-reply-alerts.md) | Slack Thread Reply for Alert Notifications | Slack webhooks don't return message ID needed for threading; would require Web API |
 
 ## Test Plan
 
@@ -201,8 +216,12 @@ Proactive alerts catch 90% of issues before they cause service outages. Slack no
 
 ## Open Questions
 
-- [ ] Should alerts have configurable sustained duration before firing? - Owner: Darren
-- [ ] Notify on alert auto-resolve? - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Should alerts have configurable sustained duration before firing? - **Yes** - Created US0181. Sustained duration reduces false positives from transient spikes.
+- [x] Notify on alert auto-resolve? - **Yes** - Created US0182. Users want closure when issues clear automatically.
 
 ## Revision History
 
@@ -212,3 +231,4 @@ Proactive alerts catch 90% of issues before they cause service outages. Slack no
 | 2026-01-18 | Claude | Added 7 user stories (US0010-US0016) |
 | 2026-01-20 | Claude | Added Inherited Constraints and Test Plan sections; updated status to Done |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Resolved open questions: Added US0181 (sustained duration) and US0182 (auto-resolve notifications) as future enhancements |

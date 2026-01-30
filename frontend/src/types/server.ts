@@ -77,6 +77,9 @@ export interface Server {
   filesystems?: FilesystemMetric[] | null;
   // US0179: Per-interface network metrics
   network_interfaces?: NetworkInterfaceMetric[] | null;
+  // US0121: Pack assignment fields
+  assigned_packs?: string[] | null;
+  drift_detection_enabled?: boolean;
 }
 
 export interface ServersResponse {
@@ -141,6 +144,9 @@ export interface ServerDetail {
   filesystems?: FilesystemMetric[] | null;
   // US0179: Per-interface network metrics
   network_interfaces?: NetworkInterfaceMetric[] | null;
+  // US0121: Pack assignment fields
+  assigned_packs?: string[] | null;
+  drift_detection_enabled?: boolean;
 }
 
 // Types for Historical Metrics
@@ -200,4 +206,14 @@ export interface ServerCredentialsResponse {
   ssh_username: string | null;
   sudo_mode: SudoMode;
   credentials: ServerCredentialStatus[];
+}
+
+// ===========================================================================
+// Pack Assignment Types (US0121)
+// ===========================================================================
+
+export interface PackAssignmentResponse {
+  server_id: string;
+  assigned_packs: string[];
+  drift_detection_enabled: boolean;
 }

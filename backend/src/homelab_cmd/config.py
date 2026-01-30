@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     ssh_default_port: int = 22
     ssh_connection_timeout: int = 10
 
+    # Configuration Packs (EP0010: Configuration Management)
+    config_packs_dir: str = "/app/data/config-packs"
+
     # Credential Encryption (EP0008: Tailscale Integration)
     # Must be set in production; validated at startup in main.py lifespan
     encryption_key: str | None = None

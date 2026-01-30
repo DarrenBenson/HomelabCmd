@@ -219,8 +219,18 @@ A single dashboard showing entire fleet status at a glance, updated in real-time
 
 ## Open Questions
 
-- [ ] Multi-disk monitoring approach (root only vs all mounts) - Owner: Darren
-- [ ] Agent auto-update mechanism - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Multi-disk monitoring approach (root only vs all mounts) - **Resolved:** US0178 (Per-Filesystem Metrics API) in EP0012 implements per-filesystem monitoring with mount point selection.
+- [x] Agent auto-update mechanism - **Yes, needed** - Created US0184. Agents should auto-update when enabled per-server.
+
+### Future Enhancements
+
+| ID | Title | Points | Status |
+|----|-------|--------|--------|
+| [US0184](../stories/US0184-agent-auto-update.md) | Agent Auto-Update Mechanism | 8 | Draft |
 
 ## Revision History
 
@@ -235,3 +245,4 @@ A single dashboard showing entire fleet status at a glance, updated in real-time
 | 2026-01-22 | Claude | Added US0070 (GUID-Based Server Identity) from BG0014 |
 | 2026-01-24 | Claude | Added US0075 remove-agent SSH credentials story |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Resolved open questions: Multi-disk → US0178 (EP0012), Agent auto-update → US0184 created |

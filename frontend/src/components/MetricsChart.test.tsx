@@ -350,4 +350,112 @@ describe('MetricsChart', () => {
       expect(screen.getByTestId('metrics-chart')).toBeInTheDocument();
     });
   });
+
+  describe('Duration formatting edge cases (additional)', () => {
+    it('shows days with remaining hours when applicable', () => {
+      // Data spanning exactly 2 days and 5 hours for a 7d request
+      const dayHourData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - (2 * 24 + 5) * 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={dayHourData} timeRange="7d" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "2 days, 5 hours" or similar
+      expect(message).toHaveTextContent(/day.*hour/);
+    });
+
+    it('shows days without hours when remaining hours is 0', () => {
+      // Data spanning exactly 3 days (no remaining hours) for a 7d request
+      const exactDayData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 3 * 24 * 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={exactDayData} timeRange="7d" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "3 days" without hours
+      expect(message).toHaveTextContent(/3 day/);
+    });
+
+    it('shows months without days when remaining days is small (< 8)', () => {
+      // Data spanning 34 days (1 month, 4 days - 4 < 8 threshold) for 12m request
+      const monthSmallDayData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 34 * 24 * 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={monthSmallDayData} timeRange="12m" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "1 month" without days (4 days < 7 day threshold)
+      expect(message).toHaveTextContent(/1 month/);
+      expect(message).not.toHaveTextContent(/day/);
+    });
+
+    it('handles singular forms correctly - 1 minute', () => {
+      // Data spanning 1 minute
+      const oneMinuteData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 60000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={oneMinuteData} timeRange="24h" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "1 minute" (singular)
+      expect(message).toHaveTextContent(/1 minute\b/);
+    });
+
+    it('handles singular forms correctly - 1 hour', () => {
+      // Data spanning 1 hour
+      const oneHourData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={oneHourData} timeRange="24h" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "1 hour" (singular)
+      expect(message).toHaveTextContent(/1 hour\b/);
+    });
+
+    it('handles singular forms correctly - 1 day', () => {
+      // Data spanning 1 day
+      const oneDayData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 24 * 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={oneDayData} timeRange="7d" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "1 day" (singular)
+      expect(message).toHaveTextContent(/1 day\b/);
+    });
+
+    it('handles plural forms correctly - multiple hours', () => {
+      // Data spanning 3 hours
+      const threeHourData: MetricPoint[] = [
+        { timestamp: new Date(Date.now() - 3 * 3600000).toISOString(), cpu_percent: 45, memory_percent: 60, disk_percent: 30 },
+        { timestamp: new Date().toISOString(), cpu_percent: 50, memory_percent: 65, disk_percent: 30 },
+      ];
+
+      render(<MetricsChart data={threeHourData} timeRange="24h" />);
+
+      const message = screen.getByTestId('data-coverage-message');
+      expect(message).toBeInTheDocument();
+      // Should show "3 hours" (plural)
+      expect(message).toHaveTextContent(/3 hours/);
+    });
+  });
 });

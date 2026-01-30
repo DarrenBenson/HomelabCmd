@@ -1,0 +1,14 @@
+{
+  "theme": "dark",
+  "editor": {
+    "fontSize": 14,
+    "fontFamily": "JetBrainsMono Nerd Font",
+    "tabSize": 2
+  },
+  "terminal": {
+    "shell": "/bin/bash"
+  },
+  "telemetry": {
+    "enabled": false
+  }
+}

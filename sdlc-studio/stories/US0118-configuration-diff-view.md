@@ -1,6 +1,6 @@
 # US0118: Configuration Diff View
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
@@ -236,7 +236,7 @@ export function ConfigDiffView({ serverId, packName }: ConfigDiffViewProps) {
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0117 | Data | Compliance check results | Draft |
+| US0117 | Data | Compliance check results | Done |
 
 ### External Dependencies
 
@@ -259,9 +259,20 @@ None
 
 ---
 
+## Implementation Artefacts
+
+| Artefact | Link | Status |
+|----------|------|--------|
+| Plan | [PL0182](../plans/PL0182-configuration-diff-view.md) | Complete |
+| Test Spec | [TS0182](../test-specs/TS0182-configuration-diff-view.md) | Complete |
+| Workflow | [WF0182](../workflows/WF0182-configuration-diff-view.md) | Complete |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0096) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Implementation complete. 63 tests passing (18 backend + 45 frontend) |

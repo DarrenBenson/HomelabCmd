@@ -79,7 +79,7 @@ def _merge_metric_threshold(
     updated_fields: list[str] = []
     result = current.copy()
 
-    for field in ["high_percent", "critical_percent", "sustained_heartbeats"]:
+    for field in ["high_percent", "critical_percent", "sustained_seconds", "sustained_heartbeats"]:
         if field in update and update[field] is not None:
             if result.get(field) != update[field]:
                 result[field] = update[field]
@@ -170,7 +170,7 @@ async def update_thresholds(
     ```json
     {
         "cpu": {"high_percent": 80},
-        "disk": {"critical_percent": 90, "sustained_heartbeats": 1}
+        "disk": {"critical_percent": 90, "sustained_seconds": 60}
     }
     ```
     """

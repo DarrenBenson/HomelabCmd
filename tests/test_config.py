@@ -58,20 +58,20 @@ class TestGetConfig:
         data = response.json()
         thresholds = data["thresholds"]
 
-        # CPU defaults: 85% high, 95% critical, 3 heartbeats
+        # CPU defaults: 85% high, 95% critical, 180 seconds (3 minutes)
         assert thresholds["cpu"]["high_percent"] == 85
         assert thresholds["cpu"]["critical_percent"] == 95
-        assert thresholds["cpu"]["sustained_heartbeats"] == 3
+        assert thresholds["cpu"]["sustained_seconds"] == 180
 
-        # Memory defaults: 85% high, 95% critical, 3 heartbeats
+        # Memory defaults: 85% high, 95% critical, 180 seconds (3 minutes)
         assert thresholds["memory"]["high_percent"] == 85
         assert thresholds["memory"]["critical_percent"] == 95
-        assert thresholds["memory"]["sustained_heartbeats"] == 3
+        assert thresholds["memory"]["sustained_seconds"] == 180
 
-        # Disk defaults: 80% high, 95% critical, immediate (0 heartbeats)
+        # Disk defaults: 80% high, 95% critical, immediate (0 seconds)
         assert thresholds["disk"]["high_percent"] == 80
         assert thresholds["disk"]["critical_percent"] == 95
-        assert thresholds["disk"]["sustained_heartbeats"] == 0
+        assert thresholds["disk"]["sustained_seconds"] == 0
 
         # Server offline default: 180 seconds
         assert thresholds["server_offline_seconds"] == 180

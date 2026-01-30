@@ -324,10 +324,20 @@ async def save_dashboard_preferences(
 
     now = datetime.now(UTC)
 
+    # Deduplicate card_order lists while preserving order
+    def dedupe(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        result: list[str] = []
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                result.append(item)
+        return result
+
     preference_value = {
         "card_order": {
-            "servers": request.card_order.servers,
-            "workstations": request.card_order.workstations,
+            "servers": dedupe(request.card_order.servers),
+            "workstations": dedupe(request.card_order.workstations),
         },
         "collapsed_sections": request.collapsed_sections,
         "view_mode": request.view_mode,

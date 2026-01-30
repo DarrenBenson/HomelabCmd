@@ -48,3 +48,24 @@ export interface AlertFilters {
   limit?: number;
   offset?: number;
 }
+
+/**
+ * A pending breach - condition breached but sustained duration not yet met.
+ */
+export interface PendingBreach {
+  server_id: string;
+  server_name: string | null;
+  metric_type: string;
+  current_value: number | null;
+  threshold_value: number;
+  severity: AlertSeverity;
+  first_breach_at: string;
+  sustained_seconds: number;
+  elapsed_seconds: number;
+  time_until_alert: number;
+}
+
+export interface PendingBreachesResponse {
+  pending: PendingBreach[];
+  total: number;
+}

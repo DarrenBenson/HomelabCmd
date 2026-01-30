@@ -287,6 +287,76 @@ describe('CostsPage', () => {
       const sortButton = screen.getByTestId('sort-daily_cost');
       expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
     });
+
+    it('sorts by monthly_cost when clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sort-monthly_cost')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sort-monthly_cost'));
+
+      // Verify monthly_cost sort button is active
+      const sortButton = screen.getByTestId('sort-monthly_cost');
+      expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
+    });
+
+    it('sorts by hostname when clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sort-hostname')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sort-hostname'));
+
+      // Verify hostname sort button is active
+      const sortButton = screen.getByTestId('sort-hostname');
+      expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
+    });
+
+    it('sorts by category when clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sort-category')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sort-category'));
+
+      // Verify category sort button is active
+      const sortButton = screen.getByTestId('sort-category');
+      expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
+    });
+
+    it('sorts by avg_cpu when clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sort-avg_cpu')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sort-avg_cpu'));
+
+      // Verify avg_cpu sort button is active
+      const sortButton = screen.getByTestId('sort-avg_cpu');
+      expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
+    });
+
+    it('sorts by estimated_watts when clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sort-estimated_watts')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sort-estimated_watts'));
+
+      // Verify estimated_watts sort button is active
+      const sortButton = screen.getByTestId('sort-estimated_watts');
+      expect(sortButton.querySelector('.text-status-info')).toBeInTheDocument();
+    });
   });
 
   describe('Power Edit Modal', () => {

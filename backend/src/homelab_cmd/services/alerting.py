@@ -585,16 +585,19 @@ class AlertingService:
             target_severity = AlertSeverity.HIGH
             threshold_value = threshold.high_percent
         else:
-            # Below thresholds - reset consecutive count
-            breaches = state.consecutive_breaches or 0
-            if breaches > 0:
-                state.consecutive_breaches = 0
-                state.current_value = current_value
-                logger.debug(
-                    "Server %s metric %s dropped below threshold, resetting breach count",
-                    server_id,
-                    metric_type.value,
-                )
+            # Below thresholds - reset breach timer only if no active alert
+            # If there's an active alert, let _check_auto_resolve handle it
+            # so it can capture duration_minutes before resetting first_breach_at
+            if state.current_severity is None:
+                if state.first_breach_at is not None or (state.consecutive_breaches or 0) > 0:
+                    state.consecutive_breaches = 0
+                    state.first_breach_at = None
+                    state.current_value = current_value
+                    logger.debug(
+                        "Server %s metric %s dropped below threshold, resetting breach timer",
+                        server_id,
+                        metric_type.value,
+                    )
             return None
 
         # Update state with current value
@@ -609,23 +612,29 @@ class AlertingService:
         else:
             state.consecutive_breaches = breaches + 1
 
-        # Check if sustained threshold is met (for transient metrics)
-        # sustained_heartbeats = 0 means immediate (disk)
-        # sustained_heartbeats = 3 means 3 consecutive breaches required
-        required_breaches = threshold.sustained_heartbeats
-        if required_breaches == 0:
-            required_breaches = 1  # Immediate means 1 breach
-
-        if state.consecutive_breaches < required_breaches:
-            # Not yet sustained, don't alert
-            logger.debug(
-                "Server %s metric %s: breach %d/%d, not yet sustained",
-                server_id,
-                metric_type.value,
-                state.consecutive_breaches,
-                required_breaches,
-            )
-            return None
+        # Check if sustained threshold is met (time-based)
+        # sustained_seconds = 0 means immediate (disk)
+        # sustained_seconds = 180 means condition must persist for 3 minutes
+        required_seconds = threshold.sustained_seconds
+        if required_seconds == 0:
+            # Immediate firing - no duration requirement
+            pass
+        elif state.first_breach_at is not None:
+            # Handle timezone-naive datetimes from SQLite
+            first_breach = state.first_breach_at
+            if first_breach.tzinfo is None:
+                first_breach = first_breach.replace(tzinfo=UTC)
+            elapsed_seconds = (now - first_breach).total_seconds()
+            if elapsed_seconds < required_seconds:
+                # Not yet sustained, don't alert
+                logger.debug(
+                    "Server %s metric %s: breach for %.0fs/%ds, not yet sustained",
+                    server_id,
+                    metric_type.value,
+                    elapsed_seconds,
+                    required_seconds,
+                )
+                return None
 
         # Sustained threshold met - check if we should alert/escalate/re-notify
         if state.current_severity is None:
@@ -778,6 +787,7 @@ class AlertingService:
 
                 state.current_severity = None
                 state.consecutive_breaches = 0
+                state.first_breach_at = None  # Reset after capturing duration
                 state.resolved_at = now
                 state.current_value = current_value
 

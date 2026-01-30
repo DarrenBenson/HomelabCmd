@@ -3,11 +3,14 @@
 Provides endpoints for retrieving electricity cost estimates based on
 server power profiles and actual CPU usage. Supports separate calculation
 for servers (24/7) and workstations (actual usage).
+
+US0183: Added historical cost tracking endpoints (EP0005).
 """
 
 from datetime import UTC, date, datetime, timedelta
+from enum import Enum
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +18,16 @@ from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES
 from homelab_cmd.api.routes.config import DEFAULT_COST, get_config_value
 from homelab_cmd.api.schemas.config import CostConfig
+from homelab_cmd.api.schemas.cost_history import (
+    CostHistoryItem as CostHistoryItemSchema,
+)
+from homelab_cmd.api.schemas.cost_history import (
+    CostHistoryResponse,
+    MonthlySummaryResponse,
+)
+from homelab_cmd.api.schemas.cost_history import (
+    MonthlySummaryItem as MonthlySummaryItemSchema,
+)
 from homelab_cmd.api.schemas.costs import (
     CostBreakdownResponse,
     CostSettings,
@@ -25,6 +38,7 @@ from homelab_cmd.api.schemas.costs import (
 from homelab_cmd.db.models.metrics import Metrics
 from homelab_cmd.db.models.server import Server
 from homelab_cmd.db.session import get_async_session
+from homelab_cmd.services.cost_history import CostHistoryService
 from homelab_cmd.services.power import (
     POWER_PROFILES,
     MachineCategory,
@@ -420,4 +434,149 @@ async def get_cost_breakdown(
         servers=all_servers,
         totals=totals,
         settings=settings,
+    )
+
+
+# =============================================================================
+# Historical Cost Tracking Endpoints (US0183)
+# =============================================================================
+
+
+class AggregationType(str, Enum):
+    """Aggregation levels for cost history."""
+
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+
+
+@router.get(
+    "/history",
+    response_model=CostHistoryResponse,
+    operation_id="get_cost_history",
+    summary="Get historical cost data",
+    responses={**AUTH_RESPONSES},
+)
+async def get_cost_history(
+    start_date: date = Query(..., description="Start date (inclusive)"),
+    end_date: date = Query(..., description="End date (inclusive)"),
+    server_id: str | None = Query(None, description="Filter by server ID"),
+    aggregation: AggregationType = Query(
+        AggregationType.DAILY, description="Aggregation level"
+    ),
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> CostHistoryResponse:
+    """Get historical cost data with optional filtering and aggregation.
+
+    AC2: Historical cost API with date range, server filter, and aggregation.
+
+    Args:
+        start_date: Start of date range (inclusive)
+        end_date: End of date range (inclusive)
+        server_id: Optional server ID to filter by
+        aggregation: 'daily', 'weekly', or 'monthly'
+
+    Returns:
+        Cost history response with items and metadata
+    """
+    # Validate date range
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=422,
+            detail="end_date must be greater than or equal to start_date",
+        )
+
+    # Get cost configuration for currency symbol
+    cost_data = await get_config_value(session, "cost")
+    if cost_data:
+        cost_config = CostConfig(**cost_data)
+    else:
+        cost_config = DEFAULT_COST
+
+    # Get history from service
+    service = CostHistoryService(session)
+    history_items = await service.get_history(
+        start_date=start_date,
+        end_date=end_date,
+        server_id=server_id,
+        aggregation=aggregation.value,
+    )
+
+    # Convert to response schema
+    items = [
+        CostHistoryItemSchema(
+            date=item.date,
+            estimated_kwh=item.estimated_kwh,
+            estimated_cost=item.estimated_cost,
+            electricity_rate=item.electricity_rate,
+            server_id=item.server_id,
+            server_hostname=item.server_hostname,
+        )
+        for item in history_items
+    ]
+
+    return CostHistoryResponse(
+        items=items,
+        aggregation=aggregation.value,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        currency_symbol=cost_config.currency_symbol,
+    )
+
+
+@router.get(
+    "/summary/monthly",
+    response_model=MonthlySummaryResponse,
+    operation_id="get_monthly_cost_summary",
+    summary="Get monthly cost summary",
+    responses={**AUTH_RESPONSES},
+)
+async def get_monthly_cost_summary(
+    year: int = Query(default=None, description="Year (defaults to current year)"),
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> MonthlySummaryResponse:
+    """Get monthly cost summary with year-to-date totals.
+
+    AC5: Monthly cost summary with month-over-month change and YTD.
+
+    Args:
+        year: Year to get summary for (defaults to current year)
+
+    Returns:
+        Monthly summary response with YTD total
+    """
+    # Default to current year
+    if year is None:
+        year = date.today().year
+
+    # Get cost configuration for currency symbol
+    cost_data = await get_config_value(session, "cost")
+    if cost_data:
+        cost_config = CostConfig(**cost_data)
+    else:
+        cost_config = DEFAULT_COST
+
+    # Get monthly summary from service
+    service = CostHistoryService(session)
+    summary = await service.get_monthly_summary(year)
+
+    # Convert to response schema
+    months = [
+        MonthlySummaryItemSchema(
+            year_month=item.year_month,
+            total_cost=item.total_cost,
+            total_kwh=item.total_kwh,
+            previous_month_cost=item.previous_month_cost,
+            change_percent=item.change_percent,
+        )
+        for item in summary.months
+    ]
+
+    return MonthlySummaryResponse(
+        months=months,
+        year=summary.year,
+        year_to_date_cost=summary.year_to_date_cost,
+        currency_symbol=cost_config.currency_symbol,
     )

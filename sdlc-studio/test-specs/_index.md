@@ -2,16 +2,16 @@
 
 This document provides an overview of all Test Specifications for the HomelabCmd project.
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 
 ## Summary
 
 | Status | Count | Test Cases |
 |--------|-------|------------|
-| Draft | 8 | 127 |
+| Draft | 8 | 135 |
 | In Progress | 3 | 62 |
-| Complete | 15 | 303 |
-| **Total** | **26** | **492** |
+| Complete | 19 | 345 |
+| **Total** | **30** | **542** |
 
 ## Specifications by Epic
 
@@ -34,6 +34,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
 | [TS0007](TS0007-alerting.md) | Alerting & Notifications Tests | US0010-US0016 | 31 | Complete |
+| [TS0184](TS0184-alert-sustained-duration.md) | Alert Sustained Duration Tests | US0181 | 18 | Draft |
 
 ### [EP0003: Service Monitoring](../../epics/EP0003-service-monitoring.md)
 
@@ -81,11 +82,22 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 |----|-------|---------|------------|--------|
 | [TS0177](TS0177-responsive-widget-layout.md) | Responsive Widget Layout Tests | US0177 | 12 | Draft |
 
+### [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
+
+| ID | Title | Stories | Test Cases | Status |
+|----|-------|---------|------------|--------|
+| [TS0180](TS0180-configuration-pack-definitions.md) | Configuration Pack Definitions Tests | US0116 | 11 | Complete |
+| [TS0181](TS0181-pack-compliance-check.md) | Configuration Compliance Checker Tests | US0117 | 17 | Complete |
+| [TS0182](TS0182-configuration-diff-view.md) | Configuration Diff View Tests | US0118 | 10 | Complete |
+| [TS0186](TS0186-configuration-drift-detection.md) | Configuration Drift Detection Tests | US0122 | 12 | Draft |
+| [TS0187](TS0187-pack-assignment-per-machine.md) | Pack Assignment per Machine Tests | US0121 | 13 | Draft |
+
 ### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
 | [TS0109](TS0109-maintenance-mode-indicator.md) | Enhanced Maintenance Mode Indicator Tests | US0109 | 9 | Draft |
+| [TS0180](TS0180-detail-page-connectivity-badge.md) | Detail Page Connectivity Badge Tests | US0180 | 4 | Complete |
 
 ## All Specifications
 

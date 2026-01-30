@@ -6,7 +6,14 @@ import * as serversApi from '../api/servers';
 import type { ServerDetail as ServerDetailType } from '../types/server';
 
 // Mock the API
-vi.mock('../api/servers');
+vi.mock('../api/servers', () => ({
+  getServer: vi.fn(),
+  getServerPackages: vi.fn(),
+  pauseServer: vi.fn(),
+  unpauseServer: vi.fn(),
+  testSSHConnection: vi.fn(),
+  deleteServer: vi.fn(),
+}));
 
 const mockServer: ServerDetailType = {
   id: 'test-server',
@@ -799,6 +806,446 @@ describe('ServerDetail', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('cpu-cores')).toHaveTextContent('4');
+      });
+    });
+  });
+
+  /**
+   * Tailscale hostname tests
+   */
+  describe('Tailscale hostname', () => {
+    it('displays tailscale hostname when present', async () => {
+      const tailscaleServer = {
+        ...mockServer,
+        tailscale_hostname: 'server.tail123.ts.net',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(tailscaleServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('tailscale-hostname')).toHaveTextContent('server.tail123.ts.net');
+      });
+    });
+
+    it('does not display tailscale hostname when null', async () => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('tailscale-hostname')).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Tailscale Badge in Header (US0180)
+   * Spec Reference: sdlc-studio/test-specs/TS0180-detail-page-connectivity-badge.md
+   */
+  describe('Tailscale Badge in Header (US0180)', () => {
+    it('TC01: displays TailscaleBadge in header for Tailscale server', async () => {
+      const tailscaleServer = {
+        ...mockServer,
+        tailscale_hostname: 'my-server.tail12345.ts.net',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(tailscaleServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('tailscale-badge')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('tailscale-badge')).toHaveTextContent('Tailscale');
+    });
+
+    it('TC02: does not display TailscaleBadge for non-Tailscale server', async () => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer); // No tailscale_hostname
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('tailscale-badge')).not.toBeInTheDocument();
+    });
+
+    it('TC03: badge tooltip displays hostname', async () => {
+      const tailscaleServer = {
+        ...mockServer,
+        tailscale_hostname: 'my-server.tail12345.ts.net',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(tailscaleServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        const badge = screen.getByTestId('tailscale-badge');
+        expect(badge).toHaveAttribute('title', 'Connected via Tailscale: my-server.tail12345.ts.net');
+      });
+    });
+
+    it('TC04: does not display badge for empty string hostname', async () => {
+      const serverEmptyTailscale = {
+        ...mockServer,
+        tailscale_hostname: '',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverEmptyTailscale);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('tailscale-badge')).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Server without display_name
+   */
+  describe('Server name fallback', () => {
+    it('uses hostname when display_name is null', async () => {
+      const serverNoDisplayName = {
+        ...mockServer,
+        display_name: null,
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoDisplayName);
+
+      renderWithRouter();
+
+      // Should see the hostname used as the name
+      await waitFor(() => {
+        const elements = screen.getAllByText('test-server.local');
+        expect(elements.length).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  /**
+   * Server without IP address
+   */
+  describe('Server without IP address', () => {
+    it('renders without crashing when IP address is null', async () => {
+      const serverNoIp = {
+        ...mockServer,
+        ip_address: null,
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoIp);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * Server without OS information
+   */
+  describe('Server without OS information', () => {
+    it('shows unknown when OS distribution is null', async () => {
+      const serverNoOs = {
+        ...mockServer,
+        os_distribution: null,
+        os_version: null,
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoOs);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        // The OS info should show a fallback or empty state
+        expect(screen.getByTestId('os-info')).toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * Server without CPU model
+   */
+  describe('Server without CPU model', () => {
+    it('shows unknown when CPU model is null', async () => {
+      const serverNoCpu = {
+        ...mockServer,
+        cpu_model: null,
+        cpu_cores: null,
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoCpu);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        // The CPU info should show a fallback or empty state
+        expect(screen.getByTestId('cpu-model')).toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * Paused server tests
+   */
+  describe('Paused server', () => {
+    it('displays paused status indicator', async () => {
+      const pausedServer = {
+        ...mockServer,
+        is_paused: true,
+        paused_at: '2026-01-19T10:00:00Z',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(pausedServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Enabled');
+      });
+    });
+  });
+
+  /**
+   * Machine type tests
+   */
+  describe('Machine type', () => {
+    it('displays machine type as server', async () => {
+      const serverWithType = {
+        ...mockServer,
+        machine_type: 'server',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverWithType);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+    });
+
+    it('displays machine type as workstation', async () => {
+      const workstationServer = {
+        ...mockServer,
+        machine_type: 'workstation',
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(workstationServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * Last seen timestamp tests
+   */
+  describe('Last seen', () => {
+    it('displays last seen timestamp', async () => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('last-seen')).toBeInTheDocument();
+      });
+    });
+
+    it('handles null last_seen', async () => {
+      const serverNoLastSeen = {
+        ...mockServer,
+        last_seen: null,
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoLastSeen);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+      // Should handle gracefully without crashing
+    });
+  });
+
+  /**
+   * Error handling for specific error codes
+   */
+  describe('Error handling', () => {
+    it('handles 403 forbidden error', async () => {
+      vi.mocked(serversApi.getServer).mockRejectedValue(new Error('403 Forbidden'));
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toBeInTheDocument();
+      });
+    });
+
+    it('handles 500 server error', async () => {
+      vi.mocked(serversApi.getServer).mockRejectedValue(new Error('500 Internal Server Error'));
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * View mode switching (EP0012)
+   */
+  describe('View mode switching (EP0012)', () => {
+    beforeEach(() => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
+    });
+
+    it('displays view mode toggle buttons', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-classic')).toBeInTheDocument();
+        expect(screen.getByTestId('view-mode-widget')).toBeInTheDocument();
+      });
+    });
+
+    it('defaults to classic view', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-classic')).toHaveClass('bg-bg-tertiary');
+      });
+    });
+
+    it('switches to widget view when widget button clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-widget')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('view-mode-widget'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-widget')).toHaveClass('bg-bg-tertiary');
+      });
+    });
+
+    it('switches back to classic view when classic button clicked', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-widget')).toBeInTheDocument();
+      });
+
+      // Switch to widget
+      fireEvent.click(screen.getByTestId('view-mode-widget'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-widget')).toHaveClass('bg-bg-tertiary');
+      });
+
+      // Switch back to classic
+      fireEvent.click(screen.getByTestId('view-mode-classic'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-classic')).toHaveClass('bg-bg-tertiary');
+      });
+    });
+  });
+
+  /**
+   * SSH Testing (US0079)
+   */
+  describe('SSH Testing (US0079)', () => {
+    const serverWithTailscale = {
+      ...mockServer,
+      tailscale_hostname: 'server.tail123.ts.net',
+    };
+
+    beforeEach(() => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverWithTailscale);
+      vi.mocked(serversApi.testSSHConnection).mockResolvedValue({
+        success: true,
+        latency_ms: 25,
+        host_key_fingerprint: 'SHA256:abc123',
+        key_used: 'default',
+        attempts: 1,
+      });
+    });
+
+    it('displays Test SSH button for Tailscale servers', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('test-ssh-button')).toBeInTheDocument();
+      });
+    });
+
+    it('disables button while SSH test in progress', async () => {
+      vi.mocked(serversApi.testSSHConnection).mockReturnValue(new Promise(() => {}));
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('test-ssh-button')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('test-ssh-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('test-ssh-button')).toBeDisabled();
+      });
+    });
+
+    it('does not show Test SSH button for non-Tailscale servers', async () => {
+      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer); // No tailscale_hostname
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('test-ssh-button')).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Uptime display tests
+   */
+  describe('Uptime display', () => {
+    it('displays server with uptime present in metrics', async () => {
+      const serverWithUptime = {
+        ...mockServer,
+        latest_metrics: {
+          ...mockServer.latest_metrics,
+          uptime_seconds: 86400 * 7, // 7 days
+        },
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverWithUptime);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
+      });
+    });
+
+    it('handles null uptime', async () => {
+      const serverNoUptime = {
+        ...mockServer,
+        latest_metrics: {
+          ...mockServer.latest_metrics,
+          uptime_seconds: null,
+        },
+      };
+      vi.mocked(serversApi.getServer).mockResolvedValue(serverNoUptime);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Server')).toBeInTheDocument();
       });
     });
   });

@@ -96,6 +96,25 @@ class TestSendAlertConditionalLogic:
         result = await notifier.send_alert(event, config)
         assert result is True  # Returns True because it was intentionally skipped
 
+    @pytest.mark.asyncio
+    async def test_auto_resolve_skipped_when_disabled(self) -> None:
+        """Auto-resolve notifications should be skipped when disabled (US0182)."""
+        notifier = SlackNotifier(webhook_url="https://hooks.slack.com/test")
+        config = NotificationsConfig(notify_on_auto_resolve=False)
+        event = AlertEvent(
+            server_id="test-server",
+            server_name="Test Server",
+            metric_type="cpu",
+            severity="resolved",
+            current_value=50.0,
+            threshold_value=85.0,
+            is_resolved=True,
+            duration_minutes=15,
+        )
+
+        result = await notifier.send_alert(event, config)
+        assert result is True  # Returns True because it was intentionally skipped
+
 
 class TestAlertMessageFormatting:
     """Tests for alert message formatting."""

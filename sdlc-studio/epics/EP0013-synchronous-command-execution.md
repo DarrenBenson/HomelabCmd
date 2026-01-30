@@ -1,6 +1,6 @@
 # EP0013: Synchronous Command Execution
 
-> **Status:** Done
+> **Status:** Draft
 > **Owner:** Darren
 > **Created:** 2026-01-26
 > **Target Release:** Phase 1 (Alpha)
@@ -584,3 +584,4 @@ Benefits:
 | 2026-01-25 | Darren | Initial epic creation |
 | 2026-01-28 | Claude | Renumbered stories US0089-US0094 to US0151-US0156 to resolve conflicts with EP0009/EP0016 |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Status corrected from Done to Draft - implementation not started. SSH executor exists (EP0008) but sync command execution, whitelist, and audit trail not implemented. |

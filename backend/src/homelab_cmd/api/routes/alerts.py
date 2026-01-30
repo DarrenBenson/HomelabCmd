@@ -1,5 +1,7 @@
 """Alert API endpoints for listing, viewing, acknowledging, and resolving alerts."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,13 +9,18 @@ from sqlalchemy.orm import joinedload
 
 from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES, BAD_REQUEST_RESPONSE, NOT_FOUND_RESPONSE
+from homelab_cmd.api.routes.config import get_config_value
 from homelab_cmd.api.schemas.alerts import (
     AlertAcknowledgeResponse,
     AlertListResponse,
     AlertResolveResponse,
     AlertResponse,
+    PendingBreachListResponse,
+    PendingBreachResponse,
 )
+from homelab_cmd.api.schemas.config import ThresholdsConfig
 from homelab_cmd.db.models.alert import Alert, AlertStatus
+from homelab_cmd.db.models.alert_state import AlertState
 from homelab_cmd.db.models.service import ServiceStatus
 from homelab_cmd.db.session import get_async_session
 
@@ -192,6 +199,98 @@ async def list_alerts(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get(
+    "/pending",
+    response_model=PendingBreachListResponse,
+    operation_id="list_pending_breaches",
+    summary="List pending breaches awaiting sustained duration",
+    responses={**AUTH_RESPONSES},
+)
+async def list_pending_breaches(
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> PendingBreachListResponse:
+    """List pending breaches (conditions breached but duration not yet met).
+
+    Returns breaches where a threshold has been exceeded but the sustained
+    duration requirement has not yet been met. Includes time until the alert
+    would fire if the condition persists.
+    """
+    now = datetime.now(UTC)
+
+    # Get threshold configuration
+    thresholds_data = await get_config_value(session, "thresholds")
+    thresholds = ThresholdsConfig(**thresholds_data) if thresholds_data else ThresholdsConfig()
+
+    # Query AlertState for pending breaches:
+    # - first_breach_at is set (breach in progress)
+    # - current_severity is null (alert hasn't fired yet)
+    result = await session.execute(
+        select(AlertState)
+        .options(joinedload(AlertState.server))
+        .where(AlertState.first_breach_at.isnot(None))
+        .where(AlertState.current_severity.is_(None))
+    )
+    pending_states = result.scalars().unique().all()
+
+    pending_responses: list[PendingBreachResponse] = []
+    for state in pending_states:
+        # Get threshold config for this metric type
+        metric_type = state.metric_type
+        if metric_type == "cpu":
+            threshold_config = thresholds.cpu
+        elif metric_type == "memory":
+            threshold_config = thresholds.memory
+        elif metric_type == "disk":
+            threshold_config = thresholds.disk
+        else:
+            # Skip unknown metric types (e.g., offline)
+            continue
+
+        # Calculate timing
+        first_breach = state.first_breach_at
+        if first_breach and first_breach.tzinfo is None:
+            first_breach = first_breach.replace(tzinfo=UTC)
+
+        elapsed_seconds = int((now - first_breach).total_seconds()) if first_breach else 0
+        sustained_seconds = threshold_config.sustained_seconds
+        time_until_alert = max(0, sustained_seconds - elapsed_seconds)
+
+        # Determine severity and threshold based on current value
+        current_value = state.current_value or 0
+        if current_value >= threshold_config.critical_percent:
+            severity = "critical"
+            threshold_value = threshold_config.critical_percent
+        else:
+            severity = "high"
+            threshold_value = threshold_config.high_percent
+
+        # Get server name
+        server_name = None
+        if state.server:
+            server_name = state.server.display_name or state.server.hostname
+
+        pending_responses.append(
+            PendingBreachResponse(
+                server_id=state.server_id,
+                server_name=server_name,
+                metric_type=metric_type,
+                current_value=state.current_value,
+                threshold_value=threshold_value,
+                severity=severity,
+                first_breach_at=first_breach,
+                sustained_seconds=sustained_seconds,
+                elapsed_seconds=elapsed_seconds,
+                time_until_alert=time_until_alert,
+            )
+        )
+
+    return PendingBreachListResponse(
+        pending=pending_responses,
+        total=len(pending_responses),
     )
 
 

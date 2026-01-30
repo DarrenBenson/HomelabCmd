@@ -1,49 +1,84 @@
-"""Tests for Heartbeat Command Channel (US0025).
+"""Tests for Heartbeat Command Channel Deprecation (US0152).
 
-Test cases from TSP0009:
-- TC160: Approved action included in heartbeat response
-- TC161: Command results update action status
+These tests verify backward compatibility with v1.0 agents during the
+migration to synchronous SSH command execution (EP0013).
 
-Additional tests for complete coverage of US0025 acceptance criteria.
+Test cases from TS0191:
+- TC01: Heartbeat without command_results accepted
+- TC02: Response has empty pending_commands (always)
+- TC05: V1.0 agent heartbeat with command_results accepted
+- TC06: Deprecation warning contains agent info
 """
 
+import logging
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 # =============================================================================
-# TC160: Approved action included in heartbeat response (AC1, AC2, AC3)
+# TC01/TC02: New v2.0 agent heartbeat format
 # =============================================================================
 
 
-class TestApprovedActionInHeartbeatResponse:
-    """TC160: Approved action included in heartbeat response."""
+class TestV2AgentHeartbeat:
+    """Tests for v2.0 agent heartbeat format (no command channel)."""
 
-    def test_approved_action_returned_in_pending_commands(
+    def test_heartbeat_without_command_results_accepted(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Approved action appears in heartbeat response pending_commands."""
-        # Create server and approved action
+        """TC01: V2.0 heartbeat without command_results is valid."""
         client.post(
             "/api/v1/servers",
-            json={"id": "cmd-test-server", "hostname": "test.local"},
+            json={"id": "v2-agent-test", "hostname": "test.local"},
             headers=auth_headers,
         )
+
+        response = client.post(
+            "/api/v1/agents/heartbeat",
+            json={
+                "server_id": "v2-agent-test",
+                "hostname": "test.local",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "metrics": {
+                    "cpu_percent": 45.5,
+                    "memory_percent": 62.0,
+                    "disk_percent": 78.0,
+                },
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    def test_heartbeat_response_always_has_empty_pending_commands(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """TC02: Response always returns empty pending_commands array."""
+        # Create server with an approved action
+        client.post(
+            "/api/v1/servers",
+            json={"id": "empty-commands-test", "hostname": "test.local"},
+            headers=auth_headers,
+        )
+        # Create action that would have been delivered in v1.0
         client.post(
             "/api/v1/actions",
             json={
-                "server_id": "cmd-test-server",
+                "server_id": "empty-commands-test",
                 "action_type": "restart_service",
                 "service_name": "plex",
             },
             headers=auth_headers,
         )
 
-        # Send heartbeat
+        # Send heartbeat - should return empty pending_commands even with approved action
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "cmd-test-server",
+                "server_id": "empty-commands-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
             },
@@ -52,298 +87,179 @@ class TestApprovedActionInHeartbeatResponse:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["pending_commands"]) == 1
-        assert data["pending_commands"][0]["action_type"] == "restart_service"
-        assert data["pending_commands"][0]["command"] == "systemctl restart plex"
+        assert "pending_commands" in data
+        assert data["pending_commands"] == []  # Always empty in v2.0
 
-    def test_pending_action_not_returned(
+    def test_approved_action_not_delivered_via_heartbeat(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Pending (not approved) action is not included in response (AC3)."""
-        # Create and pause server (actions will be pending)
-        client.post(
-            "/api/v1/servers",
-            json={"id": "pending-cmd-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        client.put("/api/v1/servers/pending-cmd-test/pause", headers=auth_headers)
-
-        # Create action (will be pending because server is paused)
-        client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "pending-cmd-test",
-                "action_type": "restart_service",
-                "service_name": "sonarr",
-            },
-            headers=auth_headers,
-        )
-
-        # Send heartbeat
-        response = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "pending-cmd-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["pending_commands"]) == 0
-
-    def test_action_marked_as_executing_on_delivery(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Action status changes to executing when delivered (AC2)."""
+        """US0152: Approved actions are no longer delivered via heartbeat."""
         # Create server and approved action
         client.post(
             "/api/v1/servers",
-            json={"id": "exec-status-test", "hostname": "test.local"},
+            json={"id": "no-delivery-test", "hostname": "test.local"},
             headers=auth_headers,
         )
-        action_resp = client.post(
+        action = client.post(
             "/api/v1/actions",
             json={
-                "server_id": "exec-status-test",
+                "server_id": "no-delivery-test",
                 "action_type": "restart_service",
-                "service_name": "radarr",
+                "service_name": "nginx",
             },
             headers=auth_headers,
-        )
-        action_id = action_resp.json()["id"]
+        ).json()
 
-        # Verify initial status is approved
-        action_before = client.get(f"/api/v1/actions/{action_id}", headers=auth_headers).json()
+        # Verify action is approved
+        action_before = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
         assert action_before["status"] == "approved"
 
-        # Send heartbeat to deliver the command
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "exec-status-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Verify status is now executing
-        action_after = client.get(f"/api/v1/actions/{action_id}", headers=auth_headers).json()
-        assert action_after["status"] == "executing"
-        assert action_after["executed_at"] is not None
-
-    def test_executing_action_not_redelivered(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Executing action is not re-delivered on next heartbeat (AC7)."""
-        # Create server and approved action
-        client.post(
-            "/api/v1/servers",
-            json={"id": "no-redeliver-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "no-redeliver-test",
-                "action_type": "restart_service",
-                "service_name": "nginx",
-            },
-            headers=auth_headers,
-        )
-
-        # First heartbeat - delivers command
-        response1 = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "no-redeliver-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-        assert len(response1.json()["pending_commands"]) == 1
-
-        # Second heartbeat - should not re-deliver
-        response2 = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "no-redeliver-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-        assert len(response2.json()["pending_commands"]) == 0
-
-    def test_only_oldest_action_delivered(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Only oldest approved action is delivered (AC6)."""
-        # Create server
-        client.post(
-            "/api/v1/servers",
-            json={"id": "oldest-first-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-
-        # Create two actions - first one should be delivered
-        first = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "oldest-first-test",
-                "action_type": "restart_service",
-                "service_name": "first-service",
-            },
-            headers=auth_headers,
-        ).json()
-
-        client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "oldest-first-test",
-                "action_type": "restart_service",
-                "service_name": "second-service",
-            },
-            headers=auth_headers,
-        )
-
-        # Send heartbeat - only first action should be delivered
-        response = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "oldest-first-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        data = response.json()
-        assert len(data["pending_commands"]) == 1
-        assert data["pending_commands"][0]["action_id"] == first["id"]
-        assert data["pending_commands"][0]["parameters"]["service_name"] == "first-service"
-
-    def test_pending_command_includes_all_fields(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Pending command includes all required fields."""
-        # Create server and action
-        client.post(
-            "/api/v1/servers",
-            json={"id": "fields-test-server", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "fields-test-server",
-                "action_type": "restart_service",
-                "service_name": "test-service",
-            },
-            headers=auth_headers,
-        ).json()
-
         # Send heartbeat
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "fields-test-server",
+                "server_id": "no-delivery-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
             },
             headers=auth_headers,
         )
 
-        cmd = response.json()["pending_commands"][0]
-        assert cmd["action_id"] == action["id"]
-        assert cmd["action_type"] == "restart_service"
-        assert cmd["command"] == "systemctl restart test-service"
-        assert cmd["parameters"] == {"service_name": "test-service"}
-        assert cmd["timeout_seconds"] == 30
+        assert response.status_code == 200
+        assert response.json()["pending_commands"] == []
 
-    def test_empty_pending_commands_when_no_actions(
+        # Verify action status is STILL approved (not changed to executing)
+        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
+        assert action_after["status"] == "approved"  # Not 'executing'
+
+
+# =============================================================================
+# TC05/TC06: Backward compatibility with v1.0 agents
+# =============================================================================
+
+
+class TestV1AgentBackwardCompatibility:
+    """Tests for backward compatibility with v1.0 agents."""
+
+    def test_heartbeat_with_command_results_accepted(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Response has empty pending_commands when no actions exist."""
-        # Create server with no actions
+        """TC05: V1.0 heartbeat with command_results is accepted (backward compat)."""
         client.post(
             "/api/v1/servers",
-            json={"id": "no-actions-test", "hostname": "test.local"},
+            json={"id": "v1-agent-test", "hostname": "test.local"},
             headers=auth_headers,
         )
 
+        # V1.0 agent sends command_results (deprecated)
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "no-actions-test",
+                "server_id": "v1-agent-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
+                "metrics": {
+                    "cpu_percent": 45.5,
+                    "memory_percent": 62.0,
+                    "disk_percent": 78.0,
+                },
+                "command_results": [
+                    {
+                        "action_id": 123,
+                        "exit_code": 0,
+                        "stdout": "Service restarted",
+                        "stderr": "",
+                        "executed_at": "2026-01-29T11:59:00Z",
+                        "completed_at": "2026-01-29T11:59:01Z",
+                    }
+                ],
             },
             headers=auth_headers,
         )
 
+        assert response.status_code == 200
         data = response.json()
-        assert data["pending_commands"] == []
+        assert data["status"] == "ok"
+        # Results are ignored but heartbeat succeeds
+        assert data["results_acknowledged"] == []
 
-
-# =============================================================================
-# TC161: Command results update action status (AC4, AC5)
-# =============================================================================
-
-
-class TestCommandResultsUpdateStatus:
-    """TC161: Command results update action status."""
-
-    def test_successful_result_sets_status_completed(
-        self, client: TestClient, auth_headers: dict[str, str]
+    def test_deprecation_warning_logged_for_command_results(
+        self, client: TestClient, auth_headers: dict[str, str], caplog: "pytest.LogCaptureFixture"
     ) -> None:
-        """Successful result (exit_code=0) sets status to completed (AC5)."""
-        # Create server and deliver action
+        """TC06: Deprecation warning logged when v1.0 agent sends command_results."""
         client.post(
             "/api/v1/servers",
-            json={"id": "completed-test", "hostname": "test.local"},
+            json={"id": "deprecation-test", "hostname": "test.local"},
+            headers=auth_headers,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            response = client.post(
+                "/api/v1/agents/heartbeat",
+                json={
+                    "server_id": "deprecation-test",
+                    "hostname": "test.local",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "command_results": [
+                        {
+                            "action_id": 456,
+                            "exit_code": 0,
+                            "stdout": "",
+                            "stderr": "",
+                            "executed_at": "2026-01-29T12:00:00Z",
+                            "completed_at": "2026-01-29T12:00:01Z",
+                        }
+                    ],
+                },
+                headers=auth_headers,
+            )
+
+        assert response.status_code == 200
+
+        # Verify deprecation warning was logged
+        warning_logged = any(
+            "deprecation-test" in record.message
+            and "deprecated" in record.message.lower()
+            and "command_results" in record.message
+            for record in caplog.records
+        )
+        assert warning_logged, "Expected deprecation warning with server_id and 'command_results'"
+
+    def test_command_results_ignored_not_processed(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        """TC05: Command results from v1.0 agents are ignored (not processed)."""
+        # Create server and an approved action
+        client.post(
+            "/api/v1/servers",
+            json={"id": "ignored-results-test", "hostname": "test.local"},
             headers=auth_headers,
         )
         action = client.post(
             "/api/v1/actions",
             json={
-                "server_id": "completed-test",
+                "server_id": "ignored-results-test",
                 "action_type": "restart_service",
                 "service_name": "plex",
             },
             headers=auth_headers,
         ).json()
 
-        # Deliver action via heartbeat
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "completed-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Send result in next heartbeat
+        # Send heartbeat with command_results for this action
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "completed-test",
+                "server_id": "ignored-results-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
                 "command_results": [
                     {
                         "action_id": action["id"],
                         "exit_code": 0,
-                        "stdout": "",
+                        "stdout": "Service restarted",
                         "stderr": "",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
+                        "executed_at": "2026-01-29T12:00:00Z",
+                        "completed_at": "2026-01-29T12:00:01Z",
                     }
                 ],
             },
@@ -351,301 +267,99 @@ class TestCommandResultsUpdateStatus:
         )
 
         assert response.status_code == 200
-        assert action["id"] in response.json()["results_acknowledged"]
+        # Results should NOT be acknowledged (they're ignored)
+        assert action["id"] not in response.json()["results_acknowledged"]
 
-        # Verify action status
+        # Verify action status was NOT updated
         action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert action_after["status"] == "completed"
-        assert action_after["exit_code"] == 0
+        assert action_after["status"] == "approved"  # Not 'completed'
 
-    def test_failed_result_sets_status_failed(
-        self, client: TestClient, auth_headers: dict[str, str]
+    def test_empty_command_results_no_warning(
+        self, client: TestClient, auth_headers: dict[str, str], caplog: "pytest.LogCaptureFixture"
     ) -> None:
-        """Failed result (exit_code!=0) sets status to failed (AC5)."""
-        # Create server and deliver action
+        """Empty command_results array doesn't trigger deprecation warning."""
         client.post(
             "/api/v1/servers",
-            json={"id": "failed-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "failed-test",
-                "action_type": "restart_service",
-                "service_name": "sonarr",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action via heartbeat
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "failed-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
+            json={"id": "empty-results-test", "hostname": "test.local"},
             headers=auth_headers,
         )
 
-        # Send failed result
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "failed-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action["id"],
-                        "exit_code": 1,
-                        "stdout": "",
-                        "stderr": "Job for sonarr.service failed",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
-                    }
-                ],
-            },
-            headers=auth_headers,
+        with caplog.at_level(logging.WARNING):
+            response = client.post(
+                "/api/v1/agents/heartbeat",
+                json={
+                    "server_id": "empty-results-test",
+                    "hostname": "test.local",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "command_results": [],  # Empty array
+                },
+                headers=auth_headers,
+            )
+
+        assert response.status_code == 200
+
+        # No deprecation warning for empty array
+        deprecation_logged = any(
+            "deprecated" in record.message.lower() and "empty-results-test" in record.message
+            for record in caplog.records
         )
+        assert not deprecation_logged
 
-        # Verify action status
-        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert action_after["status"] == "failed"
-        assert action_after["exit_code"] == 1
-        assert action_after["stderr"] == "Job for sonarr.service failed"
 
-    def test_result_stores_stdout_stderr(
+# =============================================================================
+# TC08: Metrics continue flowing after migration
+# =============================================================================
+
+
+class TestMetricsContinueFlowing:
+    """Tests that metrics continue working after command channel removal."""
+
+    def test_metrics_recorded_with_v2_format(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Result stores stdout and stderr in database."""
-        # Create server and deliver action
+        """TC08: Metrics recorded correctly with v2.0 heartbeat format."""
         client.post(
             "/api/v1/servers",
-            json={"id": "output-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "output-test",
-                "action_type": "restart_service",
-                "service_name": "radarr",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action via heartbeat
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "output-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
+            json={"id": "metrics-v2-test", "hostname": "test.local"},
             headers=auth_headers,
         )
 
-        # Send result with output
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "output-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action["id"],
-                        "exit_code": 0,
-                        "stdout": "Service restarted successfully",
-                        "stderr": "Warning: some non-fatal issue",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # Verify output stored
-        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert action_after["stdout"] == "Service restarted successfully"
-        assert action_after["stderr"] == "Warning: some non-fatal issue"
-
-    def test_result_sets_completed_at(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Result sets completed_at timestamp."""
-        # Create server and deliver action
-        client.post(
-            "/api/v1/servers",
-            json={"id": "timestamp-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "timestamp-test",
-                "action_type": "restart_service",
-                "service_name": "nginx",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action via heartbeat
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "timestamp-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Send result
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "timestamp-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action["id"],
-                        "exit_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:35Z",
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # Verify timestamp
-        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert action_after["completed_at"] is not None
-
-    def test_result_for_unknown_action_ignored(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Result for unknown action is ignored (doesn't fail heartbeat)."""
-        # Create server only (no action)
-        client.post(
-            "/api/v1/servers",
-            json={"id": "unknown-action-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-
-        # Send result for non-existent action
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "unknown-action-test",
+                "server_id": "metrics-v2-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": 999999,
-                        "exit_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
-                    }
-                ],
+                "metrics": {
+                    "cpu_percent": 45.5,
+                    "memory_percent": 62.0,
+                    "disk_percent": 78.0,
+                },
             },
             headers=auth_headers,
         )
 
         assert response.status_code == 200
-        assert 999999 not in response.json()["results_acknowledged"]
 
-    def test_duplicate_result_handled_gracefully(
+        # Verify server status updated
+        server = client.get("/api/v1/servers/metrics-v2-test", headers=auth_headers).json()
+        assert server["status"] == "online"
+        assert server["last_seen"] is not None
+
+    def test_server_status_updated_without_metrics(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Duplicate result submission is idempotent."""
-        # Create server and deliver action
+        """Server status updated even without metrics payload."""
         client.post(
             "/api/v1/servers",
-            json={"id": "duplicate-result-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "duplicate-result-test",
-                "action_type": "restart_service",
-                "service_name": "plex",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "duplicate-result-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Send first result
-        result_payload = {
-            "action_id": action["id"],
-            "exit_code": 0,
-            "stdout": "",
-            "stderr": "",
-            "executed_at": "2026-01-18T10:31:30Z",
-            "completed_at": "2026-01-18T10:31:32Z",
-        }
-        response1 = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "duplicate-result-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [result_payload],
-            },
-            headers=auth_headers,
-        )
-        assert response1.status_code == 200
-        assert action["id"] in response1.json()["results_acknowledged"]
-
-        # Send duplicate result - should be ignored but not fail
-        response2 = client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "duplicate-result-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [result_payload],
-            },
-            headers=auth_headers,
-        )
-        assert response2.status_code == 200
-        # Action already completed, so not acknowledged again
-        assert action["id"] not in response2.json()["results_acknowledged"]
-
-    def test_result_with_no_command_results_field(
-        self, client: TestClient, auth_headers: dict[str, str]
-    ) -> None:
-        """Heartbeat without command_results field still works."""
-        client.post(
-            "/api/v1/servers",
-            json={"id": "no-results-test", "hostname": "test.local"},
+            json={"id": "status-only-test", "hostname": "test.local"},
             headers=auth_headers,
         )
 
         response = client.post(
             "/api/v1/agents/heartbeat",
             json={
-                "server_id": "no-results-test",
+                "server_id": "status-only-test",
                 "hostname": "test.local",
                 "timestamp": datetime.now(UTC).isoformat(),
             },
@@ -653,140 +367,24 @@ class TestCommandResultsUpdateStatus:
         )
 
         assert response.status_code == 200
-        assert response.json()["results_acknowledged"] == []
+
+        # Verify server is online
+        server = client.get("/api/v1/servers/status-only-test", headers=auth_headers).json()
+        assert server["status"] == "online"
 
 
 # =============================================================================
-# Additional tests: Output truncation
-# =============================================================================
-
-
-class TestOutputTruncation:
-    """Tests for output size limits (10KB)."""
-
-    def test_large_stdout_truncated(self, client: TestClient, auth_headers: dict[str, str]) -> None:
-        """Large stdout is truncated to 10KB."""
-        # Create server and deliver action
-        client.post(
-            "/api/v1/servers",
-            json={"id": "truncate-stdout-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "truncate-stdout-test",
-                "action_type": "restart_service",
-                "service_name": "plex",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "truncate-stdout-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Send result with very large stdout (15KB)
-        large_output = "x" * 15000
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "truncate-stdout-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action["id"],
-                        "exit_code": 0,
-                        "stdout": large_output,
-                        "stderr": "",
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # Verify truncation
-        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert len(action_after["stdout"]) == 10000
-
-    def test_large_stderr_truncated(self, client: TestClient, auth_headers: dict[str, str]) -> None:
-        """Large stderr is truncated to 10KB."""
-        # Create server and deliver action
-        client.post(
-            "/api/v1/servers",
-            json={"id": "truncate-stderr-test", "hostname": "test.local"},
-            headers=auth_headers,
-        )
-        action = client.post(
-            "/api/v1/actions",
-            json={
-                "server_id": "truncate-stderr-test",
-                "action_type": "restart_service",
-                "service_name": "sonarr",
-            },
-            headers=auth_headers,
-        ).json()
-
-        # Deliver action
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "truncate-stderr-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Send result with very large stderr (15KB)
-        large_error = "e" * 15000
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "truncate-stderr-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action["id"],
-                        "exit_code": 1,
-                        "stdout": "",
-                        "stderr": large_error,
-                        "executed_at": "2026-01-18T10:31:30Z",
-                        "completed_at": "2026-01-18T10:31:32Z",
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # Verify truncation
-        action_after = client.get(f"/api/v1/actions/{action['id']}", headers=auth_headers).json()
-        assert len(action_after["stderr"]) == 10000
-
-
-# =============================================================================
-# Response format tests
+# Response format tests (still applicable)
 # =============================================================================
 
 
 class TestHeartbeatResponseFormat:
-    """Tests for heartbeat response format with command channel."""
+    """Tests for heartbeat response format with deprecated command channel."""
 
     def test_response_has_results_acknowledged_field(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Heartbeat response includes results_acknowledged field."""
+        """Heartbeat response includes results_acknowledged field (for v1.0 compat)."""
         client.post(
             "/api/v1/servers",
             json={"id": "ack-field-test", "hostname": "test.local"},
@@ -806,11 +404,12 @@ class TestHeartbeatResponseFormat:
         data = response.json()
         assert "results_acknowledged" in data
         assert isinstance(data["results_acknowledged"], list)
+        assert data["results_acknowledged"] == []  # Always empty in v2.0
 
-    def test_response_has_pending_commands_as_array(
+    def test_response_has_pending_commands_as_empty_array(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Heartbeat response has pending_commands as array."""
+        """Heartbeat response has pending_commands as empty array."""
         client.post(
             "/api/v1/servers",
             json={"id": "cmds-array-test", "hostname": "test.local"},
@@ -830,3 +429,4 @@ class TestHeartbeatResponseFormat:
         data = response.json()
         assert "pending_commands" in data
         assert isinstance(data["pending_commands"], list)
+        assert data["pending_commands"] == []  # Always empty in v2.0

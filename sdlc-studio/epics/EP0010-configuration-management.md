@@ -1,8 +1,9 @@
 # EP0010: Configuration Management
 
-> **Status:** Draft
+> **Status:** Done
 > **Owner:** Darren
 > **Created:** 2026-01-26
+> **Completed:** 2026-01-29
 > **Target Release:** Phase 3 (GA)
 > **Story Points:** 42
 
@@ -603,20 +604,25 @@ data/
 
 | Story | Description | Points | Priority | Status |
 |-------|-------------|--------|----------|--------|
-| [US0116](../stories/US0116-configuration-pack-definitions.md) | Configuration Pack Definitions | 5 | P0 | Draft |
-| [US0117](../stories/US0117-configuration-compliance-checker.md) | Configuration Compliance Checker | 8 | P0 | Draft |
-| [US0118](../stories/US0118-configuration-diff-view.md) | Configuration Diff View | 5 | P0 | Draft |
-| [US0119](../stories/US0119-apply-configuration-pack.md) | Apply Configuration Pack | 8 | P0 | Draft |
-| [US0120](../stories/US0120-compliance-dashboard-widget.md) | Compliance Dashboard Widget | 5 | P1 | Draft |
-| [US0121](../stories/US0121-pack-assignment-per-machine.md) | Pack Assignment per Machine | 3 | P1 | Draft |
-| [US0122](../stories/US0122-configuration-drift-detection.md) | Configuration Drift Detection | 5 | P1 | Draft |
-| [US0123](../stories/US0123-remove-configuration-pack.md) | Remove Configuration Pack | 3 | P2 | Draft |
+| [US0116](../stories/US0116-configuration-pack-definitions.md) | Configuration Pack Definitions | 5 | P0 | Done |
+| [US0117](../stories/US0117-pack-compliance-check.md) | Configuration Compliance Checker | 8 | P0 | Done |
+| [US0118](../stories/US0118-configuration-diff-view.md) | Configuration Diff View | 5 | P0 | Done |
+| [US0119](../stories/US0119-apply-configuration-pack.md) | Apply Configuration Pack | 8 | P0 | Done |
+| [US0120](../stories/US0120-compliance-dashboard-widget.md) | Compliance Dashboard Widget | 5 | P1 | Done |
+| [US0121](../stories/US0121-pack-assignment-per-machine.md) | Pack Assignment per Machine | 3 | P1 | Done |
+| [US0122](../stories/US0122-configuration-drift-detection.md) | Configuration Drift Detection | 5 | P1 | Done |
+| [US0123](../stories/US0123-remove-configuration-pack.md) | Remove Configuration Pack | 3 | P2 | Done |
 | **Total** | | **42** | | |
+
+### Progress Summary
+- **Completed:** 42 points (8 stories) - All stories complete
+- **Remaining:** 0 points (0 stories)
+- **Completion:** 100% ✅
 
 ---
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 **Epic Owner:** Darren
 
 ---
@@ -628,3 +634,6 @@ data/
 | 2026-01-26 | Darren | Initial epic creation |
 | 2026-01-28 | Claude | Renumbered stories US0094-US0101 to US0116-US0123 to resolve ID conflict with EP0016 |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Epic review: US0116-US0119 marked Done, epic status updated to In Progress |
+| 2026-01-29 | Claude | Epic review: US0120-US0123 completed, only US0119 remains (8 pts) |
+| 2026-01-29 | Claude | Epic complete: US0119 verified as Done. All 8 stories (42 pts) complete |

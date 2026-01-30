@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -52,29 +52,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  delete: async (endpoint: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  delete: <T>(endpoint: string, options?: { data?: unknown }): Promise<T> =>
+    fetchApi<T>(endpoint, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      let message = `API error: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        if (errorData.detail?.message) {
-          message = errorData.detail.message;
-        } else if (typeof errorData.detail === 'string') {
-          message = errorData.detail;
-        }
-      } catch {
-        // Ignore JSON parse errors, use default message
-      }
-      throw new ApiError(response.status, message);
-    }
-    // 204 No Content - no body to parse
-  },
+      body: options?.data ? JSON.stringify(options.data) : undefined,
+    }),
 };

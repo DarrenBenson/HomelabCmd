@@ -1,7 +1,7 @@
-"""Tests for Alerting Service (US0011, US0012: Threshold Evaluation and Cooldowns).
+"""Tests for Alerting Service (US0011, US0012, US0181: Threshold Evaluation and Cooldowns).
 
 These tests verify the alerting logic including:
-- Sustained threshold tracking for transient metrics (CPU, Memory)
+- Time-based sustained threshold tracking for transient metrics (CPU, Memory)
 - Immediate alerting for persistent metrics (Disk)
 - Notification cooldowns
 - Auto-resolve behaviour
@@ -10,9 +10,13 @@ These tests verify the alerting logic including:
 Spec References:
 - sdlc-studio/stories/US0011-threshold-evaluation.md
 - sdlc-studio/stories/US0012-alert-deduplication.md
+- sdlc-studio/stories/US0181-alert-sustained-duration.md
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from homelab_cmd.api.schemas.config import (
@@ -21,17 +25,21 @@ from homelab_cmd.api.schemas.config import (
     NotificationsConfig,
     ThresholdsConfig,
 )
+from homelab_cmd.db.models.alert_state import AlertState
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.services.alerting import AlertingService
 
 
 @pytest.fixture
 def default_thresholds() -> ThresholdsConfig:
-    """Create default threshold configuration for tests."""
+    """Create default threshold configuration for tests.
+
+    Uses sustained_seconds=180 (3 minutes) for CPU/memory tests.
+    """
     return ThresholdsConfig(
-        cpu=MetricThreshold(high_percent=85, critical_percent=95, sustained_heartbeats=3),
-        memory=MetricThreshold(high_percent=85, critical_percent=95, sustained_heartbeats=3),
-        disk=MetricThreshold(high_percent=80, critical_percent=95, sustained_heartbeats=0),
+        cpu=MetricThreshold(high_percent=85, critical_percent=95, sustained_seconds=180),
+        memory=MetricThreshold(high_percent=85, critical_percent=95, sustained_seconds=180),
+        disk=MetricThreshold(high_percent=80, critical_percent=95, sustained_seconds=0),
         server_offline_seconds=180,
     )
 
@@ -154,25 +162,35 @@ class TestSustainedThresholds:
         default_thresholds: ThresholdsConfig,
         default_notifications: NotificationsConfig,
     ) -> None:
-        """CPU at 90% for 3 heartbeats should create HIGH alert (AC4)."""
+        """CPU at 90% for sustained_seconds should create HIGH alert (AC4, US0181)."""
         service = AlertingService(db_session)
 
-        # First two heartbeats - no alert
-        for _ in range(2):
-            events = await service.evaluate_heartbeat(
-                server_id=test_server.id,
-                server_name=test_server.display_name,
-                cpu_percent=90.0,
-                memory_percent=50.0,
-                disk_percent=50.0,
-                thresholds=default_thresholds,
-                notifications=default_notifications,
-            )
-            await db_session.commit()
-            cpu_events = [e for e in events if e.metric_type == "cpu" and not e.is_resolved]
-            assert len(cpu_events) == 0
+        # First heartbeat - starts breach timer, no alert yet
+        events = await service.evaluate_heartbeat(
+            server_id=test_server.id,
+            server_name=test_server.display_name,
+            cpu_percent=90.0,
+            memory_percent=50.0,
+            disk_percent=50.0,
+            thresholds=default_thresholds,
+            notifications=default_notifications,
+        )
+        await db_session.commit()
+        cpu_events = [e for e in events if e.metric_type == "cpu" and not e.is_resolved]
+        assert len(cpu_events) == 0
 
-        # Third heartbeat - alert created
+        # Simulate time passing - set first_breach_at to 180+ seconds ago
+        result = await db_session.execute(
+            select(AlertState).where(
+                AlertState.server_id == test_server.id,
+                AlertState.metric_type == "cpu",
+            )
+        )
+        state = result.scalar_one()
+        state.first_breach_at = datetime.now(UTC) - timedelta(seconds=185)
+        await db_session.commit()
+
+        # Next heartbeat - sustained duration met, alert fires
         events = await service.evaluate_heartbeat(
             server_id=test_server.id,
             server_name=test_server.display_name,
@@ -188,30 +206,40 @@ class TestSustainedThresholds:
         assert cpu_events[0].severity == "high"
 
     @pytest.mark.asyncio
-    async def test_cpu_spike_then_drop_resets_count(
+    async def test_cpu_spike_then_drop_resets_breach_timer(
         self,
         db_session: AsyncSession,
         test_server: Server,
         default_thresholds: ThresholdsConfig,
         default_notifications: NotificationsConfig,
     ) -> None:
-        """CPU spike followed by drop should reset breach count (AC6)."""
+        """CPU spike followed by drop should reset breach timer (AC6, US0181)."""
         service = AlertingService(db_session)
 
-        # Two heartbeats above threshold
-        for _ in range(2):
-            await service.evaluate_heartbeat(
-                server_id=test_server.id,
-                server_name=test_server.display_name,
-                cpu_percent=90.0,
-                memory_percent=50.0,
-                disk_percent=50.0,
-                thresholds=default_thresholds,
-                notifications=default_notifications,
-            )
-            await db_session.commit()
+        # First heartbeat above threshold - starts breach timer
+        await service.evaluate_heartbeat(
+            server_id=test_server.id,
+            server_name=test_server.display_name,
+            cpu_percent=90.0,
+            memory_percent=50.0,
+            disk_percent=50.0,
+            thresholds=default_thresholds,
+            notifications=default_notifications,
+        )
+        await db_session.commit()
 
-        # Drop below threshold
+        # Verify first_breach_at was set
+        result = await db_session.execute(
+            select(AlertState).where(
+                AlertState.server_id == test_server.id,
+                AlertState.metric_type == "cpu",
+            )
+        )
+        state = result.scalar_one()
+        assert state.first_breach_at is not None
+        original_breach_at = state.first_breach_at
+
+        # Drop below threshold - should clear breach timer
         await service.evaluate_heartbeat(
             server_id=test_server.id,
             server_name=test_server.display_name,
@@ -223,20 +251,30 @@ class TestSustainedThresholds:
         )
         await db_session.commit()
 
-        # Two more heartbeats above threshold - should NOT alert (count reset)
-        for _ in range(2):
-            events = await service.evaluate_heartbeat(
-                server_id=test_server.id,
-                server_name=test_server.display_name,
-                cpu_percent=90.0,
-                memory_percent=50.0,
-                disk_percent=50.0,
-                thresholds=default_thresholds,
-                notifications=default_notifications,
-            )
-            await db_session.commit()
-            cpu_events = [e for e in events if e.metric_type == "cpu" and not e.is_resolved]
-            assert len(cpu_events) == 0
+        # Verify first_breach_at was cleared
+        await db_session.refresh(state)
+        assert state.first_breach_at is None
+
+        # New breach starts fresh - even if we simulate time passing from before,
+        # the new breach should start now
+        events = await service.evaluate_heartbeat(
+            server_id=test_server.id,
+            server_name=test_server.display_name,
+            cpu_percent=90.0,
+            memory_percent=50.0,
+            disk_percent=50.0,
+            thresholds=default_thresholds,
+            notifications=default_notifications,
+        )
+        await db_session.commit()
+        cpu_events = [e for e in events if e.metric_type == "cpu" and not e.is_resolved]
+        # Should not alert yet - timer just started
+        assert len(cpu_events) == 0
+
+        # Verify new breach timer started (different from original)
+        await db_session.refresh(state)
+        assert state.first_breach_at is not None
+        assert state.first_breach_at > original_breach_at
 
     @pytest.mark.asyncio
     async def test_memory_sustained_creates_alert(
@@ -246,23 +284,35 @@ class TestSustainedThresholds:
         default_thresholds: ThresholdsConfig,
         default_notifications: NotificationsConfig,
     ) -> None:
-        """Memory at 87% for 3 heartbeats should create HIGH alert (AC3)."""
+        """Memory at 87% for sustained_seconds should create HIGH alert (AC3, US0181)."""
         service = AlertingService(db_session)
 
-        # First two heartbeats
-        for _ in range(2):
-            await service.evaluate_heartbeat(
-                server_id=test_server.id,
-                server_name=test_server.display_name,
-                cpu_percent=50.0,
-                memory_percent=87.0,
-                disk_percent=50.0,
-                thresholds=default_thresholds,
-                notifications=default_notifications,
-            )
-            await db_session.commit()
+        # First heartbeat - starts breach timer
+        events = await service.evaluate_heartbeat(
+            server_id=test_server.id,
+            server_name=test_server.display_name,
+            cpu_percent=50.0,
+            memory_percent=87.0,
+            disk_percent=50.0,
+            thresholds=default_thresholds,
+            notifications=default_notifications,
+        )
+        await db_session.commit()
+        memory_events = [e for e in events if e.metric_type == "memory" and not e.is_resolved]
+        assert len(memory_events) == 0
 
-        # Third heartbeat
+        # Simulate time passing - set first_breach_at to 180+ seconds ago
+        result = await db_session.execute(
+            select(AlertState).where(
+                AlertState.server_id == test_server.id,
+                AlertState.metric_type == "memory",
+            )
+        )
+        state = result.scalar_one()
+        state.first_breach_at = datetime.now(UTC) - timedelta(seconds=185)
+        await db_session.commit()
+
+        # Next heartbeat - sustained duration met, alert fires
         events = await service.evaluate_heartbeat(
             server_id=test_server.id,
             server_name=test_server.display_name,
@@ -674,32 +724,12 @@ class TestAlertRecordCreation:
         default_thresholds: ThresholdsConfig,
         default_notifications: NotificationsConfig,
     ) -> None:
-        """CPU breach sustained for 3 heartbeats creates Alert record (AC4)."""
-        from sqlalchemy import select
-
+        """CPU breach sustained for sustained_seconds creates Alert record (AC4, US0181)."""
         from homelab_cmd.db.models.alert import Alert
 
         service = AlertingService(db_session)
 
-        # First two heartbeats - no Alert yet
-        for _ in range(2):
-            await service.evaluate_heartbeat(
-                server_id=test_server.id,
-                server_name=test_server.display_name,
-                cpu_percent=90.0,
-                memory_percent=50.0,
-                disk_percent=50.0,
-                thresholds=default_thresholds,
-                notifications=default_notifications,
-            )
-            await db_session.commit()
-
-        # Verify no Alert record yet
-        result = await db_session.execute(select(Alert).where(Alert.server_id == test_server.id))
-        alerts = list(result.scalars().all())
-        assert len(alerts) == 0
-
-        # Third heartbeat - Alert created
+        # First heartbeat - starts breach timer, no Alert yet
         await service.evaluate_heartbeat(
             server_id=test_server.id,
             server_name=test_server.display_name,
@@ -711,7 +741,39 @@ class TestAlertRecordCreation:
         )
         await db_session.commit()
 
-        result = await db_session.execute(select(Alert).where(Alert.server_id == test_server.id))
+        # Verify no Alert record yet
+        result = await db_session.execute(
+            select(Alert).where(Alert.server_id == test_server.id, Alert.alert_type == "cpu")
+        )
+        alerts = list(result.scalars().all())
+        assert len(alerts) == 0
+
+        # Simulate time passing - set first_breach_at to 180+ seconds ago
+        result = await db_session.execute(
+            select(AlertState).where(
+                AlertState.server_id == test_server.id,
+                AlertState.metric_type == "cpu",
+            )
+        )
+        state = result.scalar_one()
+        state.first_breach_at = datetime.now(UTC) - timedelta(seconds=185)
+        await db_session.commit()
+
+        # Next heartbeat - sustained duration met, Alert created
+        await service.evaluate_heartbeat(
+            server_id=test_server.id,
+            server_name=test_server.display_name,
+            cpu_percent=90.0,
+            memory_percent=50.0,
+            disk_percent=50.0,
+            thresholds=default_thresholds,
+            notifications=default_notifications,
+        )
+        await db_session.commit()
+
+        result = await db_session.execute(
+            select(Alert).where(Alert.server_id == test_server.id, Alert.alert_type == "cpu")
+        )
         alerts = list(result.scalars().all())
         assert len(alerts) == 1
         assert alerts[0].alert_type == "cpu"

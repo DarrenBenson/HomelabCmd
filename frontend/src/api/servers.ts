@@ -7,6 +7,7 @@ import type {
   PackagesResponse,
   ServerCredentialsResponse,
   SudoMode,
+  PackAssignmentResponse,
 } from '../types/server';
 import type { PowerConfigUpdate } from '../types/cost';
 
@@ -109,4 +110,34 @@ export async function deleteServerCredential(
   credentialType: string
 ): Promise<void> {
   await api.delete(`/api/v1/servers/${serverId}/credentials/${credentialType}`);
+}
+
+// ===========================================================================
+// Pack Assignment API (US0121)
+// ===========================================================================
+
+/**
+ * Get assigned configuration packs for a server.
+ * Returns the list of assigned packs and drift detection status.
+ */
+export async function getAssignedPacks(
+  serverId: string
+): Promise<PackAssignmentResponse> {
+  return api.get<PackAssignmentResponse>(
+    `/api/v1/servers/${serverId}/config/packs`
+  );
+}
+
+/**
+ * Update assigned configuration packs for a server.
+ * The base pack is always required and cannot be removed.
+ */
+export async function updateAssignedPacks(
+  serverId: string,
+  packs: string[]
+): Promise<PackAssignmentResponse> {
+  return api.put<PackAssignmentResponse>(
+    `/api/v1/servers/${serverId}/config/packs`,
+    { packs }
+  );
 }

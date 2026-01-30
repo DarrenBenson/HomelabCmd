@@ -1,6 +1,6 @@
 # US0117: Configuration Compliance Checker
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
@@ -227,7 +227,7 @@ done
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0116 | Data | Pack definitions to check against | Draft |
+| US0116 | Data | Pack definitions to check against | Done |
 | EP0013 | Service | SSH Executor for remote commands | Complete |
 
 ### External Dependencies
@@ -252,9 +252,20 @@ None
 
 ---
 
+## Implementation Artefacts
+
+| Artefact | Link | Status |
+|----------|------|--------|
+| Plan | [PL0181](../plans/PL0181-pack-compliance-check.md) | Complete |
+| Test Spec | [TS0181](../test-specs/TS0181-pack-compliance-check.md) | Complete |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0095) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Status: Draft → Planned. Plan PL0181 and Test Spec TS0181 created |
+| 2026-01-29 | Claude | Status: Planned → Done. All 30 tests passing |

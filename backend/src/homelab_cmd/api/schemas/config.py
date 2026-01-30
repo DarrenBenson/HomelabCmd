@@ -18,13 +18,21 @@ class MetricThreshold(BaseModel):
     Each metric (CPU, Memory, Disk) has:
     - high_percent: threshold for HIGH severity alerts
     - critical_percent: threshold for CRITICAL severity alerts
-    - sustained_heartbeats: number of consecutive breaches before alerting
-      (0 = immediate, 3 = ~3 minutes at 60s heartbeat interval)
+    - sustained_seconds: time in seconds condition must persist before alerting
+      (0 = immediate, 180 = 3 minutes)
+    - sustained_heartbeats: DEPRECATED - use sustained_seconds instead
+      Kept for backward compatibility; converted to sustained_seconds on load
     """
 
     high_percent: int = Field(ge=0, le=100)
     critical_percent: int = Field(ge=0, le=100)
-    sustained_heartbeats: int = Field(default=0, ge=0, le=10)
+    sustained_seconds: int = Field(default=0, ge=0, le=600)
+    sustained_heartbeats: int | None = Field(
+        default=None,
+        ge=0,
+        le=10,
+        deprecated="Use sustained_seconds instead. Will be removed in future version.",
+    )
 
     @model_validator(mode="after")
     def critical_higher_than_high(self) -> Self:
@@ -34,13 +42,31 @@ class MetricThreshold(BaseModel):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def convert_heartbeats_to_seconds(self) -> Self:
+        """Convert deprecated sustained_heartbeats to sustained_seconds.
+
+        If sustained_heartbeats is provided and sustained_seconds is default (0),
+        convert heartbeats to seconds (assuming 60s heartbeat interval).
+        """
+        if self.sustained_heartbeats is not None and self.sustained_seconds == 0:
+            # Convert heartbeats to seconds (60s per heartbeat)
+            self.sustained_seconds = self.sustained_heartbeats * 60
+        return self
+
 
 class MetricThresholdUpdate(BaseModel):
     """Schema for updating a metric threshold (all fields optional)."""
 
     high_percent: int | None = Field(default=None, ge=0, le=100)
     critical_percent: int | None = Field(default=None, ge=0, le=100)
-    sustained_heartbeats: int | None = Field(default=None, ge=0, le=10)
+    sustained_seconds: int | None = Field(default=None, ge=0, le=600)
+    sustained_heartbeats: int | None = Field(
+        default=None,
+        ge=0,
+        le=10,
+        deprecated="Use sustained_seconds instead.",
+    )
 
 
 class CooldownConfig(BaseModel):
@@ -68,25 +94,25 @@ class ThresholdsConfig(BaseModel):
     Contains per-metric threshold settings and server offline timeout.
 
     Default values:
-    - CPU: 85% high, 95% critical, 3 heartbeats (~3 min)
-    - Memory: 85% high, 95% critical, 3 heartbeats (~3 min)
+    - CPU: 85% high, 95% critical, 180 seconds (3 min)
+    - Memory: 85% high, 95% critical, 180 seconds (3 min)
     - Disk: 80% high, 95% critical, immediate
     - Server offline: 180 seconds (3 missed heartbeats)
     """
 
     cpu: MetricThreshold = Field(
         default_factory=lambda: MetricThreshold(
-            high_percent=85, critical_percent=95, sustained_heartbeats=3
+            high_percent=85, critical_percent=95, sustained_seconds=180
         )
     )
     memory: MetricThreshold = Field(
         default_factory=lambda: MetricThreshold(
-            high_percent=85, critical_percent=95, sustained_heartbeats=3
+            high_percent=85, critical_percent=95, sustained_seconds=180
         )
     )
     disk: MetricThreshold = Field(
         default_factory=lambda: MetricThreshold(
-            high_percent=80, critical_percent=95, sustained_heartbeats=0
+            high_percent=80, critical_percent=95, sustained_seconds=0
         )
     )
     server_offline_seconds: int = Field(default=180, ge=30)
@@ -110,6 +136,9 @@ class NotificationsConfig(BaseModel):
     Action notifications (US0032):
     - notify_on_action_failure: Send notification when action fails (default: True)
     - notify_on_action_success: Send notification when action succeeds (default: False)
+
+    Auto-resolve notifications (US0182):
+    - notify_on_auto_resolve: Send notification when alerts auto-resolve (default: True)
     """
 
     slack_webhook_url: str = ""
@@ -119,6 +148,7 @@ class NotificationsConfig(BaseModel):
     notify_on_remediation: bool = True
     notify_on_action_failure: bool = True
     notify_on_action_success: bool = False
+    notify_on_auto_resolve: bool = True
 
 
 class NotificationsUpdate(BaseModel):
@@ -131,6 +161,7 @@ class NotificationsUpdate(BaseModel):
     notify_on_remediation: bool | None = None
     notify_on_action_failure: bool | None = None
     notify_on_action_success: bool | None = None
+    notify_on_auto_resolve: bool | None = None
 
 
 class ConfigResponse(BaseModel):

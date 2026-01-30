@@ -176,8 +176,18 @@ US0017 (Service Schema)
 
 ## Open Questions
 
-- [ ] Docker container monitoring approach - Owner: Darren
-- [ ] Service restart grace period before re-alerting - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Docker container monitoring approach - **Resolved:** EP0014 (Docker Container Monitoring) provides comprehensive container listing, status, and management.
+- [x] Service restart grace period before re-alerting - **Yes, needed** - Created US0185. Configurable grace period prevents alert spam during service startup.
+
+### Future Enhancements
+
+| ID | Title | Points | Status |
+|----|-------|--------|--------|
+| [US0185](../stories/US0185-service-restart-grace-period.md) | Service Restart Grace Period | 3 | Draft |
 
 ## Revision History
 
@@ -186,3 +196,4 @@ US0017 (Service Schema)
 | 2026-01-18 | Claude | Initial epic creation from PRD |
 | 2026-01-20 | Claude | Updated story statuses to Done; epic complete |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Resolved open questions: Docker → EP0014, Grace period → US0185 created |

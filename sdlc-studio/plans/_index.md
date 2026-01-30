@@ -8,10 +8,10 @@ This document provides an overview of all Implementation Plans in the project.
 
 | Status | Count |
 |--------|-------|
-| Draft | 17 |
+| Draft | 18 |
 | In Progress | 0 |
-| Complete | 58 |
-| **Total** | **75** |
+| Complete | 60 |
+| **Total** | **78** |
 
 ## Plans by Epic
 
@@ -202,6 +202,16 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0136](PL0136-dashboard-preferences-sync.md) | US0136 | Dashboard Preferences Sync | Draft | 2026-01-28 |
 | [PL0137](PL0137-cross-section-machine-type-change.md) | US0137 | Cross-Section Machine Type Change | Draft | 2026-01-28 |
 
+### [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
+
+| ID | Story | Title | Status | Created |
+|----|-------|-------|--------|---------|
+| [PL0180](PL0180-configuration-pack-definitions.md) | US0116 | Configuration Pack Definitions | Complete | 2026-01-29 |
+| [PL0181](PL0181-pack-compliance-check.md) | US0117 | Configuration Compliance Checker | Complete | 2026-01-29 |
+| [PL0182](PL0182-configuration-diff-view.md) | US0118 | Configuration Diff View | Draft | 2026-01-29 |
+| [PL0186](PL0186-configuration-drift-detection.md) | US0122 | Configuration Drift Detection | Draft | 2026-01-29 |
+| [PL0187](PL0187-pack-assignment-per-machine.md) | US0121 | Pack Assignment per Machine | Draft | 2026-01-29 |
+
 ### [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
 
 | ID | Story | Title | Status | Created |
@@ -216,6 +226,7 @@ This document provides an overview of all Implementation Plans in the project.
 |----|-------|-------|--------|---------|
 | [PL0109](PL0109-maintenance-mode-indicator.md) | US0109 | Enhanced Maintenance Mode Indicator | Draft | 2026-01-28 |
 | [PL0110](PL0110-warning-state-visual.md) | US0110 | Warning State Visual Treatment | Draft | 2026-01-28 |
+| [PL0180](PL0180-detail-page-connectivity-badge.md) | US0180 | Detail Page Connectivity Badge | Complete | 2026-01-29 |
 
 ## By Status
 

@@ -1,22 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCostBreakdown, updateCostConfig } from '../api/costs';
+import { getCostHistory, getMonthlySummary } from '../api/cost-history';
 import { updateServer } from '../api/servers';
 import { PowerEditModal } from '../components/PowerEditModal';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { CostSettingsDialog } from '../components/CostSettingsDialog';
+import { CostTrendChart } from '../components/CostTrendChart';
+import { MonthlySummaryChart } from '../components/MonthlySummaryChart';
 import { formatCost } from '../lib/formatters';
 import type { CostBreakdown, ServerCostItem, PowerConfigUpdate, CostConfigUpdate } from '../types/cost';
+import type { CostHistoryItem, CostHistoryPeriod, MonthlySummaryItem } from '../types/cost-history';
 import { ArrowUpDown, Settings, Zap } from 'lucide-react';
 
 type SortField = 'hostname' | 'category' | 'avg_cpu' | 'estimated_watts' | 'daily_cost' | 'monthly_cost';
 type SortDirection = 'asc' | 'desc';
+type CostTab = 'breakdown' | 'trends' | 'monthly';
 
 /**
  * Full cost breakdown page showing per-server electricity costs.
+ * US0183: Historical Cost Tracking - AC3 (Cost trend visualisation), AC5 (Monthly summary).
  */
 export function CostsPage() {
   const navigate = useNavigate();
+
+  // Active tab state (US0183)
+  const [activeTab, setActiveTab] = useState<CostTab>('breakdown');
 
   const [breakdown, setBreakdown] = useState<CostBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,9 +43,36 @@ export function CostsPage() {
   const [costDialogOpen, setCostDialogOpen] = useState(false);
   const [costSaving, setCostSaving] = useState(false);
 
+  // Trends tab state (US0183 AC3)
+  const [trendPeriod, setTrendPeriod] = useState<CostHistoryPeriod>('30d');
+  const [trendData, setTrendData] = useState<CostHistoryItem[]>([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+
+  // Monthly tab state (US0183 AC5)
+  const [monthlyYear, setMonthlyYear] = useState(new Date().getFullYear());
+  const [monthlyData, setMonthlyData] = useState<MonthlySummaryItem[]>([]);
+  const [yearToDate, setYearToDate] = useState<number | undefined>(undefined);
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
+
   useEffect(() => {
     fetchBreakdown();
   }, []);
+
+  // Fetch trend data when trends tab is active or period changes
+  useEffect(() => {
+    if (activeTab === 'trends') {
+      fetchTrendData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, trendPeriod]);
+
+  // Fetch monthly data when monthly tab is active or year changes
+  useEffect(() => {
+    if (activeTab === 'monthly') {
+      fetchMonthlyData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, monthlyYear]);
 
   async function fetchBreakdown() {
     try {
@@ -47,6 +83,59 @@ export function CostsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load cost breakdown');
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Fetch cost trend data (US0183 AC3)
+  async function fetchTrendData() {
+    setTrendLoading(true);
+    try {
+      // Calculate date range based on period
+      const endDate = new Date();
+      const startDate = new Date();
+
+      switch (trendPeriod) {
+        case '7d':
+          startDate.setDate(endDate.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(endDate.getDate() - 30);
+          break;
+        case '90d':
+          startDate.setDate(endDate.getDate() - 90);
+          break;
+        case '12m':
+          startDate.setFullYear(endDate.getFullYear() - 1);
+          break;
+      }
+
+      const response = await getCostHistory({
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        aggregation: trendPeriod === '12m' ? 'monthly' : trendPeriod === '90d' ? 'weekly' : 'daily',
+      });
+      setTrendData(response.items);
+    } catch (err) {
+      console.error('Failed to load trend data:', err);
+      setTrendData([]);
+    } finally {
+      setTrendLoading(false);
+    }
+  }
+
+  // Fetch monthly summary data (US0183 AC5)
+  async function fetchMonthlyData() {
+    setMonthlyLoading(true);
+    try {
+      const response = await getMonthlySummary(monthlyYear);
+      setMonthlyData(response.months);
+      setYearToDate(response.year_to_date_cost);
+    } catch (err) {
+      console.error('Failed to load monthly data:', err);
+      setMonthlyData([]);
+      setYearToDate(undefined);
+    } finally {
+      setMonthlyLoading(false);
     }
   }
 
@@ -258,6 +347,85 @@ export function CostsPage() {
           </span>
         </div>
 
+        {/* Tab navigation (US0183) */}
+        <div className="mb-6 flex border-b border-border-default" data-testid="cost-tabs">
+          <button
+            onClick={() => setActiveTab('breakdown')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'breakdown'
+                ? 'border-b-2 border-status-info text-text-primary'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+            data-testid="tab-breakdown"
+          >
+            Breakdown
+          </button>
+          <button
+            onClick={() => setActiveTab('trends')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'trends'
+                ? 'border-b-2 border-status-info text-text-primary'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+            data-testid="tab-trends"
+          >
+            Trends
+          </button>
+          <button
+            onClick={() => setActiveTab('monthly')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'monthly'
+                ? 'border-b-2 border-status-info text-text-primary'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+            data-testid="tab-monthly"
+          >
+            Monthly
+          </button>
+        </div>
+
+        {/* Trends tab content (US0183 AC3) */}
+        {activeTab === 'trends' && (
+          <div
+            className="rounded-lg border border-border-default bg-bg-secondary p-6"
+            data-testid="trends-content"
+          >
+            <h2 className="mb-4 text-lg font-semibold text-text-primary">
+              Cost Trends
+            </h2>
+            <CostTrendChart
+              data={trendData}
+              currencySymbol={breakdown.settings.currency_symbol}
+              period={trendPeriod}
+              onPeriodChange={setTrendPeriod}
+              loading={trendLoading}
+            />
+          </div>
+        )}
+
+        {/* Monthly tab content (US0183 AC5) */}
+        {activeTab === 'monthly' && (
+          <div
+            className="rounded-lg border border-border-default bg-bg-secondary p-6"
+            data-testid="monthly-content"
+          >
+            <h2 className="mb-4 text-lg font-semibold text-text-primary">
+              Monthly Summary
+            </h2>
+            <MonthlySummaryChart
+              data={monthlyData}
+              currencySymbol={breakdown.settings.currency_symbol}
+              yearToDate={yearToDate}
+              year={monthlyYear}
+              onYearChange={setMonthlyYear}
+              loading={monthlyLoading}
+            />
+          </div>
+        )}
+
+        {/* Breakdown tab - Main cost table */}
+        {activeTab === 'breakdown' && (
+        <>
         {/* Main cost table */}
         <div
           className="mb-6 overflow-hidden rounded-lg border border-border-default bg-bg-secondary"
@@ -389,6 +557,8 @@ export function CostsPage() {
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

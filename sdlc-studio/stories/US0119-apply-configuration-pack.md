@@ -1,6 +1,6 @@
 # US0119: Apply Configuration Pack
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
@@ -291,8 +291,8 @@ async def apply_pack(
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0116 | Data | Pack definitions | Draft |
-| US0118 | UX | Diff view (apply button) | Draft |
+| US0116 | Data | Pack definitions | Done |
+| US0118 | UX | Diff view (apply button) | Done |
 | EP0013 | Service | SSH Executor | Complete |
 
 ### External Dependencies
@@ -317,9 +317,19 @@ None
 
 ---
 
+## Implementation Artefacts
+
+| Artefact | Link | Status |
+|----------|------|--------|
+| Plan | [PL0183](../plans/PL0183-apply-configuration-pack.md) | Complete |
+| Test Spec | [TS0183](../test-specs/TS0183-apply-configuration-pack.md) | Complete |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0097) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Implementation complete. 48 tests passing (17 backend + 31 frontend) |

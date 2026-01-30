@@ -14,6 +14,8 @@ from homelab_cmd.api.schemas.server import (
     LatestMetrics,
     PackageListResponse,
     PackageResponse,
+    PackAssignmentRequest,
+    PackAssignmentResponse,
     ServerCreate,
     ServerCredentialsResponse,
     ServerCredentialStatus,
@@ -175,6 +177,9 @@ async def register_server(
             detail={"code": "CONFLICT", "message": f"Server '{server_data.id}' already exists"},
         )
 
+    # US0121: Set default assigned packs based on machine type
+    default_packs = get_default_packs(server_data.machine_type)
+
     server = Server(
         id=server_data.id,
         hostname=server_data.hostname,
@@ -183,6 +188,7 @@ async def register_server(
         tdp_watts=server_data.tdp_watts,
         machine_type=server_data.machine_type,
         status=ServerStatus.UNKNOWN.value,
+        assigned_packs=default_packs,
     )
     session.add(server)
     await session.flush()
@@ -780,3 +786,250 @@ async def test_server_ssh(
         error=test_result.error,
         attempts=test_result.attempts,
     ).model_dump()
+
+
+# ===========================================================================
+# Pack Assignment Endpoints (US0121)
+# ===========================================================================
+
+
+def get_default_packs(machine_type: str) -> list[str]:
+    """Get default packs based on machine type.
+
+    Args:
+        machine_type: Either 'server' or 'workstation'
+
+    Returns:
+        List of default pack names
+    """
+    if machine_type == "workstation":
+        return ["base", "developer-lite"]
+    return ["base"]
+
+
+@router.get(
+    "/{server_id}/config/packs",
+    response_model=PackAssignmentResponse,
+    operation_id="get_assigned_packs",
+    summary="Get assigned configuration packs for a server",
+    responses={**AUTH_RESPONSES, **NOT_FOUND_RESPONSE},
+)
+async def get_assigned_packs(
+    server_id: str,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> PackAssignmentResponse:
+    """Get configuration packs assigned to a server (US0121 AC3).
+
+    Returns the list of assigned packs for this server.
+    If assigned_packs is NULL, returns the default ["base"].
+    """
+    server = await session.get(Server, server_id)
+    if not server:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
+        )
+
+    # Handle NULL assigned_packs - treat as ["base"]
+    assigned_packs = server.assigned_packs if server.assigned_packs else ["base"]
+
+    return PackAssignmentResponse(
+        server_id=server_id,
+        assigned_packs=assigned_packs,
+        drift_detection_enabled=server.drift_detection_enabled,
+    )
+
+
+@router.put(
+    "/{server_id}/config/packs",
+    response_model=PackAssignmentResponse,
+    operation_id="update_assigned_packs",
+    summary="Update assigned configuration packs for a server",
+    responses={
+        **AUTH_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+        400: {
+            "description": "Invalid pack assignment",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "base_required": {
+                            "value": {
+                                "detail": {
+                                    "code": "BASE_PACK_REQUIRED",
+                                    "message": "Base pack is required and cannot be removed",
+                                }
+                            }
+                        },
+                        "unknown_pack": {
+                            "value": {
+                                "detail": {
+                                    "code": "UNKNOWN_PACK",
+                                    "message": "Unknown pack: invalid-pack",
+                                }
+                            }
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_assigned_packs(
+    server_id: str,
+    request: PackAssignmentRequest,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> PackAssignmentResponse:
+    """Update configuration packs assigned to a server (US0121 AC2).
+
+    Validates that:
+    1. The base pack is always included
+    2. All specified pack names are valid (exist in config-packs/)
+    """
+    from homelab_cmd.services.config_pack_service import ConfigPackService
+
+    server = await session.get(Server, server_id)
+    if not server:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
+        )
+
+    # Validate base pack is included
+    if "base" not in request.packs:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "BASE_PACK_REQUIRED",
+                "message": "Base pack is required and cannot be removed",
+            },
+        )
+
+    # Validate all pack names exist
+    pack_service = ConfigPackService()
+    available_packs = {p.name for p in pack_service.list_packs()}
+
+    for pack_name in request.packs:
+        if pack_name not in available_packs:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "UNKNOWN_PACK",
+                    "message": f"Unknown pack: {pack_name}",
+                },
+            )
+
+    # Update server's assigned packs
+    server.assigned_packs = request.packs
+    await session.flush()
+    await session.refresh(server)
+
+    return PackAssignmentResponse(
+        server_id=server_id,
+        assigned_packs=server.assigned_packs,
+        drift_detection_enabled=server.drift_detection_enabled,
+    )
+
+
+# =============================================================================
+# Historical Cost Tracking (US0183)
+# =============================================================================
+
+
+@router.get(
+    "/{server_id}/costs/history",
+    operation_id="get_server_cost_history",
+    summary="Get cost history for a specific server",
+    responses={
+        **AUTH_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+        422: {
+            "description": "Validation error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "INVALID_PERIOD",
+                            "message": "Invalid period. Must be one of: 7d, 30d, 90d, 12m",
+                        }
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_server_cost_history(
+    server_id: str,
+    period: str = Query("30d", description="Period: 7d, 30d, 90d, or 12m"),
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+):
+    """Get historical cost data for a specific server.
+
+    AC4: Per-server cost history.
+
+    Args:
+        server_id: The server identifier
+        period: Time period ('7d', '30d', '90d', or '12m')
+
+    Returns:
+        Server cost history response
+    """
+    from homelab_cmd.api.routes.config import DEFAULT_COST, get_config_value
+    from homelab_cmd.api.schemas.config import CostConfig
+    from homelab_cmd.api.schemas.cost_history import (
+        CostHistoryItem,
+        ServerCostHistoryResponse,
+    )
+    from homelab_cmd.services.cost_history import CostHistoryService
+
+    # Validate period
+    valid_periods = ["7d", "30d", "90d", "12m"]
+    if period not in valid_periods:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_PERIOD",
+                "message": f"Invalid period. Must be one of: {', '.join(valid_periods)}",
+            },
+        )
+
+    # Get cost configuration for currency symbol
+    cost_data = await get_config_value(session, "cost")
+    if cost_data:
+        cost_config = CostConfig(**cost_data)
+    else:
+        cost_config = DEFAULT_COST
+
+    # Get server cost history from service
+    service = CostHistoryService(session)
+    result = await service.get_server_history(server_id, period)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
+        )
+
+    # Convert to response schema
+    items = [
+        CostHistoryItem(
+            date=item.date,
+            estimated_kwh=item.estimated_kwh,
+            estimated_cost=item.estimated_cost,
+            electricity_rate=item.electricity_rate,
+            server_id=item.server_id,
+            server_hostname=item.server_hostname,
+        )
+        for item in result.items
+    ]
+
+    return ServerCostHistoryResponse(
+        server_id=result.server_id,
+        hostname=result.hostname,
+        period=result.period,
+        items=items,
+        currency_symbol=cost_config.currency_symbol,
+    )

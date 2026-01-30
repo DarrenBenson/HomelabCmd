@@ -2,18 +2,18 @@
 
 This document provides an overview of all Epics in the project.
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 **PRD Reference:** [Product Requirements Document](../prd.md)
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| Draft | 5 |
+| Draft | 6 |
 | Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 12 |
+| Done | 11 |
 | **Total** | **17** |
 
 ## Epics
@@ -39,7 +39,7 @@ This document provides an overview of all Epics in the project.
 | [EP0010](EP0010-configuration-management.md) | Configuration Management | Draft | Darren | 8 | 42 | Phase 3 (GA) |
 | [EP0011](EP0011-advanced-dashboard-ui.md) | Advanced Dashboard UI | Draft | Darren | 7 | 32 | Phase 2 (Beta) |
 | [EP0012](EP0012-widget-based-detail-view.md) | Widget-Based Detail View | Draft | Darren | 14 | 48 | Phase 2 (Beta) |
-| [EP0013](EP0013-synchronous-command-execution.md) | Synchronous Command Execution | Done | Darren | 5 | 23 | Phase 1 (Alpha) |
+| [EP0013](EP0013-synchronous-command-execution.md) | Synchronous Command Execution | Draft | Darren | 5 | 23 | Phase 1 (Alpha) |
 | [EP0014](EP0014-docker-container-monitoring.md) | Docker Container Monitoring | Draft | Darren | 7 | 24 | Phase 2 (Beta) |
 | [EP0015](EP0015-per-host-credential-management.md) | Per-Host Credential Management | Done | Darren | 6 | 24 | Phase 1 (Alpha) |
 | [EP0016](EP0016-unified-discovery.md) | Unified Discovery Experience | Done | Darren | 9 | 32 | Phase 2 (Beta) |
@@ -60,7 +60,6 @@ This document provides an overview of all Epics in the project.
 
 - **EP0008: Tailscale Integration** - Tailscale API, device discovery, SSH via Tailscale, credential encryption (7/7 stories)
 - **EP0009: Workstation Management** - Machine types, workstation-aware alerting, last seen UI, workstation cost tracking (7/7 stories)
-- **EP0013: Synchronous Command Execution** - SSH executor, command execution via SSH (5/5 stories)
 - **EP0015: Per-Host Credential Management** - Per-server SSH credentials, credential service, agent upgrade/removal sudo support (6/6 stories)
 - **EP0016: Unified Discovery Experience** - Consolidated discovery page, unified device cards, SSH testing, unified import (9/9 stories)
 - **EP0017: Desktop UX Improvements** - Maintenance mode indicator, warning state visual, Tailscale/SSH badges, search/filter, sparklines, accessibility, quick actions (7/7 stories)
@@ -75,6 +74,7 @@ None
 - **EP0010: Configuration Management** - Config packs, compliance checking, diff view, apply packs, drift detection
 - **EP0011: Advanced Dashboard UI** - Drag-and-drop cards, card order persistence, server/workstation grouping
 - **EP0012: Widget-Based Detail View** - Widget grid, 8 widget types, layout customisation, layout persistence
+- **EP0013: Synchronous Command Execution** - SSH executor, command whitelist, execution audit trail (0/5 stories)
 - **EP0014: Docker Container Monitoring** - Docker detection, container listing, container widget, start/stop/restart actions
 
 ## Dependency Graph
@@ -135,26 +135,26 @@ EP0001 (Core Monitoring) ◄── Foundation
 | EP0010 | 8 | 0 | 42 |
 | EP0011 | 7 | 0 | 32 |
 | EP0012 | 14 | 0 | 48 |
-| EP0013 | 5 | 5 | 23 |
+| EP0013 | 5 | 0 | 23 |
 | EP0014 | 7 | 0 | 24 |
 | EP0015 | 6 | 6 | 24 |
 | EP0016 | 9 | 9 | 32 |
 | EP0017 | 7 | 7 | 23 |
-| **v2.0 Total** | **77** | **41** | **308** |
+| **v2.0 Total** | **77** | **36** | **308** |
 
 ### Combined Totals
 
 | Version | Stories | Done | Story Points |
 |---------|---------|------|--------------|
 | v1.0 | 55 | 52 | 191 |
-| v2.0 | 77 | 41 | 308 |
-| **Grand Total** | **132** | **93** | **499** |
+| v2.0 | 77 | 36 | 308 |
+| **Grand Total** | **132** | **88** | **499** |
 
 ## v2.0 Phase Breakdown
 
 | Phase | Epics | Story Points | Status | Focus |
 |-------|-------|--------------|--------|-------|
-| Phase 1 (Alpha) | EP0008, EP0009, EP0013, EP0015 | 107 | ✅ Complete | Foundation, Connectivity, Commands, Credentials |
+| Phase 1 (Alpha) | EP0008, EP0009, EP0013, EP0015 | 107 | 🔶 In Progress (EP0013 Draft) | Foundation, Connectivity, Commands, Credentials |
 | Phase 2 (Beta) | EP0011, EP0012, EP0014, EP0016, EP0017 | 159 | 🔶 In Progress (EP0016, EP0017 Done) | UI Revolution, Widgets, Docker, Discovery, UX |
 | Phase 3 (GA) | EP0010 | 42 | ⬜ Not Started | Configuration Management |
 | **v2.0 Total** | **10 epics** | **308** | | |
@@ -175,3 +175,4 @@ EP0001 (Core Monitoring) ◄── Foundation
   - EP0012: Renumbered US0109-US0122 to US0137-US0150
   - EP0013: Renumbered US0089-US0094 to US0151-US0156
   - EP0014: Renumbered US0123-US0129 to US0157-US0163
+- 2026-01-29: EP0013 status corrected from Done to Draft - SSH executor exists (EP0008) but synchronous command execution, whitelist, and audit trail not implemented

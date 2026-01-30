@@ -15,6 +15,7 @@ from homelab_cmd.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from homelab_cmd.db.models.alert import Alert
     from homelab_cmd.db.models.alert_state import AlertState
+    from homelab_cmd.db.models.config_check import ConfigCheck
     from homelab_cmd.db.models.credential import Credential
     from homelab_cmd.db.models.metrics import Metrics
     from homelab_cmd.db.models.pending_package import PendingPackage
@@ -82,6 +83,9 @@ class Server(TimestampMixin, Base):
     ssh_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Sudo mode - 'passwordless' (default) or 'password' (requires sudo password)
     sudo_mode: Mapped[str] = mapped_column(String(20), default="passwordless", nullable=False)
+    # Config user - user whose home directory to check for compliance (EP0010)
+    # NULL means use ssh_username
+    config_user: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Status
     status: Mapped[str] = mapped_column(
@@ -196,6 +200,23 @@ class Server(TimestampMixin, Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+
+    # EP0010: Relationship to configuration compliance checks (one-to-many)
+    config_checks: Mapped[list["ConfigCheck"]] = relationship(
+        "ConfigCheck",
+        back_populates="server",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+
+    # US0121: Configuration pack assignment
+    # JSON array of assigned pack names (e.g., ["base", "developer-lite"])
+    # Default is ["base"] for servers, ["base", "developer-lite"] for workstations
+    assigned_packs: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+    # US0122: Configuration drift detection enabled flag
+    # When True, scheduled drift detection will check this server
+    drift_detection_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     def __repr__(self) -> str:
         """Return string representation of the server."""

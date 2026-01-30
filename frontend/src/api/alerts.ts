@@ -5,6 +5,7 @@ import type {
   AlertAcknowledgeResponse,
   AlertResolveResponse,
   AlertFilters,
+  PendingBreachesResponse,
 } from '../types/alert';
 
 export async function getAlerts(filters?: AlertFilters): Promise<AlertsResponse> {
@@ -43,4 +44,11 @@ export async function acknowledgeAlert(alertId: number): Promise<AlertAcknowledg
 
 export async function resolveAlert(alertId: number): Promise<AlertResolveResponse> {
   return api.post<AlertResolveResponse>(`/api/v1/alerts/${alertId}/resolve`, {});
+}
+
+/**
+ * Get pending breaches (conditions breached but sustained duration not yet met).
+ */
+export async function getPendingBreaches(): Promise<PendingBreachesResponse> {
+  return api.get<PendingBreachesResponse>('/api/v1/alerts/pending');
 }

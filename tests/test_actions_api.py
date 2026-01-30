@@ -709,14 +709,18 @@ class TestActionErrorCases:
 
 
 class TestActionAuditTrail:
-    """TC175: Action audit trail complete - verify full lifecycle tracking."""
+    """TC175: Action audit trail complete - verify full lifecycle tracking.
 
-    def test_complete_lifecycle_audit_trail(
+    Note: Tests for execution/completion lifecycle have been updated for US0152.
+    The async command channel via heartbeat was removed in EP0013. Commands are
+    now executed via synchronous SSH (US0153). Full lifecycle tests require SSH
+    infrastructure and are covered in integration tests.
+    """
+
+    def test_creation_and_approval_audit_trail(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Full action lifecycle has complete audit trail."""
-        from datetime import UTC, datetime
-
+        """Action creation and auto-approval has complete audit trail."""
         # Create server
         client.post(
             "/api/v1/servers",
@@ -724,7 +728,7 @@ class TestActionAuditTrail:
             headers=auth_headers,
         )
 
-        # 1. Create action - should be auto-approved
+        # Create action - should be auto-approved
         create_response = client.post(
             "/api/v1/actions",
             json={
@@ -736,7 +740,6 @@ class TestActionAuditTrail:
         )
         assert create_response.status_code == 201
         action = create_response.json()
-        action_id = action["id"]
 
         # Verify created_at and created_by captured
         assert action["created_at"] is not None
@@ -745,59 +748,8 @@ class TestActionAuditTrail:
         assert action["approved_at"] is not None
         assert action["approved_by"] == "auto"
 
-        # 2. Deliver via heartbeat - transitions to executing
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "audit-trail-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
-
-        # Verify executed_at captured
-        action_executing = client.get(f"/api/v1/actions/{action_id}", headers=auth_headers).json()
-        assert action_executing["status"] == "executing"
-        assert action_executing["executed_at"] is not None
-
-        # 3. Report results - transitions to completed
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "audit-trail-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action_id,
-                        "exit_code": 0,
-                        "stdout": "Service restarted",
-                        "stderr": "",
-                        "executed_at": datetime.now(UTC).isoformat(),
-                        "completed_at": datetime.now(UTC).isoformat(),
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # 4. Verify complete audit trail
-        final_action = client.get(f"/api/v1/actions/{action_id}", headers=auth_headers).json()
-
-        # All timestamps captured
-        assert final_action["created_at"] is not None
-        assert final_action["approved_at"] is not None
-        assert final_action["executed_at"] is not None
-        assert final_action["completed_at"] is not None
-
-        # All actors captured
-        assert final_action["created_by"] == "dashboard"
-        assert final_action["approved_by"] == "auto"
-
-        # Final status
-        assert final_action["status"] == "completed"
-        assert final_action["exit_code"] == 0
+        # Action remains approved - execution now happens via synchronous SSH
+        # (US0153), not via heartbeat delivery
 
     def test_rejected_lifecycle_audit_trail(
         self, client: TestClient, auth_headers: dict[str, str]
@@ -849,70 +801,40 @@ class TestActionAuditTrail:
         assert final_action["executed_at"] is None
         assert final_action["completed_at"] is None
 
-    def test_failed_lifecycle_audit_trail(
+    def test_pending_action_audit_trail(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Failed action lifecycle has complete audit trail."""
-        from datetime import UTC, datetime
-
-        # Create server
+        """Pending action (paused server) has correct audit trail."""
+        # Create and pause server
         client.post(
             "/api/v1/servers",
-            json={"id": "failed-audit-test", "hostname": "test.local"},
+            json={"id": "pending-audit-test", "hostname": "test.local"},
             headers=auth_headers,
         )
+        client.put("/api/v1/servers/pending-audit-test/pause", headers=auth_headers)
 
-        # 1. Create action
+        # Create action - should be pending on paused server
         create_response = client.post(
             "/api/v1/actions",
             json={
-                "server_id": "failed-audit-test",
+                "server_id": "pending-audit-test",
                 "action_type": "restart_service",
-                "service_name": "failed-test",
+                "service_name": "pending-test",
             },
             headers=auth_headers,
         )
-        action_id = create_response.json()["id"]
+        assert create_response.status_code == 201
+        action = create_response.json()
 
-        # 2. Deliver via heartbeat
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "failed-audit-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            headers=auth_headers,
-        )
+        # Verify created_at and created_by captured
+        assert action["created_at"] is not None
+        assert action["created_by"] == "dashboard"
+        assert action["status"] == "pending"
 
-        # 3. Report failure
-        client.post(
-            "/api/v1/agents/heartbeat",
-            json={
-                "server_id": "failed-audit-test",
-                "hostname": "test.local",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "command_results": [
-                    {
-                        "action_id": action_id,
-                        "exit_code": 1,
-                        "stdout": "",
-                        "stderr": "Job for service failed",
-                        "executed_at": datetime.now(UTC).isoformat(),
-                        "completed_at": datetime.now(UTC).isoformat(),
-                    }
-                ],
-            },
-            headers=auth_headers,
-        )
-
-        # 4. Verify failed audit trail
-        final_action = client.get(f"/api/v1/actions/{action_id}", headers=auth_headers).json()
-
-        assert final_action["status"] == "failed"
-        assert final_action["exit_code"] == 1
-        assert final_action["stderr"] == "Job for service failed"
-        assert final_action["completed_at"] is not None
+        # Not approved yet - waiting for server unpause
+        assert action["approved_at"] is None
+        assert action["executed_at"] is None
+        assert action["completed_at"] is None
 
 
 # =============================================================================

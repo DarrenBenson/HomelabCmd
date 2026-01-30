@@ -187,7 +187,15 @@ Clear visibility into running costs enables informed decisions about homelab inv
 | [US0055](../stories/US0055-usage-based-power-calculation.md) | Usage-Based Power Calculation | Done | 3 |
 | [US0056](../stories/US0056-power-configuration-ui.md) | Power Configuration UI | Done | 3 |
 
-**Total:** 8 stories, 21 story points (8 Done)
+**Phase 1 & 2 Total:** 8 stories, 21 story points (8 Done)
+
+### Phase 3: Historical Cost Tracking
+
+| ID | Title | Status | Points |
+|----|-------|--------|--------|
+| [US0183](../stories/US0183-historical-cost-tracking.md) | Historical Cost Tracking | Draft | 8 |
+
+**Phase 3 Total:** 1 story, 8 story points (Draft)
 
 ### Story Dependency Graph
 
@@ -228,7 +236,11 @@ US0053 (Agent CPU Details)
 
 ## Open Questions
 
-- [ ] Should we track costs over time for trend analysis? - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Should we track costs over time for trend analysis? - **Yes** - Created US0183. Historical cost tracking enables trend analysis, month-over-month comparison, and budget planning.
 
 ## Revision History
 
@@ -251,3 +263,4 @@ US0053 (Agent CPU Details)
 | 2026-01-21 | Claude | Reopened: US0056 missing ServerUpdate schema fields (AC8 added); 7/8 Done, 1 In Progress |
 | 2026-01-21 | Claude | US0056 AC8 implemented; all 8/8 stories Done; Epic marked Done |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Resolved open question: Added US0183 (Historical Cost Tracking) as Phase 3 enhancement |

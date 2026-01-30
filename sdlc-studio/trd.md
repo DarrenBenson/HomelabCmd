@@ -3,7 +3,7 @@
 **Project:** HomelabCmd
 **Version:** 2.1.0
 **Status:** Active
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 **PRD Reference:** [PRD](prd.md)
 
 ---
@@ -29,7 +29,7 @@
 | SSH Executor Service | ✅ Complete | EP0013 | Connection pooling, TOFU, retry logic |
 | Synchronous Command API | 📋 Planned | EP0013 | Endpoints not implemented |
 | Command Audit Trail | 📋 Planned | EP0013 | Model and endpoints not implemented |
-| Configuration Management | 📋 Planned | EP0010 | Config packs, compliance checking |
+| Configuration Management | 🚧 In Progress | EP0010 | Config packs ✅, compliance checking ✅, diff view ✅, apply pack ✅, dashboard widget 📋 |
 | Widget-Based Detail View | 📋 Planned | EP0012 | react-grid-layout not installed |
 | Dashboard Card Reordering | 📋 Planned | EP0011 | Persistence model not implemented |
 | Docker Container Monitoring | 📋 Planned | EP0014 | Endpoints not implemented |
@@ -643,15 +643,24 @@ OpenAPI compliance MUST be validated by automated tests:
 
 **Note:** SSH executor service is complete; API endpoints are planned. Agent command polling endpoints (`/agents/command-result`) deprecated in v2.0.
 
-#### Configuration Management (v2.0) - 📋 Planned (EP0010)
+#### Configuration Management (v2.0) - 🚧 In Progress (EP0010)
 
 | Method | Path | Description | Auth | Status |
 |--------|------|-------------|------|--------|
-| GET | `/api/v1/config/packs` | List available configuration packs | Yes | 📋 |
-| GET | `/api/v1/machines/{machine_id}/config/check` | Check configuration compliance | Yes | 📋 |
-| GET | `/api/v1/machines/{machine_id}/config/diff` | Get configuration diff (expected vs actual) | Yes | 📋 |
-| POST | `/api/v1/machines/{machine_id}/config/apply` | Apply configuration pack | Yes | 📋 |
+| GET | `/api/v1/config/packs` | List available configuration packs | Yes | ✅ |
+| GET | `/api/v1/config/packs/{pack_name}` | Get configuration pack details | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/config/check` | Check configuration compliance | Yes | ✅ |
+| GET | `/api/v1/servers/{server_id}/config/diff` | Get configuration diff (expected vs actual) | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/config/apply` | Apply configuration pack (with dry-run) | Yes | ✅ |
+| GET | `/api/v1/servers/{server_id}/config/apply/{apply_id}` | Get apply operation status | Yes | ✅ |
 | GET | `/api/v1/config/compliance` | Get compliance summary for all machines | Yes | 📋 |
+
+**Implementation Notes:**
+- Config packs stored in `data/config-packs/*.yaml` (US0116)
+- Compliance checking via SSH with SSHPooledExecutor (US0117)
+- Diff view returns structured mismatch data (US0118)
+- Apply pack supports dry-run preview, background execution, progress tracking (US0119)
+- Dashboard compliance widget pending (US0120)
 
 #### Dashboard Preferences (v2.0) - 📋 Planned (EP0011)
 
@@ -1188,6 +1197,49 @@ Configuration compliance check results per machine.
 ]
 ```
 
+#### ConfigApply (v2.0) ✅ Implemented
+
+Configuration pack application operations with progress tracking (US0119).
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | integer | PK, auto | Unique identifier |
+| server_id | string | FK → Server | Target server |
+| pack_name | string | Required | Configuration pack to apply |
+| status | enum | pending/running/completed/failed | Operation state |
+| progress | integer | Default: 0 | Progress percentage (0-100) |
+| current_item | string | Nullable | Item currently being processed |
+| items_total | integer | Default: 0 | Total items to process |
+| items_completed | integer | Default: 0 | Successfully completed items |
+| items_failed | integer | Default: 0 | Failed items |
+| results | json | Nullable | Per-item results array |
+| triggered_by | string | Default: user | Who initiated (user/scheduler) |
+| error | text | Nullable | Overall error message if failed |
+| started_at | datetime | Nullable | When apply started |
+| completed_at | datetime | Nullable | When apply completed |
+| created_at | datetime | Auto | When created |
+| updated_at | datetime | Auto | Last modified |
+
+**Indices:** `(server_id, status)`, `(server_id, created_at)`
+
+**Results JSON Schema:**
+```json
+[
+  {
+    "item": "~/.bashrc.d/aliases.sh",
+    "action": "created",
+    "success": true,
+    "error": null
+  },
+  {
+    "item": "curl",
+    "action": "installed",
+    "success": false,
+    "error": "E: Package 'curl' not found"
+  }
+]
+```
+
 #### DashboardPreference (v2.0)
 
 User dashboard preferences (card order, settings).
@@ -1250,6 +1302,7 @@ Machine ──< RemediationAction    (one-to-many)
 Machine ──< PendingPackage       (one-to-many)
 Machine ──< CommandAuditLog      (one-to-many) [v2.0]
 Machine ──< ConfigCheck          (one-to-many) [v2.0]
+Machine ──< ConfigApply          (one-to-many) [v2.0] ✅
 Machine ─── WidgetLayout         (one-to-one) [v2.0]
 Alert   ──< RemediationAction    (one-to-many, optional)
 ```
@@ -1868,3 +1921,4 @@ Agents will only execute these predefined commands:
 | 2026-01-27 | 2.0.2 | **TRD Review:** All v2.0 features verified implemented. Tailscale integration complete (device discovery, import, API token storage). SSH executor with connection pooling (Paramiko via asyncio.to_thread). Per-host credential management with Fernet encryption. Connectivity mode switching. SSH host key TOFU verification. CLI utility for key generation. Status updated from Draft to Active. Note: Implementation uses Paramiko (sync via thread pool) rather than asyncssh - functionally equivalent. |
 | 2026-01-28 | 2.0.3 | **TRD Review:** Added v2.0 Implementation Status section showing feature completion. Updated v2.0 API endpoints with status markers (✅ Implemented / 📋 Planned). Clarified: Tailscale/Connectivity endpoints complete; Command execution, Config management, Dashboard preferences, Widget layouts, Docker monitoring endpoints are PLANNED (not implemented). Added dependency note: react-grid-layout not installed. 17 planned v2.0 endpoints documented. 4 planned data models (CommandAuditLog, ConfigCheck, DashboardPreference, WidgetLayout) not yet created. |
 | 2026-01-28 | 2.1.0 | **SDLC-Studio v2 Upgrade:** Added §2 Project Classification section (project type, rationale, architecture implications). Re-numbered all subsequent sections (3-15). Schema upgraded to v2 modular format. Created .version file for version tracking. |
+| 2026-01-29 | 2.1.1 | **TRD Review (EP0010):** Configuration Management now 62% complete. Updated status from 📋 Planned to 🚧 In Progress. Implemented: Config packs API (US0116), compliance checking API (US0117), diff view API (US0118), apply pack API with dry-run and progress tracking (US0119). Added ConfigApply data model with status/progress/results tracking. Updated API endpoint status markers. Remaining: dashboard compliance widget (US0120-US0123). |

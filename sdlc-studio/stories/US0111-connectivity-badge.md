@@ -175,7 +175,11 @@ None - uses existing data from EP0008.
 
 ## Open Questions
 
-- [ ] Should connectivity badge also appear on server detail page header? - Owner: Darren
+None - resolved.
+
+### Resolved Questions
+
+- [x] Should connectivity badge also appear on server detail page header? - **Yes** - Will be included in EP0012 (Widget-Based Detail View) when the detail page header is redesigned.
 
 ---
 

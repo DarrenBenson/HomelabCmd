@@ -14,6 +14,7 @@ export { CpuWidget } from './CpuWidget';
 export { MemoryWidget } from './MemoryWidget';
 export { DiskWidget } from './DiskWidget';
 export { ServicesWidget } from './ServicesWidget';
+export { ComplianceWidget } from './ComplianceWidget';
 
 // Composite views
 export { ServerDetailWidgetView } from './ServerDetailWidgetView';

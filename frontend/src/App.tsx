@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { ServerDetail } from './pages/ServerDetail';
+import { ConfigDiffView } from './pages/ConfigDiffView';
+import { ConfigCompliancePage } from './pages/ConfigCompliancePage';
 import { Settings } from './pages/Settings';
 import { AlertsPage } from './pages/AlertsPage';
 import { ActionsPage } from './pages/ActionsPage';
@@ -16,6 +18,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/servers/:serverId" element={<ServerDetail />} />
+        {/* EP0010: Configuration Management */}
+        <Route path="/config" element={<ConfigCompliancePage />} />
+        <Route path="/servers/:serverId/config" element={<Navigate to="diff" replace />} />
+        <Route path="/servers/:serverId/config/diff" element={<ConfigDiffView />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/actions" element={<ActionsPage />} />

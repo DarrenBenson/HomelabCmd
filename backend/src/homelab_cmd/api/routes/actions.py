@@ -1,9 +1,10 @@
 """Action Queue API endpoints for remediation actions."""
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +22,15 @@ from homelab_cmd.api.schemas.actions import (
     ActionType,
     RejectActionRequest,
 )
+from homelab_cmd.config import get_settings
 from homelab_cmd.db.models.remediation import ActionStatus, RemediationAction
 from homelab_cmd.db.models.server import Server
 from homelab_cmd.db.session import get_async_session
+from homelab_cmd.services.credential_service import CredentialService
+from homelab_cmd.services.host_key_service import HostKeyService
+from homelab_cmd.services.ssh_executor import SSHPooledExecutor
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/actions", tags=["Actions"])
 
@@ -88,6 +95,95 @@ async def _build_security_upgrade_command(server_id: str, session: AsyncSession)
         return "echo 'No security packages to upgrade'"
 
     return f"{DEBIAN_FRONTEND} apt-get install {APT_OPTIONS} -o APT::Sandbox::User=root {' '.join(security_pkgs)}"
+
+
+async def _execute_action_via_ssh(action_id: int) -> None:
+    """Execute an approved action via SSH in the background.
+
+    This function runs in the background after an action is approved.
+    It connects to the server via SSH, executes the command, and updates
+    the action status with the result.
+
+    Args:
+        action_id: The ID of the action to execute.
+    """
+    from homelab_cmd.db.session import get_session_factory
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Get the action
+        action = await session.get(RemediationAction, action_id)
+        if not action:
+            logger.error("Action %d not found for execution", action_id)
+            return
+
+        if action.status != ActionStatus.APPROVED.value:
+            logger.warning(
+                "Action %d has status %s, expected approved",
+                action_id,
+                action.status,
+            )
+            return
+
+        # Get the server
+        server = await session.get(Server, action.server_id)
+        if not server:
+            logger.error("Server %s not found for action %d", action.server_id, action_id)
+            action.status = ActionStatus.FAILED.value
+            action.completed_at = datetime.now(UTC)
+            action.exit_code = -1
+            action.stderr = f"Server {action.server_id} not found"
+            await session.commit()
+            return
+
+        # Mark as executing
+        action.status = ActionStatus.EXECUTING.value
+        action.executed_at = datetime.now(UTC)
+        await session.commit()
+
+        # Create SSH executor
+        settings = get_settings()
+        credential_service = CredentialService(session, settings.encryption_key or "")
+        host_key_service = HostKeyService(session)
+        ssh_executor = SSHPooledExecutor(credential_service, host_key_service)
+
+        try:
+            # Execute the command (with sudo for apt commands)
+            command = action.command
+            if command and ("apt-get" in command or "apt " in command):
+                command = f"sudo {command}"
+
+            result = await ssh_executor.execute(
+                server=server,
+                command=command,
+                timeout=300,  # 5 minutes for apt operations
+            )
+
+            # Update action with result
+            action.status = (
+                ActionStatus.COMPLETED.value
+                if result.exit_code == 0
+                else ActionStatus.FAILED.value
+            )
+            action.completed_at = datetime.now(UTC)
+            action.exit_code = result.exit_code
+            action.stdout = result.stdout[:10000] if result.stdout else None  # Limit size
+            action.stderr = result.stderr[:10000] if result.stderr else None
+
+            logger.info(
+                "Action %d completed with exit code %d",
+                action_id,
+                result.exit_code,
+            )
+
+        except Exception as e:
+            logger.exception("Failed to execute action %d: %s", action_id, e)
+            action.status = ActionStatus.FAILED.value
+            action.completed_at = datetime.now(UTC)
+            action.exit_code = -1
+            action.stderr = str(e)
+
+        await session.commit()
 
 
 @router.get(
@@ -185,6 +281,7 @@ async def get_action(
 )
 async def create_action(
     action_data: ActionCreate,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_async_session),
     _: str = Depends(verify_api_key),
 ) -> ActionResponse:
@@ -319,8 +416,12 @@ async def create_action(
         action.approved_by = "auto"
 
     session.add(action)
-    await session.flush()
+    await session.commit()
     await session.refresh(action)
+
+    # Trigger execution in background for auto-approved actions
+    if action.status == ActionStatus.APPROVED.value:
+        background_tasks.add_task(_execute_action_via_ssh, action.id)
 
     return ActionResponse.model_validate(action)
 
@@ -334,6 +435,7 @@ async def create_action(
 )
 async def approve_action(
     action_id: int,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_async_session),
     _: str = Depends(verify_api_key),
 ) -> ActionResponse:
@@ -341,6 +443,7 @@ async def approve_action(
 
     Only actions with status "pending" can be approved.
     Sets approved_at timestamp and approved_by to "dashboard".
+    Triggers execution in the background.
 
     Returns 404 if action not found.
     Returns 409 if action is not in pending status.
@@ -367,7 +470,11 @@ async def approve_action(
     action.approved_at = datetime.now(UTC)
     action.approved_by = "dashboard"
 
-    await session.flush()
+    await session.commit()
+
+    # Trigger execution in background
+    background_tasks.add_task(_execute_action_via_ssh, action.id)
+
     return ActionResponse.model_validate(action)
 
 

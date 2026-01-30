@@ -130,8 +130,12 @@ class SlackNotifier:
 
         # Check if notification should be sent based on config
         if event.is_resolved:
+            # Check both remediation and auto-resolve settings (US0182)
             if not config.notify_on_remediation:
                 logger.debug("Remediation notifications disabled, skipping")
+                return True
+            if not config.notify_on_auto_resolve:
+                logger.debug("Auto-resolve notifications disabled, skipping")
                 return True
         elif event.severity == "critical":
             if not config.notify_on_critical:

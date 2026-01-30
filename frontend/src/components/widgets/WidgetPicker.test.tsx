@@ -79,6 +79,7 @@ describe('WidgetPicker', () => {
       'server_info',
       'system_info',
       'containers',
+      'compliance_dashboard',
     ];
 
     render(<WidgetPicker {...defaultProps} visibleWidgets={allWidgets} />);

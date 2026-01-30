@@ -243,8 +243,18 @@ User clicks Approve → status=APPROVED
 
 ## Open Questions
 
-- [ ] Command timeout configuration - Owner: Darren
-- [ ] How to handle commands that require sudo - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Command timeout configuration - **Yes, needed** - Created US0186. Configurable timeouts per command type with override capability.
+- [x] How to handle commands that require sudo - **Resolved:** EP0015 (Per-Host Credential Management) implements sudo password storage and support in SSH executor.
+
+### Future Enhancements
+
+| ID | Title | Points | Status |
+|----|-------|--------|--------|
+| [US0186](../stories/US0186-command-timeout-configuration.md) | Command Timeout Configuration | 3 | Draft |
 
 ## Revision History
 
@@ -253,3 +263,4 @@ User clicks Approve → status=APPROVED
 | 2026-01-18 | Claude | Initial epic creation from PRD |
 | 2026-01-19 | Claude | Simplified to maintenance mode model (removed auto-approve config, merged US0028 into US0025) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-01-29 | Claude | Resolved open questions: Timeout → US0186 created, Sudo → EP0015 |

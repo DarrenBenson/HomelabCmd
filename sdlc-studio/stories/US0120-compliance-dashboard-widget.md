@@ -1,6 +1,6 @@
 # US0120: Compliance Dashboard Widget
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
@@ -247,14 +247,14 @@ export function ComplianceWidget() {
 
 ## Test Scenarios
 
-- [ ] Verify endpoint returns correct summary counts
-- [ ] Verify widget shows all three status counts
-- [ ] Verify green border when all compliant
-- [ ] Verify amber border when some non-compliant
-- [ ] Verify non-compliant machines listed
-- [ ] Verify clicking machine navigates to diff
-- [ ] Verify "Check All" triggers checks
-- [ ] Verify "View Details" navigates to config page
+- [x] Verify endpoint returns correct summary counts
+- [x] Verify widget shows all three status counts
+- [x] Verify green border when all compliant
+- [x] Verify amber border when some non-compliant
+- [x] Verify non-compliant machines listed
+- [x] Verify clicking machine navigates to diff
+- [x] Verify "Check All" triggers checks
+- [x] Verify "View Details" navigates to config page
 
 ---
 
@@ -264,7 +264,7 @@ export function ComplianceWidget() {
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0117 | Data | Compliance check results | Draft |
+| US0117 | Data | Compliance check results | Done |
 
 ### External Dependencies
 
@@ -287,9 +287,21 @@ None
 
 ---
 
+## Implementation Artefacts
+
+| Artefact | Link | Status |
+|----------|------|--------|
+| Plan | [PL0185](../plans/PL0185-compliance-dashboard-widget.md) | Complete |
+| Test Spec | [TS0185](../test-specs/TS0185-compliance-dashboard-widget.md) | Complete |
+| Workflow | [WF0185](../workflows/WF0185-compliance-dashboard-widget.md) | Complete |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0098) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Status: Draft → Planned. Plan PL0185 and Test Spec TS0185 created |
+| 2026-01-29 | Claude | Status: Planned → In Progress → Done. Implementation complete |

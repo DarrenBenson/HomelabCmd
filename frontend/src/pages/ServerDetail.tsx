@@ -16,7 +16,9 @@ import { AgentRemoveModal } from '../components/AgentRemoveModal';
 import { AgentInstallModal } from '../components/AgentInstallModal';
 import { AgentCredentialCard } from '../components/AgentCredentialCard';
 import { ServerCredentials } from '../components/ServerCredentials';
+import { PackAssignment } from '../components/PackAssignment';
 import { ServerDetailWidgetView } from '../components/widgets';
+import { ServerCostHistoryWidget } from '../components/widgets/ServerCostHistoryWidget';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { cn } from '../lib/utils';
 import {
@@ -30,6 +32,7 @@ import {
 } from '../lib/formatters';
 import { MACHINE_CATEGORIES, type MachineCategory, type PowerConfigUpdate } from '../types/cost';
 import { CategoryBadge } from '../components/CategoryBadge';
+import { TailscaleBadge } from '../components/TailscaleBadge';
 import { PowerEditModal } from '../components/PowerEditModal';
 import type {
   ServerDetail as ServerDetailType,
@@ -428,9 +431,12 @@ export function ServerDetail() {
               </svg>
               Back
             </button>
-            <h1 className="text-2xl font-bold text-text-primary">
-              {displayName}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-text-primary">
+                {displayName}
+              </h1>
+              <TailscaleBadge tailscaleHostname={server.tailscale_hostname} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {/* View Mode Toggle (EP0012) */}
@@ -879,6 +885,13 @@ export function ServerDetail() {
 
         </div>
 
+        {/* Pack Assignment (US0121) - Configuration pack assignment */}
+        {serverId && (
+          <div className="mt-6" data-testid="pack-assignment-section">
+            <PackAssignment serverId={serverId} onUpdate={() => fetchServerData(false)} />
+          </div>
+        )}
+
         {/* Advanced Configuration - Collapsible section for rarely-used settings */}
         <div className="mt-6" data-testid="advanced-section">
           <button
@@ -1033,6 +1046,16 @@ export function ServerDetail() {
             </div>
           </div>
         </div>
+
+        {/* Server Cost History Widget (US0183 AC4) */}
+        {serverId && server.tdp_watts !== null && (
+          <div className="mt-6">
+            <ServerCostHistoryWidget
+              serverId={serverId}
+              currencySymbol={currencySymbol}
+            />
+          </div>
+        )}
 
         {/* Services */}
         {serverId && (

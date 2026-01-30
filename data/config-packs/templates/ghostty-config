@@ -1,0 +1,18 @@
+# Ghostty terminal configuration
+# Managed by HomelabCmd
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+
+theme = catppuccin-mocha
+
+window-padding-x = 10
+window-padding-y = 10
+
+cursor-style = block
+cursor-style-blink = true
+
+shell-integration = bash
+shell-integration-features = cursor,sudo,title
+
+copy-on-select = clipboard

@@ -16,149 +16,26 @@ from homelab_cmd.api.routes.config import (
 )
 from homelab_cmd.api.schemas.config import NotificationsConfig, ThresholdsConfig
 from homelab_cmd.api.schemas.heartbeat import (
-    MAX_OUTPUT_SIZE,
     HeartbeatRequest,
     HeartbeatResponse,
     PendingCommand,
 )
 from homelab_cmd.db.models.metrics import FilesystemMetrics, Metrics, NetworkInterfaceMetrics
-from homelab_cmd.db.models.remediation import ActionStatus, RemediationAction
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.db.models.service import ServiceStatus
 from homelab_cmd.db.session import get_async_session
 from homelab_cmd.services.alerting import AlertingService
-from homelab_cmd.services.notifier import ActionEvent, get_notifier
+from homelab_cmd.services.notifier import get_notifier
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 logger = logging.getLogger(__name__)
 
-# Default command timeout in seconds (US0025)
-DEFAULT_COMMAND_TIMEOUT = 30
-
-
-async def _get_next_approved_action(
-    session: AsyncSession, server_id: str
-) -> RemediationAction | None:
-    """Get the oldest approved action for a server (US0025 - AC6).
-
-    Args:
-        session: Database session
-        server_id: Server identifier
-
-    Returns:
-        Oldest approved action or None if no approved actions exist.
-    """
-    result = await session.execute(
-        select(RemediationAction)
-        .where(RemediationAction.server_id == server_id)
-        .where(RemediationAction.status == ActionStatus.APPROVED.value)
-        .order_by(RemediationAction.created_at.asc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
-def _format_pending_command(action: RemediationAction) -> PendingCommand:
-    """Format a remediation action as a pending command for the agent (US0025).
-
-    Args:
-        action: The remediation action to format
-
-    Returns:
-        PendingCommand schema with action details.
-    """
-    parameters: dict = {}
-    if action.service_name:
-        parameters["service_name"] = action.service_name
-
-    return PendingCommand(
-        action_id=action.id,
-        action_type=action.action_type,
-        command=action.command,
-        parameters=parameters,
-        timeout_seconds=DEFAULT_COMMAND_TIMEOUT,
-    )
-
-
-async def _process_command_results(
-    session: AsyncSession, heartbeat: HeartbeatRequest
-) -> list[RemediationAction]:
-    """Process command results from heartbeat request (US0025 - AC4, AC5).
-
-    Updates action status to COMPLETED (exit_code=0) or FAILED (exit_code!=0).
-    Stores stdout, stderr, and timestamps.
-
-    Args:
-        session: Database session
-        heartbeat: Heartbeat request containing command_results
-
-    Returns:
-        List of completed/failed action objects (for notification - US0032).
-    """
-    completed_actions: list[RemediationAction] = []
-
-    if not heartbeat.command_results:
-        return completed_actions
-
-    for result in heartbeat.command_results:
-        action = await session.get(RemediationAction, result.action_id)
-
-        if not action:
-            logger.warning(
-                "Result for unknown action %d from server %s",
-                result.action_id,
-                heartbeat.server_id,
-            )
-            continue
-
-        if action.status != ActionStatus.EXECUTING.value:
-            # US0074: Special case for background tasks.
-            # If the action is already COMPLETED or FAILED, we might have received a late duplicate.
-            # But if it's EXECUTING, we update it.
-            # Wait, if it's already EXECUTING, we update it with the result.
-            # What if we receive the "Started" result first, then later the "Completed" result?
-            # The "Started" result should keep it in EXECUTING state.
-            logger.debug(
-                "Ignoring result for action %d (status=%s, not executing)",
-                result.action_id,
-                action.status,
-            )
-            continue
-
-        # Update action with result (US0025 - AC5)
-        action.exit_code = result.exit_code
-        action.stdout = (result.stdout or "")[:MAX_OUTPUT_SIZE]
-        action.stderr = (result.stderr or "")[:MAX_OUTPUT_SIZE]
-        action.completed_at = result.completed_at
-
-        # US0074: Detect background "Started" result
-        is_background_start = "Started background execution" in (result.stdout or "")
-
-        if is_background_start:
-            # Keep in EXECUTING state while background task runs
-            action.status = ActionStatus.EXECUTING.value
-            logger.info("Action %d started in background", result.action_id)
-            # We don't add to completed_actions so Hub doesn't acknowledge it yet?
-            # Actually, if we don't acknowledge, agent will keep sending it.
-            # We MUST acknowledge the "Started" result so agent stops sending it,
-            # BUT we keep the status as EXECUTING in DB.
-            completed_actions.append(action)
-            continue
-
-        if result.exit_code == 0:
-            action.status = ActionStatus.COMPLETED.value
-            logger.info("Action %d completed successfully", result.action_id)
-        else:
-            action.status = ActionStatus.FAILED.value
-            logger.warning(
-                "Action %d failed with exit code %d",
-                result.action_id,
-                result.exit_code,
-            )
-
-        completed_actions.append(action)
-
-    return completed_actions
+# US0152: Async command channel removed (EP0013)
+# Commands are now executed via synchronous SSH (US0151, US0153)
+# The following functions were removed:
+# - _get_next_approved_action() - no longer delivering commands via heartbeat
+# - _format_pending_command() - no longer formatting commands for agents
+# - _process_command_results() - no longer processing results from agents
 
 
 @router.post(
@@ -188,9 +65,17 @@ async def receive_heartbeat(
     now = datetime.now(UTC)
     server_registered = False
 
-    # 1. Process command results first (US0025 - AC4, AC5)
-    completed_actions = await _process_command_results(session, heartbeat)
-    results_acknowledged = [action.id for action in completed_actions]
+    # US0152: Deprecation warning for v1.0 agents sending command_results
+    # The async command channel is deprecated - use synchronous SSH execution (EP0013)
+    if heartbeat.command_results:
+        logger.warning(
+            "Deprecated: Server %s sent command_results. "
+            "The async command channel is deprecated (EP0013). "
+            "Upgrade agent to v2.0 for SSH-based command execution.",
+            heartbeat.server_id,
+        )
+    # command_results are now ignored - no longer processing them
+    results_acknowledged: list[int] = []
 
     # 2. Server matching logic (US0070)
     server: Server | None = None
@@ -456,27 +341,14 @@ async def receive_heartbeat(
 
     await session.flush()
 
-    # Load notifications config (needed for both alerts and action notifications)
+    # Load notifications config (needed for alerts)
     notifications_data = await get_config_value(session, "notifications")
     notifications = (
         NotificationsConfig(**notifications_data) if notifications_data else DEFAULT_NOTIFICATIONS
     )
 
-    # Send action completion/failure notifications (US0032)
-    if completed_actions and notifications.slack_webhook_url:
-        notifier = get_notifier(notifications.slack_webhook_url)
-        for action in completed_actions:
-            action_event = ActionEvent(
-                action_id=action.id,
-                server_id=action.server_id,
-                server_name=server.hostname,
-                action_type=action.action_type,
-                service_name=action.service_name,
-                is_success=(action.status == ActionStatus.COMPLETED.value),
-                exit_code=action.exit_code,
-                stderr=action.stderr,
-            )
-            await notifier.send_action_notification(action_event, notifications)
+    # US0152: Action completion notifications removed (EP0013)
+    # Notifications now triggered by synchronous command execution (US0153)
 
     # Evaluate metrics against thresholds (US0011)
     if heartbeat.metrics:
@@ -514,22 +386,12 @@ async def receive_heartbeat(
 
     logger.debug("Heartbeat received from %s", heartbeat.server_id)
 
-    # 3. Get next pending command for this server (US0025 - AC1, AC2, AC6)
+    # US0152: pending_commands is deprecated - always return empty array
+    # Commands are now executed via synchronous SSH (EP0013: US0151, US0153)
+    # The pending_commands field is kept for backward compatibility with v1.0 agents
     pending_commands: list[PendingCommand] = []
-    next_action = await _get_next_approved_action(session, heartbeat.server_id)
 
-    if next_action:
-        # Mark as executing (US0025 - AC2)
-        next_action.status = ActionStatus.EXECUTING.value
-        next_action.executed_at = now
-        pending_commands.append(_format_pending_command(next_action))
-        logger.info(
-            "Delivering action %d to server %s",
-            next_action.id,
-            heartbeat.server_id,
-        )
-
-    # Return response with pending commands
+    # Return response with empty pending_commands (backward compatible)
     return HeartbeatResponse(
         status="ok",
         server_registered=server_registered,

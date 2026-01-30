@@ -8,6 +8,9 @@ from homelab_cmd.db.models.agent_credential import AgentCredential
 from homelab_cmd.db.models.alert import Alert, AlertStatus, AlertType
 from homelab_cmd.db.models.alert_state import AlertSeverity, AlertState, MetricType
 from homelab_cmd.db.models.config import Config
+from homelab_cmd.db.models.config_apply import ConfigApply, ConfigApplyStatus
+from homelab_cmd.db.models.config_check import ConfigCheck
+from homelab_cmd.db.models.cost_snapshot import CostSnapshot, CostSnapshotMonthly
 from homelab_cmd.db.models.credential import Credential
 from homelab_cmd.db.models.discovery import Discovery, DiscoveryStatus
 from homelab_cmd.db.models.metrics import FilesystemMetrics, Metrics, NetworkInterfaceMetrics
@@ -29,6 +32,11 @@ __all__ = [
     "AgentCredential",
     "AgentMode",
     "Alert",
+    "ConfigApply",
+    "ConfigApplyStatus",
+    "ConfigCheck",
+    "CostSnapshot",
+    "CostSnapshotMonthly",
     "Credential",
     "AlertSeverity",
     "AlertState",

@@ -620,11 +620,12 @@ class AgentDeploymentService:
         hostname = server.ip_address or server.hostname
         warnings: list[str] = []
 
-        # Get key_usernames from database (US0072/US0073)
+        # Get SSH config from database (US0072/US0073)
         ssh_config = await self.session.execute(select(Config).where(Config.key == "ssh"))
         ssh_config_row = ssh_config.scalar_one_or_none()
         ssh_db_config = ssh_config_row.value if ssh_config_row else {}
         key_usernames = ssh_db_config.get("key_usernames", {})
+        default_username = ssh_db_config.get("default_username")
 
         # Retrieve sudo password if not provided (AC3)
         if sudo_password is None and self.credential_service:
@@ -691,6 +692,7 @@ class AgentDeploymentService:
                     hostname=hostname,
                     command=uninstall_cmd,
                     command_timeout=30,
+                    username=default_username,
                     key_usernames=key_usernames,
                 )
 
@@ -709,6 +711,7 @@ class AgentDeploymentService:
                 verification_warnings = await self._verify_agent_removal(
                     hostname=hostname,
                     key_usernames=key_usernames,
+                    default_username=default_username,
                     ssh_username=ssh_username if used_password_auth else None,
                     ssh_password=ssh_password if used_password_auth else None,
                     sudo_password=sudo_password,
@@ -760,6 +763,7 @@ class AgentDeploymentService:
         self,
         hostname: str,
         key_usernames: dict[str, str],
+        default_username: str | None = None,
         ssh_username: str | None = None,
         ssh_password: str | None = None,
         sudo_password: str | None = None,
@@ -769,6 +773,7 @@ class AgentDeploymentService:
         Args:
             hostname: Target hostname or IP address.
             key_usernames: SSH key usernames mapping.
+            default_username: Default SSH username from database config.
             ssh_username: Optional SSH username for password authentication.
             ssh_password: Optional SSH password for authentication.
             sudo_password: Password for sudo (if required).
@@ -784,7 +789,7 @@ class AgentDeploymentService:
             command=service_check,
             command_timeout=10,
             key_usernames=key_usernames,
-            username=ssh_username,
+            username=ssh_username or default_username,
             password=ssh_password,
         )
         if not service_result.success and service_result.error:
@@ -802,7 +807,7 @@ class AgentDeploymentService:
             command=file_check,
             command_timeout=10,
             key_usernames=key_usernames,
-            username=ssh_username,
+            username=ssh_username or default_username,
             password=ssh_password,
         )
         if not file_result.success and file_result.error:

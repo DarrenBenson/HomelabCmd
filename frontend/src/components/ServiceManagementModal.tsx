@@ -23,7 +23,7 @@ import {
   deleteExpectedService,
   getServerServices,
 } from '../api/services';
-import { listSSHKeys } from '../api/scans';
+import { listSSHKeys, getSSHConfig } from '../api/scans';
 import type {
   DiscoveredService,
   ExpectedService,
@@ -56,6 +56,7 @@ export function ServiceManagementModal({
   const [sshKeys, setSSHKeys] = useState<SSHKeyMetadata[]>([]);
   const [sshKeysLoading, setSSHKeysLoading] = useState(true);
   const [selectedKeyId, setSelectedKeyId] = useState<string>(''); // Empty = attempt all keys
+  const [defaultUsername, setDefaultUsername] = useState<string>('root');
 
   // Discovery state
   const [discovering, setDiscovering] = useState(false);
@@ -85,15 +86,17 @@ export function ServiceManagementModal({
   const [addingSelected, setAddingSelected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load SSH keys and current services on mount
+  // Load SSH keys, SSH config and current services on mount
   useEffect(() => {
     async function loadInitialData() {
       try {
-        const [keysResponse, servicesData] = await Promise.all([
+        const [keysResponse, sshConfig, servicesData] = await Promise.all([
           listSSHKeys(),
+          getSSHConfig(),
           getServerServices(server.id),
         ]);
         setSSHKeys(keysResponse.keys);
+        setDefaultUsername(sshConfig.default_username);
         setCurrentServices(servicesData.services);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -130,7 +133,7 @@ export function ServiceManagementModal({
       const selectedKey = selectedKeyId
         ? sshKeys.find((k) => k.id === selectedKeyId)
         : null;
-      const username = server.ssh_username || selectedKey?.username || 'root';
+      const username = server.ssh_username || selectedKey?.username || defaultUsername;
 
       const result = await discoverServices({
         hostname,

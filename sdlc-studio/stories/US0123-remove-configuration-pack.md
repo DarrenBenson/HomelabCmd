@@ -1,10 +1,11 @@
 # US0123: Remove Configuration Pack
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
 > **Created:** 2026-01-28
+> **Completed:** 2026-01-29
 > **Story Points:** 3
 
 ## User Story
@@ -257,14 +258,14 @@ async def remove_pack(
 
 ## Test Scenarios
 
-- [ ] Verify preview mode returns items list
-- [ ] Verify file deleted with backup created
-- [ ] Verify packages are NOT uninstalled
-- [ ] Verify env var removed from shell config
-- [ ] Verify audit log created
-- [ ] Verify confirmation required
-- [ ] Verify backup path returned in results
-- [ ] Verify non-existent file handled gracefully
+- [x] Verify preview mode returns items list
+- [x] Verify file deleted with backup created
+- [x] Verify packages are NOT uninstalled
+- [x] Verify env var removed from shell config
+- [x] Verify audit log created
+- [x] Verify confirmation required
+- [x] Verify backup path returned in results
+- [x] Verify non-existent file handled gracefully
 
 ---
 
@@ -274,9 +275,9 @@ async def remove_pack(
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| US0116 | Data | Pack definitions | Draft |
-| US0119 | Pattern | Apply implementation pattern | Draft |
-| EP0013 | Service | SSH Executor | Complete |
+| US0116 | Data | Pack definitions | Done |
+| US0119 | Pattern | Apply implementation pattern | Done |
+| US0151 | Service | SSH Executor | Done |
 
 ### External Dependencies
 
@@ -299,9 +300,21 @@ None
 
 ---
 
+## Implementation Artefacts
+
+| Artefact | Link | Status |
+|----------|------|--------|
+| Plan | [PL0190](../plans/PL0190-remove-configuration-pack.md) | Complete |
+| Test Spec | [TS0190](../test-specs/TS0190-remove-configuration-pack.md) | Complete |
+| Workflow | [WF0190](../workflows/WF0190-remove-configuration-pack.md) | Complete |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0101) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Status: Draft → Planned. Plan PL0190 and Test Spec TS0190 created |
+| 2026-01-29 | Claude | Status: Planned → Done. Implementation complete with 31 backend + 22 frontend tests |

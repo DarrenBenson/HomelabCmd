@@ -160,13 +160,13 @@ These enhancements bring HomelabCmd to feature parity with industry leaders:
 
 ## Sizing
 
-**Story Points:** 23
-**Estimated Story Count:** 7
+**Story Points:** 24
+**Estimated Story Count:** 8
 
 **Breakdown by Priority:**
 | Priority | Stories | Points | Focus |
 |----------|---------|--------|-------|
-| P1 | US0109, US0110, US0111 | 8 | Visual indicators |
+| P1 | US0109, US0110, US0111, US0180 | 9 | Visual indicators |
 | P2 | US0112, US0113, US0114 | 12 | Usability |
 | P3 | US0115 | 3 | Efficiency |
 
@@ -181,10 +181,11 @@ These enhancements bring HomelabCmd to feature parity with industry leaders:
 
 ## Story Breakdown
 
-### P1: Visual Indicators (8 SP)
+### P1: Visual Indicators (9 SP)
 - [x] [US0109: Enhanced Maintenance Mode Indicator](../stories/US0109-maintenance-mode-indicator.md) (3 SP)
 - [x] [US0110: Warning State Visual Treatment](../stories/US0110-warning-state-visual.md) (3 SP)
 - [x] [US0111: Connectivity Badge (Tailscale/SSH)](../stories/US0111-connectivity-badge.md) (2 SP)
+- [x] [US0180: Detail Page Connectivity Badge](../stories/US0180-detail-page-connectivity-badge.md) (1 SP)
 
 ### P2: Usability (12 SP)
 - [x] [US0112: Dashboard Search and Filter](../stories/US0112-dashboard-search-filter.md) (5 SP)
@@ -204,7 +205,11 @@ These enhancements bring HomelabCmd to feature parity with industry leaders:
 
 ## Open Questions
 
-- [ ] Should connectivity badge also show on detail page header? - Owner: Darren
+None - all questions resolved.
+
+### Resolved Questions
+
+- [x] Should connectivity badge also show on detail page header? - **Yes** - Added to EP0012 (Widget-Based Detail View) scope. The detail page header will show the ConnectivityBadge component alongside the server name.
 
 ---
 
@@ -233,3 +238,5 @@ US0115 (Quick Actions) ── depends on card layout updates
 | 2026-01-28 | Claude | Expanded scope: added US0112-US0115 from UX review |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
 | 2026-01-28 | Claude | Generated story files US0109-US0115, status → Ready |
+| 2026-01-29 | Claude | Added US0180 (Detail Page Connectivity Badge) from resolved open question. Status → In Progress. 8 stories, 24 SP. |
+| 2026-01-29 | Claude | US0180 implemented and tested. Epic complete: 8/8 stories Done. Status → Done. |

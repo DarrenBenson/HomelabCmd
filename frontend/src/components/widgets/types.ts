@@ -13,7 +13,8 @@ export type WidgetId =
   | 'containers'
   | 'network'
   | 'system_info'
-  | 'server_info';
+  | 'server_info'
+  | 'compliance_dashboard';
 
 /**
  * Machine types that widgets can apply to

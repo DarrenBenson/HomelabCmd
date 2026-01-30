@@ -44,6 +44,7 @@ vi.mock('../api/servers', () => ({
 
 vi.mock('../api/alerts', () => ({
   getAlerts: vi.fn().mockResolvedValue({ alerts: [], total: 0 }),
+  getPendingBreaches: vi.fn().mockResolvedValue({ pending: [], total: 0 }),
 }));
 
 vi.mock('../api/actions', () => ({

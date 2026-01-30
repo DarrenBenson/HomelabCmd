@@ -1,7 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ServerCard } from './ServerCard';
+import { pauseServer, unpauseServer } from '../api/servers';
 import type { Server } from '../types/server';
+
+// Mock the API
+vi.mock('../api/servers', () => ({
+  pauseServer: vi.fn(),
+  unpauseServer: vi.fn(),
+}));
+
+const mockPauseServer = pauseServer as Mock;
+const mockUnpauseServer = unpauseServer as Mock;
 
 const mockServer: Server = {
   id: 'test-server',
@@ -918,6 +928,298 @@ describe('ServerCard', () => {
 
         expect(screen.queryByTestId('maintenance-wrench-icon')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  /**
+   * Pause/Unpause toggle functionality tests (US0115)
+   * Tests the handleTogglePause callback on the ServerCard
+   */
+  describe('Pause/Unpause toggle (US0115)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('calls pauseServer when toggle is clicked on non-paused server', async () => {
+      mockPauseServer.mockResolvedValue({});
+      const onPauseToggle = vi.fn();
+      const onMessage = vi.fn();
+      const normalServer: Server = {
+        ...mockServer,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={normalServer}
+          onPauseToggle={onPauseToggle}
+          onMessage={onMessage}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(mockPauseServer).toHaveBeenCalledWith('test-server');
+      });
+
+      await waitFor(() => {
+        expect(onPauseToggle).toHaveBeenCalled();
+      });
+
+      expect(onMessage).toHaveBeenCalledWith({
+        type: 'success',
+        text: 'Test Server paused',
+      });
+    });
+
+    it('calls unpauseServer when toggle is clicked on paused server', async () => {
+      mockUnpauseServer.mockResolvedValue({});
+      const onPauseToggle = vi.fn();
+      const onMessage = vi.fn();
+      const pausedServer: Server = {
+        ...mockServer,
+        is_paused: true,
+      };
+      render(
+        <ServerCard
+          server={pausedServer}
+          onPauseToggle={onPauseToggle}
+          onMessage={onMessage}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(mockUnpauseServer).toHaveBeenCalledWith('test-server');
+      });
+
+      await waitFor(() => {
+        expect(onPauseToggle).toHaveBeenCalled();
+      });
+
+      expect(onMessage).toHaveBeenCalledWith({
+        type: 'success',
+        text: 'Test Server resumed',
+      });
+    });
+
+    it('uses hostname when display_name is null', async () => {
+      mockPauseServer.mockResolvedValue({});
+      const onPauseToggle = vi.fn();
+      const onMessage = vi.fn();
+      const serverWithoutDisplayName: Server = {
+        ...mockServer,
+        display_name: null,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={serverWithoutDisplayName}
+          onPauseToggle={onPauseToggle}
+          onMessage={onMessage}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(onMessage).toHaveBeenCalledWith({
+          type: 'success',
+          text: 'test-server.local paused',
+        });
+      });
+    });
+
+    it('shows error message when pause fails', async () => {
+      mockPauseServer.mockRejectedValue(new Error('Network error'));
+      const onPauseToggle = vi.fn();
+      const onMessage = vi.fn();
+      const normalServer: Server = {
+        ...mockServer,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={normalServer}
+          onPauseToggle={onPauseToggle}
+          onMessage={onMessage}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(onMessage).toHaveBeenCalledWith({
+          type: 'error',
+          text: 'Network error',
+        });
+      });
+    });
+
+    it('shows default error message for non-Error exceptions', async () => {
+      mockPauseServer.mockRejectedValue('Unknown failure');
+      const onPauseToggle = vi.fn();
+      const onMessage = vi.fn();
+      const normalServer: Server = {
+        ...mockServer,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={normalServer}
+          onPauseToggle={onPauseToggle}
+          onMessage={onMessage}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      await waitFor(() => {
+        expect(onMessage).toHaveBeenCalledWith({
+          type: 'error',
+          text: 'Failed to toggle pause state',
+        });
+      });
+    });
+
+    it('does not render toggle button when server is inactive', async () => {
+      const onPauseToggle = vi.fn();
+      const inactiveServer: Server = {
+        ...mockServer,
+        is_inactive: true,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={inactiveServer}
+          onPauseToggle={onPauseToggle}
+        />
+      );
+
+      // Toggle button should NOT render for inactive servers
+      const toggleButton = screen.queryByTestId('toggle-pause-button');
+      expect(toggleButton).not.toBeInTheDocument();
+    });
+
+    it('prevents duplicate clicks while toggling', async () => {
+      let resolvePromise: () => void;
+      mockPauseServer.mockImplementation(
+        () => new Promise((resolve) => { resolvePromise = resolve; })
+      );
+      const onPauseToggle = vi.fn();
+
+      const normalServer: Server = {
+        ...mockServer,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={normalServer}
+          onPauseToggle={onPauseToggle}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+
+      // Click once
+      fireEvent.click(toggleButton);
+
+      // Try clicking again while first request is pending
+      fireEvent.click(toggleButton);
+
+      // Should only have called pauseServer once
+      expect(mockPauseServer).toHaveBeenCalledTimes(1);
+
+      // Resolve the promise to clean up
+      resolvePromise!();
+    });
+
+    it('stops click propagation to prevent card navigation', async () => {
+      mockPauseServer.mockResolvedValue({});
+      const onClick = vi.fn();
+      const onPauseToggle = vi.fn();
+      const normalServer: Server = {
+        ...mockServer,
+        is_paused: false,
+      };
+      render(
+        <ServerCard
+          server={normalServer}
+          onClick={onClick}
+          onPauseToggle={onPauseToggle}
+        />
+      );
+
+      const toggleButton = screen.getByTestId('toggle-pause-button');
+      fireEvent.click(toggleButton);
+
+      // The card onClick should NOT be called because stopPropagation is used
+      expect(onClick).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Warning state tests (US0110)
+   * Tests for servers with active alerts showing warning state
+   */
+  describe('Warning state (US0110)', () => {
+    it('shows warning ring for server with active alerts', () => {
+      const warningServer: Server = {
+        ...mockServer,
+        status: 'online',
+        active_alert_count: 2,
+        active_alert_summaries: ['High CPU', 'Low disk'],
+      };
+      render(<ServerCard server={warningServer} />);
+
+      const card = screen.getByTestId('server-card');
+      expect(card).toHaveClass('ring-2');
+      expect(card).toHaveClass('ring-yellow-500/30');
+    });
+
+    it('does not show warning ring for server without alerts', () => {
+      const normalServer: Server = {
+        ...mockServer,
+        status: 'online',
+        active_alert_count: 0,
+        active_alert_summaries: [],
+      };
+      render(<ServerCard server={normalServer} />);
+
+      const card = screen.getByTestId('server-card');
+      expect(card).not.toHaveClass('ring-yellow-500/30');
+    });
+
+    it('shows warning status tooltip with alert count', () => {
+      const warningServer: Server = {
+        ...mockServer,
+        status: 'online',
+        active_alert_count: 3,
+        active_alert_summaries: ['Alert 1', 'Alert 2', 'Alert 3'],
+      };
+      render(<ServerCard server={warningServer} />);
+
+      const statusLed = screen.getByRole('status');
+      expect(statusLed).toHaveAttribute('title', 'Warning - 3 active alerts');
+    });
+
+    it('uses singular "alert" for one active alert', () => {
+      const warningServer: Server = {
+        ...mockServer,
+        status: 'online',
+        active_alert_count: 1,
+        active_alert_summaries: ['High CPU'],
+      };
+      render(<ServerCard server={warningServer} />);
+
+      const statusLed = screen.getByRole('status');
+      expect(statusLed).toHaveAttribute('title', 'Warning - 1 active alert');
     });
   });
 });

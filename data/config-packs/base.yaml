@@ -1,0 +1,53 @@
+# Base Pack - Personal Bash Toolkit
+# Core toolkit files and dependencies for all machines
+
+name: Base Pack
+description: Personal bash toolkit with core utilities
+extends: null
+
+items:
+  files:
+    # Toolkit loader
+    - path: ~/.bash_aliases
+      mode: "0664"
+      description: Bash aliases loader (sources toolkit)
+
+    # Main toolkit
+    - path: ~/.bash_custom_toolkit
+      mode: "0664"
+      description: Personal bash custom toolkit
+
+    # Custom scripts in ~/.local/bin
+    - path: ~/.local/bin/appimage
+      mode: "0775"
+      description: AppImage manager script
+
+    - path: ~/.local/bin/debimage
+      mode: "0775"
+      description: Deb package manager script
+
+    - path: ~/.local/bin/jumpbox-ssh
+      mode: "0755"
+      description: SSH via jumpbox script
+
+    - path: ~/.local/bin/toolkit-help
+      mode: "0775"
+      description: Toolkit help command
+
+  packages:
+    # Core dependencies
+    - name: bash-completion
+      description: Tab completion for bash
+
+    - name: wget
+      description: Network downloader (XDG-wrapped in toolkit)
+
+    - name: curl
+      description: HTTP client (used by appimage/debimage)
+
+    - name: openssh-client
+      description: SSH client (for jumpbox-ssh)
+
+  # XDG environment variables have defined defaults when unset,
+  # so we don't need to check them explicitly
+  settings: []

@@ -1,0 +1,32 @@
+# SDLC Studio Project Configuration
+# Override skill defaults here. Only specify values that differ from defaults.
+# See: ~/.claude/skills/sdlc-studio/templates/config-defaults.yaml
+
+# Coverage targets
+coverage:
+  unit: 80
+  integration: 85
+  e2e: 100
+
+# Story quality gates
+story_quality:
+  edge_cases:
+    api: 8
+    other: 5
+  test_scenarios:
+    api: 10
+    ui: 8
+  sizing:
+    max_ac: 10
+    max_points: 13
+    recommended_ac:
+      min: 3
+      max: 5
+
+# TDD trigger threshold
+tdd:
+  edge_case_threshold: 5
+
+# E2E test limits
+e2e:
+  max_tests_per_spec: 50

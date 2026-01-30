@@ -11,13 +11,16 @@
  * Each metric (CPU, Memory, Disk) has:
  * - high_percent: threshold for HIGH severity alerts
  * - critical_percent: threshold for CRITICAL severity alerts
- * - sustained_heartbeats: number of consecutive breaches before alerting
- *   (0 = immediate, 3 = ~3 minutes at 60s heartbeat interval)
+ * - sustained_seconds: time in seconds condition must persist before alerting
+ *   (0 = immediate, 180 = 3 minutes)
+ * - sustained_heartbeats: DEPRECATED - use sustained_seconds instead
  */
 export interface MetricThreshold {
   high_percent: number;
   critical_percent: number;
-  sustained_heartbeats: number;
+  sustained_seconds: number;
+  /** @deprecated Use sustained_seconds instead */
+  sustained_heartbeats?: number;
 }
 
 /**
@@ -26,6 +29,8 @@ export interface MetricThreshold {
 export interface MetricThresholdUpdate {
   high_percent?: number;
   critical_percent?: number;
+  sustained_seconds?: number;
+  /** @deprecated Use sustained_seconds instead */
   sustained_heartbeats?: number;
 }
 
@@ -78,6 +83,9 @@ export interface ThresholdsUpdate {
  * Action notifications (US0032):
  * - notify_on_action_failure: Send notification when action fails (default: true)
  * - notify_on_action_success: Send notification when action succeeds (default: false)
+ *
+ * Auto-resolve notifications (US0182):
+ * - notify_on_auto_resolve: Send notification when alerts auto-resolve (default: true)
  */
 export interface NotificationsConfig {
   slack_webhook_url: string;
@@ -87,6 +95,7 @@ export interface NotificationsConfig {
   notify_on_remediation: boolean;
   notify_on_action_failure: boolean;
   notify_on_action_success: boolean;
+  notify_on_auto_resolve: boolean;
 }
 
 /**
@@ -100,6 +109,7 @@ export interface NotificationsUpdate {
   notify_on_remediation?: boolean;
   notify_on_action_failure?: boolean;
   notify_on_action_success?: boolean;
+  notify_on_auto_resolve?: boolean;
 }
 
 /**
@@ -138,22 +148,22 @@ export interface TestWebhookResponse {
 /**
  * Duration options for sustained threshold settings.
  *
- * Maps user-friendly labels to heartbeat counts.
+ * Maps user-friendly labels to seconds.
  */
 export const DURATION_OPTIONS = [
   { label: 'Immediately', value: 0 },
-  { label: '~1 min', value: 1 },
-  { label: '~3 min', value: 3, recommended: true },
-  { label: '~5 min', value: 5 },
+  { label: '1 min', value: 60 },
+  { label: '3 min', value: 180, recommended: true },
+  { label: '5 min', value: 300 },
 ] as const;
 
 /**
  * Default thresholds matching backend defaults.
  */
 export const DEFAULT_THRESHOLDS: ThresholdsConfig = {
-  cpu: { high_percent: 85, critical_percent: 95, sustained_heartbeats: 3 },
-  memory: { high_percent: 85, critical_percent: 95, sustained_heartbeats: 3 },
-  disk: { high_percent: 80, critical_percent: 95, sustained_heartbeats: 0 },
+  cpu: { high_percent: 85, critical_percent: 95, sustained_seconds: 180 },
+  memory: { high_percent: 85, critical_percent: 95, sustained_seconds: 180 },
+  disk: { high_percent: 80, critical_percent: 95, sustained_seconds: 0 },
   server_offline_seconds: 180,
 };
 
@@ -168,4 +178,5 @@ export const DEFAULT_NOTIFICATIONS: NotificationsConfig = {
   notify_on_remediation: true,
   notify_on_action_failure: true,
   notify_on_action_success: false,
+  notify_on_auto_resolve: true,
 };

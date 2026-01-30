@@ -229,11 +229,11 @@ Managing a homelab with multiple servers and workstations currently requires:
 | Visual Distinction | Different icons/styling for workstations | ✅ Complete | P1 | EP0009 |
 | Workstation Cost Tracking | Calculate costs based on actual uptime | ✅ Complete | P1 | EP0009 |
 | **Configuration Management** | | | | **EP0010** |
-| Configuration Packs | Base Pack, Developer Lite, Developer Max | Not Started | P2 | EP0010 |
-| Compliance Checking | Check configs via SSH, report drift | Not Started | P2 | EP0010 |
-| Diff View | Show configuration differences | Not Started | P2 | EP0010 |
-| Apply Standard | One-click apply standard configuration | Not Started | P2 | EP0010 |
-| Compliance Dashboard | Overview of all machine compliance | Not Started | P2 | EP0010 |
+| Configuration Packs | Base Pack, Developer Lite, Developer Max | ✅ Complete | P0 | EP0010 |
+| Compliance Checking | Check configs via SSH, report drift | ✅ Complete | P0 | EP0010 |
+| Diff View | Show configuration differences | ✅ Complete | P0 | EP0010 |
+| Apply Standard | One-click apply standard configuration | ✅ Complete | P0 | EP0010 |
+| Compliance Dashboard | Overview of all machine compliance | Not Started | P1 | EP0010 |
 | **Advanced Dashboard UI** | | | | **EP0011** |
 | Reorderable Cards | Drag-and-drop card reordering | Not Started | P1 | EP0011 |
 | Card Order Persistence | Save card order to backend | Not Started | P1 | EP0011 |
@@ -693,10 +693,10 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
   - Compliance dashboard widget
 
 **Exit Criteria:**
-- [ ] Configuration packs defined (Base, Developer Lite, Developer Max)
-- [ ] Compliance checking via SSH
-- [ ] Diff view shows configuration mismatches
-- [ ] Can apply standard configs with one click
+- [x] Configuration packs defined (Base, Developer Lite, Developer Max)
+- [x] Compliance checking via SSH
+- [x] Diff view shows configuration mismatches
+- [x] Can apply standard configs with one click
 - [ ] Compliance status visible on dashboard
 - [ ] Warnings displayed for non-compliant machines
 
@@ -711,7 +711,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 **Progress:**
 - Phase 1 (Alpha): ✅ Complete (EP0008, EP0009, EP0013, EP0015) - 104 pts
 - Phase 2 (Beta): 🔶 In Progress (EP0016 ✅, EP0017 ✅, EP0011/EP0012/EP0014 pending) - 159 pts
-- Phase 3 (GA): ⬜ Not Started (EP0010) - 42 pts
+- Phase 3 (GA): 🔶 In Progress (EP0010: 62% complete, 26/42 pts done) - 42 pts
 
 ---
 
@@ -780,10 +780,10 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 #### Phase 3 (GA) Success Criteria
 
 **Configuration Management:**
-- [ ] Configuration packs defined (Base, Developer Lite, Developer Max)
-- [ ] Compliance checking completes in <10 seconds per machine
-- [ ] Diff view clearly shows configuration mismatches
-- [ ] "Apply Standard" button successfully applies configs
+- [x] Configuration packs defined (Base, Developer Lite, Developer Max)
+- [x] Compliance checking completes in <10 seconds per machine
+- [x] Diff view clearly shows configuration mismatches
+- [x] "Apply Standard" button successfully applies configs
 - [ ] Compliance dashboard widget shows status for all machines
 - [ ] Non-compliant machines show warnings (not errors)
 
@@ -1097,6 +1097,7 @@ python -m homelab_cmd.cli generate-key
 | 2026-01-28 | 2.0.5 | PRD Review: EP0017 Maintenance Mode Indicator updated to Partial (basic is_paused badge exists). Accessible Status Indicators updated to Partial (StatusLED uses shape+colour). Verified EP0013 status accurate. No undocumented features found. No TODO/FIXME debt. |
 | 2026-01-28 | 2.1.0 | **SDLC-Studio v2 Upgrade:** Added §18 Configuration Reference section (consolidated environment variables for hub and agent). Schema upgraded to v2 modular format. Created .version file for version tracking. |
 | 2026-01-28 | 2.1.1 | PRD Review: EP0017 (Desktop UX Improvements) now 100% complete - all 7 stories done. Updated all EP0017 features from Partial/Not Started to Complete. Verified: maintenance mode indicator with wrench icon and border, warning state with yellow triangle, Tailscale connectivity badge, DashboardFilters with search/filter, MetricSparkline component, StatusLED with accessible shapes, and pause/play quick action on cards. |
+| 2026-01-29 | 2.1.2 | PRD Review (EP0010): Configuration Management 62% complete (26/42 pts). US0116 (Config Packs), US0117 (Compliance Checker), US0118 (Diff View), US0119 (Apply Pack) all Done. Remaining: US0120 (Dashboard Widget), US0121 (Pack Assignment), US0122 (Drift Detection), US0123 (Remove Pack). Updated feature status and exit criteria. Phase 3 GA now In Progress. |
 
 ---
 

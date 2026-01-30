@@ -1,0 +1,37 @@
+# Developer Max Pack - Full development environment
+# Extends Developer Lite with AI tooling and containers
+
+name: Developer Max
+description: Full development environment with AI tooling
+extends: developer-lite
+
+items:
+  files:
+    # Claude Code CLI
+    - path: ~/.local/bin/claude
+      mode: "0775"
+      description: Claude Code CLI
+
+    # Ollama helper scripts
+    - path: ~/.local/bin/ollama-bench
+      mode: "0755"
+      description: Ollama benchmark tool
+
+    - path: ~/.local/bin/ollama-import-gguf
+      mode: "0755"
+      description: Ollama GGUF model importer
+
+    - path: ~/.local/bin/ollama-import-llm
+      mode: "0755"
+      description: Ollama LLM importer
+
+    # AppImages directory for LM Studio etc
+    - path: ~/AppImages
+      mode: "0775"
+      description: AppImages directory
+
+  packages:
+    - name: build-essential
+      description: C/C++ compiler and build tools
+
+  settings: []

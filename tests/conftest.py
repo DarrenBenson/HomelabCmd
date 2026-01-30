@@ -51,7 +51,11 @@ def client() -> Generator[TestClient, None, None]:
         agent_register,
         agents,
         alerts,
+        commands,
         config,
+        config_apply,
+        config_check,
+        config_packs,
         connectivity_settings,
         costs,
         discovery,
@@ -122,9 +126,15 @@ homelab infrastructure. Features include:
         app.include_router(agent_register.router, prefix="/api/v1")
         app.include_router(metrics.router, prefix="/api/v1")
         app.include_router(config.router, prefix="/api/v1")
+        # EP0010: Configuration Management
+        app.include_router(config_packs.router, prefix="/api/v1")
+        app.include_router(config_check.router, prefix="/api/v1")
+        app.include_router(config_apply.router, prefix="/api/v1")
         app.include_router(alerts.router, prefix="/api/v1")
         app.include_router(services.router, prefix="/api/v1")
         app.include_router(actions.router, prefix="/api/v1")
+        # EP0013: Synchronous Command Execution
+        app.include_router(commands.router, prefix="/api/v1")
         app.include_router(costs.router, prefix="/api/v1")
         app.include_router(scan.router, prefix="/api/v1")
         app.include_router(discovery.router, prefix="/api/v1")

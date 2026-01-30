@@ -21,7 +21,11 @@ from homelab_cmd.api.routes import (
     agent_register,
     agents,
     alerts,
+    commands,
     config,
+    config_apply,
+    config_check,
+    config_packs,
     connectivity_settings,
     costs,
     discovery,
@@ -38,8 +42,11 @@ from homelab_cmd.config import get_settings
 from homelab_cmd.db import dispose_engine, init_database
 from homelab_cmd.services.scheduler import (
     STALE_CHECK_INTERVAL_SECONDS,
+    capture_daily_costs,
+    check_config_drift,
     check_stale_servers,
     prune_old_metrics,
+    rollup_cost_snapshots,
     run_metrics_rollup,
 )
 
@@ -130,8 +137,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             id="run_metrics_rollup",
         )
 
+        # Configuration drift detection (daily at 06:00 UTC) - US0122
+        await scheduler.add_schedule(
+            check_config_drift,
+            CronTrigger(hour=6, minute=0),
+            id="check_config_drift",
+        )
+
+        # Daily cost snapshot capture (midnight UTC) - US0183
+        await scheduler.add_schedule(
+            capture_daily_costs,
+            CronTrigger(hour=0, minute=5),  # 00:05 UTC (after data prune)
+            id="capture_daily_costs",
+        )
+
+        # Monthly cost data rollup (1st of month at 02:00 UTC) - US0183
+        await scheduler.add_schedule(
+            rollup_cost_snapshots,
+            CronTrigger(day=1, hour=2, minute=0),
+            id="rollup_cost_snapshots",
+        )
+
         await scheduler.start_in_background()
-        logger.info("Background scheduler started with 3 jobs")
+        logger.info("Background scheduler started with 6 jobs")
 
         yield
 
@@ -180,6 +208,10 @@ OPENAPI_TAGS = [
     {
         "name": "Actions",
         "description": "Remediation action queue and lifecycle management.",
+    },
+    {
+        "name": "Commands",
+        "description": "Synchronous command execution via SSH (EP0013).",
     },
     {
         "name": "Costs",
@@ -269,6 +301,15 @@ homelab infrastructure. Features include:
     # Mount config routes (auth required)
     app.include_router(config.router, prefix="/api/v1")
 
+    # Mount config packs routes (auth required) - EP0010: Configuration Management
+    app.include_router(config_packs.router, prefix="/api/v1")
+
+    # Mount config check routes (auth required) - EP0010: Configuration Management
+    app.include_router(config_check.router, prefix="/api/v1")
+
+    # Mount config apply routes (auth required) - EP0010: Configuration Management (US0119)
+    app.include_router(config_apply.router, prefix="/api/v1")
+
     # Mount Tailscale settings routes (auth required) - EP0008: Tailscale Integration
     app.include_router(tailscale.router, prefix="/api/v1")
 
@@ -289,6 +330,9 @@ homelab infrastructure. Features include:
 
     # Mount actions routes (auth required)
     app.include_router(actions.router, prefix="/api/v1")
+
+    # Mount commands routes (auth required) - EP0013: Synchronous Command Execution
+    app.include_router(commands.router, prefix="/api/v1")
 
     # Mount costs routes (auth required)
     app.include_router(costs.router, prefix="/api/v1")

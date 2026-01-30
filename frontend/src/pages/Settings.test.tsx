@@ -25,9 +25,9 @@ const mockCostConfig: CostConfig = {
 
 const mockConfig: ConfigResponse = {
   thresholds: {
-    cpu: { high_percent: 85, critical_percent: 95, sustained_heartbeats: 3 },
-    memory: { high_percent: 85, critical_percent: 95, sustained_heartbeats: 3 },
-    disk: { high_percent: 80, critical_percent: 95, sustained_heartbeats: 0 },
+    cpu: { high_percent: 85, critical_percent: 95, sustained_seconds: 180 },
+    memory: { high_percent: 85, critical_percent: 95, sustained_seconds: 180 },
+    disk: { high_percent: 80, critical_percent: 95, sustained_seconds: 0 },
     server_offline_seconds: 180,
   },
   notifications: {
@@ -205,33 +205,33 @@ describe('Settings Page', () => {
       await waitFor(() => {
         expect(screen.getByTestId('cpu-duration-0')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('cpu-duration-1')).toBeInTheDocument();
-      expect(screen.getByTestId('cpu-duration-3')).toBeInTheDocument();
-      expect(screen.getByTestId('cpu-duration-5')).toBeInTheDocument();
+      expect(screen.getByTestId('cpu-duration-60')).toBeInTheDocument();
+      expect(screen.getByTestId('cpu-duration-180')).toBeInTheDocument();
+      expect(screen.getByTestId('cpu-duration-300')).toBeInTheDocument();
     });
 
-    it('changes sustained_heartbeats when duration selected', async () => {
+    it('changes sustained_seconds when duration selected', async () => {
       vi.mocked(configApi.updateThresholds).mockResolvedValue({
-        updated: ['cpu.sustained_heartbeats'],
+        updated: ['cpu.sustained_seconds'],
         thresholds: {
           ...mockConfig.thresholds,
-          cpu: { ...mockConfig.thresholds.cpu, sustained_heartbeats: 5 },
+          cpu: { ...mockConfig.thresholds.cpu, sustained_seconds: 300 },
         },
       });
 
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('cpu-duration-5')).toBeInTheDocument();
+        expect(screen.getByTestId('cpu-duration-300')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('cpu-duration-5'));
+      fireEvent.click(screen.getByTestId('cpu-duration-300'));
       fireEvent.click(screen.getByTestId('save-thresholds-button'));
 
       await waitFor(() => {
         expect(configApi.updateThresholds).toHaveBeenCalledWith(
           expect.objectContaining({
-            cpu: expect.objectContaining({ sustained_heartbeats: 5 }),
+            cpu: expect.objectContaining({ sustained_seconds: 300 }),
           })
         );
       });

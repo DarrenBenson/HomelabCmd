@@ -22,20 +22,21 @@ import type { SummaryFilterCallback } from '../components/SummaryBar';
 import { AlertBanner } from '../components/AlertBanner';
 import { AlertDetailPanel } from '../components/AlertDetailPanel';
 import { PendingActionsPanel } from '../components/PendingActionsPanel';
+import { PendingAlertCard } from '../components/PendingAlertCard';
 import { RejectModal } from '../components/RejectModal';
 import { CostBadge } from '../components/CostBadge';
 import { ConnectivityStatusBar } from '../components/ConnectivityStatusBar';
 import { AddServerModal } from '../components/AddServerModal';
 import { getServers, updateMachineType } from '../api/servers';
-import { getAlerts, acknowledgeAlert, resolveAlert } from '../api/alerts';
+import { getAlerts, acknowledgeAlert, resolveAlert, getPendingBreaches } from '../api/alerts';
 import { restartService } from '../api/services';
 import { ApiError } from '../api/client';
 import { getActions, approveAction, rejectAction } from '../api/actions';
 import { useDashboardPreferences } from '../hooks/useDashboardPreferences';
 import type { Server } from '../types/server';
-import type { Alert, AlertSeverity, AlertStatus } from '../types/alert';
+import type { Alert, AlertSeverity, AlertStatus, PendingBreach } from '../types/alert';
 import type { Action } from '../types/action';
-import { Loader2, ServerOff, AlertCircle, Settings, Radar, ListTodo, Plus, Globe, Check, Undo2 } from 'lucide-react';
+import { Loader2, ServerOff, AlertCircle, Settings, Radar, ListTodo, Plus, Globe, Check, Undo2, Clock, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const POLL_INTERVAL_MS = 30000; // 30 seconds
@@ -85,6 +86,9 @@ export function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [pendingActions, setPendingActions] = useState<Action[]>([]);
   const [inProgressActions, setInProgressActions] = useState<Action[]>([]);
+  // US0181: Pending breaches (conditions breached but duration not yet met)
+  const [pendingBreaches, setPendingBreaches] = useState<PendingBreach[]>([]);
+  const [pendingBreachesCollapsed, setPendingBreachesCollapsed] = useState(false);
   const [acknowledgingIds, setAcknowledgingIds] = useState<Set<number>>(new Set());
   const [approvingIds, setApprovingIds] = useState<Set<number>>(new Set());
   const [rejectingAction, setRejectingAction] = useState<Action | null>(null);
@@ -610,10 +614,11 @@ export function Dashboard() {
 
     async function fetchData() {
       try {
-        const [serverData, alertData, actionsData] = await Promise.all([
+        const [serverData, alertData, actionsData, pendingData] = await Promise.all([
           getServers(),
           getAlerts({ status: 'open' }),
           getActions(), // Fetch all actions, filter client-side
+          getPendingBreaches(), // US0181: Pending breaches awaiting sustained duration
         ]);
         if (!ignore) {
           if (!preferencesApplied) {
@@ -654,6 +659,8 @@ export function Dashboard() {
               ['pending', 'approved', 'executing'].includes(a.status)
             )
           );
+          // US0181: Set pending breaches
+          setPendingBreaches(pendingData.pending);
           setError(null);
         }
       } catch (err) {
@@ -898,6 +905,15 @@ export function Dashboard() {
             >
               <ListTodo className="w-5 h-5" />
             </Link>
+            <Link
+              to="/config"
+              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+              aria-label="Configuration Compliance"
+              title="Configuration Compliance"
+              data-testid="config-link"
+            >
+              <ShieldCheck className="w-5 h-5" />
+            </Link>
             <button
               onClick={() => navigate('/settings')}
               className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
@@ -1109,6 +1125,49 @@ export function Dashboard() {
               onReject={setRejectingAction}
               approvingIds={approvingIds}
             />
+
+            {/* US0181: Pending Alerts Section */}
+            {pendingBreaches.length > 0 && (
+              <section
+                className="rounded-lg border border-border-default bg-bg-secondary"
+                data-testid="pending-alerts-section"
+              >
+                <button
+                  onClick={() => setPendingBreachesCollapsed(!pendingBreachesCollapsed)}
+                  className="flex w-full items-center justify-between p-4 text-left"
+                  aria-expanded={!pendingBreachesCollapsed}
+                  data-testid="pending-alerts-toggle"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-status-warning" />
+                    <span className="font-medium text-text-primary">
+                      Pending Alerts
+                    </span>
+                    <span className="rounded-full bg-status-warning/20 px-2 py-0.5 text-xs font-medium text-status-warning">
+                      {pendingBreaches.length}
+                    </span>
+                  </div>
+                  {pendingBreachesCollapsed ? (
+                    <ChevronDown className="h-5 w-5 text-text-tertiary" />
+                  ) : (
+                    <ChevronUp className="h-5 w-5 text-text-tertiary" />
+                  )}
+                </button>
+                {!pendingBreachesCollapsed && (
+                  <div className="space-y-2 border-t border-border-default p-4" data-testid="pending-alerts-list">
+                    <p className="mb-3 text-sm text-text-secondary">
+                      These conditions are breached but waiting for sustained duration before firing.
+                    </p>
+                    {pendingBreaches.map((breach) => (
+                      <PendingAlertCard
+                        key={`${breach.server_id}-${breach.metric_type}`}
+                        breach={breach}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* US0134: Summary Bar */}
             <SummaryBar

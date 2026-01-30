@@ -5,6 +5,7 @@ This module provides scheduled jobs for:
 - Triggering offline alerts with cooldown-aware re-notifications (US0011, US0012)
 - Pruning old metrics data beyond retention period (US0009)
 - Tiered data retention with rollup (US0046)
+- Configuration drift detection (US0122)
 """
 
 import logging
@@ -14,10 +15,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, func, select
 
 from homelab_cmd.api.schemas.config import NotificationsConfig
+from homelab_cmd.db.models.alert import Alert, AlertStatus
+from homelab_cmd.db.models.config_check import ConfigCheck
 from homelab_cmd.db.models.metrics import Metrics, MetricsDaily, MetricsHourly
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.db.session import get_session_factory
-from homelab_cmd.services.alerting import AlertingService
+from homelab_cmd.services.alerting import AlertEvent, AlertingService
 from homelab_cmd.services.notifier import get_notifier
 
 logger = logging.getLogger(__name__)
@@ -490,3 +493,387 @@ async def run_metrics_rollup() -> dict[str, int]:
     )
 
     return results
+
+
+# =============================================================================
+# Configuration Drift Detection (US0122)
+# =============================================================================
+
+
+async def check_config_drift(
+    notifications_config: NotificationsConfig | None = None,
+) -> dict[str, int]:
+    """Check all eligible machines for configuration drift.
+
+    Runs daily at 6am UTC. Queries servers with assigned packs and
+    drift_detection_enabled=True, checks compliance for each pack,
+    and creates/resolves alerts based on drift.
+
+    Args:
+        notifications_config: Optional notification settings for Slack alerts.
+
+    Returns:
+        Dictionary with counts: servers_checked, packs_checked, drift_detected, resolved.
+    """
+    logger.info("Starting configuration drift detection")
+    start_time = time.monotonic()
+
+    results = {
+        "servers_checked": 0,
+        "packs_checked": 0,
+        "drift_detected": 0,
+        "resolved": 0,
+        "errors": 0,
+    }
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Query eligible servers: have assigned packs and drift detection enabled
+        eligible_servers = await session.execute(
+            select(Server)
+            .where(Server.assigned_packs.isnot(None))
+            .where(Server.drift_detection_enabled.is_(True))
+            .where(Server.status == ServerStatus.ONLINE.value)
+        )
+        servers = list(eligible_servers.scalars().all())
+
+        if not servers:
+            logger.info("No eligible servers for drift detection")
+            return results
+
+        results["servers_checked"] = len(servers)
+
+        # Get notifier if configured
+        notifier = None
+        if notifications_config and notifications_config.slack_webhook_url:
+            notifier = get_notifier(notifications_config.slack_webhook_url)
+
+        # Check each server
+        for server in servers:
+            packs = server.assigned_packs or []
+            if not packs:
+                continue
+
+            for pack_name in packs:
+                try:
+                    drift_result = await _check_server_pack_drift(
+                        session=session,
+                        server=server,
+                        pack_name=pack_name,
+                        notifier=notifier,
+                        notifications_config=notifications_config,
+                    )
+
+                    results["packs_checked"] += 1
+                    if drift_result == "drift":
+                        results["drift_detected"] += 1
+                    elif drift_result == "resolved":
+                        results["resolved"] += 1
+
+                except Exception as e:
+                    logger.error(
+                        "Drift check failed for server %s pack %s: %s",
+                        server.id,
+                        pack_name,
+                        e,
+                    )
+                    results["errors"] += 1
+
+        await session.commit()
+
+    elapsed = time.monotonic() - start_time
+    logger.info(
+        "Drift detection completed in %.2f seconds: "
+        "servers=%d, packs=%d, drift=%d, resolved=%d, errors=%d",
+        elapsed,
+        results["servers_checked"],
+        results["packs_checked"],
+        results["drift_detected"],
+        results["resolved"],
+        results["errors"],
+    )
+
+    return results
+
+
+async def _check_server_pack_drift(
+    session,
+    server: Server,
+    pack_name: str,
+    notifier,
+    notifications_config: NotificationsConfig | None,
+) -> str | None:
+    """Check a single server/pack combination for drift.
+
+    Compares current compliance state to previous check and creates/resolves
+    alerts as needed.
+
+    Args:
+        session: Database session.
+        server: Server to check.
+        pack_name: Configuration pack name.
+        notifier: Slack notifier (optional).
+        notifications_config: Notification settings.
+
+    Returns:
+        "drift" if new drift detected, "resolved" if drift resolved, None otherwise.
+    """
+    # Get the two most recent checks for this server/pack
+    result = await session.execute(
+        select(ConfigCheck)
+        .where(ConfigCheck.server_id == server.id)
+        .where(ConfigCheck.pack_name == pack_name)
+        .order_by(ConfigCheck.checked_at.desc())
+        .limit(2)
+    )
+    recent_checks = list(result.scalars().all())
+
+    if len(recent_checks) < 2:
+        # Not enough history to detect drift (first check or only one check)
+        logger.debug(
+            "Server %s pack %s: insufficient history for drift detection",
+            server.id,
+            pack_name,
+        )
+        return None
+
+    # Most recent check is first due to desc order
+    current_check = recent_checks[0]
+    previous_check = recent_checks[1]
+
+    # Check for drift: was compliant, now isn't
+    if previous_check.is_compliant and not current_check.is_compliant:
+        await _create_drift_alert(
+            session=session,
+            server=server,
+            pack_name=pack_name,
+            mismatch_count=len(current_check.mismatches or []),
+            notifier=notifier,
+            notifications_config=notifications_config,
+        )
+        return "drift"
+
+    # Check for resolution: was non-compliant, now is
+    if not previous_check.is_compliant and current_check.is_compliant:
+        resolved = await _resolve_drift_alert(
+            session=session,
+            server=server,
+            pack_name=pack_name,
+            notifier=notifier,
+            notifications_config=notifications_config,
+        )
+        if resolved:
+            return "resolved"
+
+    return None
+
+
+async def _create_drift_alert(
+    session,
+    server: Server,
+    pack_name: str,
+    mismatch_count: int,
+    notifier,
+    notifications_config: NotificationsConfig | None,
+) -> Alert:
+    """Create a config_drift alert and send Slack notification.
+
+    Args:
+        session: Database session.
+        server: Server with drift.
+        pack_name: Configuration pack name.
+        mismatch_count: Number of mismatched items.
+        notifier: Slack notifier (optional).
+        notifications_config: Notification settings.
+
+    Returns:
+        The created or updated Alert record.
+    """
+    server_name = server.display_name or server.hostname
+
+    # Check for existing open drift alert for this server/pack
+    existing_result = await session.execute(
+        select(Alert)
+        .where(Alert.server_id == server.id)
+        .where(Alert.alert_type == "config_drift")
+        .where(Alert.status == AlertStatus.OPEN.value)
+    )
+    existing_alert = existing_result.scalar_one_or_none()
+
+    if existing_alert:
+        # Update existing alert
+        existing_alert.message = (
+            f"{mismatch_count} items no longer compliant with {pack_name}"
+        )
+        existing_alert.actual_value = mismatch_count
+        logger.info(
+            "Updated existing drift alert for server %s pack %s: %d mismatches",
+            server.id,
+            pack_name,
+            mismatch_count,
+        )
+        return existing_alert
+
+    # Create new alert
+    alert = Alert(
+        server_id=server.id,
+        alert_type="config_drift",
+        severity="warning",
+        status=AlertStatus.OPEN.value,
+        title=f"Configuration drift on {server_name}",
+        message=f"{mismatch_count} items no longer compliant with {pack_name}",
+        threshold_value=0,
+        actual_value=mismatch_count,
+    )
+    session.add(alert)
+    await session.flush()
+
+    logger.info(
+        "Created drift alert for server %s pack %s: %d mismatches",
+        server.id,
+        pack_name,
+        mismatch_count,
+    )
+
+    # Send Slack notification
+    if notifier and notifications_config:
+        event = AlertEvent(
+            server_id=server.id,
+            server_name=server_name,
+            metric_type="config_drift",
+            severity="warning",
+            current_value=mismatch_count,
+            threshold_value=0,
+            is_reminder=False,
+            is_resolved=False,
+        )
+        await notifier.send_alert(event, notifications_config)
+
+    return alert
+
+
+async def _resolve_drift_alert(
+    session,
+    server: Server,
+    pack_name: str,
+    notifier,
+    notifications_config: NotificationsConfig | None,
+) -> bool:
+    """Auto-resolve drift alert when machine returns to compliance.
+
+    Args:
+        session: Database session.
+        server: Server that is now compliant.
+        pack_name: Configuration pack name.
+        notifier: Slack notifier (optional).
+        notifications_config: Notification settings.
+
+    Returns:
+        True if an alert was resolved, False otherwise.
+    """
+    server_name = server.display_name or server.hostname
+
+    # Find open drift alert for this server
+    result = await session.execute(
+        select(Alert)
+        .where(Alert.server_id == server.id)
+        .where(Alert.alert_type == "config_drift")
+        .where(Alert.status == AlertStatus.OPEN.value)
+    )
+    alert = result.scalar_one_or_none()
+
+    if not alert:
+        return False
+
+    # Resolve the alert
+    alert.resolve(auto=True)
+    await session.flush()
+
+    logger.info(
+        "Resolved drift alert for server %s pack %s",
+        server.id,
+        pack_name,
+    )
+
+    # Send Slack notification
+    if notifier and notifications_config:
+        event = AlertEvent(
+            server_id=server.id,
+            server_name=server_name,
+            metric_type="config_drift",
+            severity="resolved",
+            current_value=0,
+            threshold_value=0,
+            is_reminder=False,
+            is_resolved=True,
+        )
+        await notifier.send_alert(event, notifications_config)
+
+    return True
+
+
+# =============================================================================
+# Historical Cost Tracking (US0183)
+# =============================================================================
+
+
+async def capture_daily_costs() -> int:
+    """Capture daily cost snapshots for all servers.
+
+    AC1: Daily cost snapshot captured at midnight UTC.
+
+    Schedule: 0 0 * * * (midnight UTC)
+
+    Returns:
+        Number of snapshots captured.
+    """
+    from homelab_cmd.services.cost_history import CostHistoryService
+
+    logger.info("Starting daily cost snapshot capture")
+    start_time = time.monotonic()
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        service = CostHistoryService(session)
+        count = await service.capture_all_snapshots()
+
+    elapsed = time.monotonic() - start_time
+    logger.info(
+        "Daily cost snapshot capture completed in %.2f seconds: %d snapshots",
+        elapsed,
+        count,
+    )
+
+    return count
+
+
+async def rollup_cost_snapshots() -> dict[str, int]:
+    """Roll up old daily cost data to monthly aggregates.
+
+    AC6: Data retention - daily data older than 2 years rolled up.
+
+    Schedule: 0 2 1 * * (1st of month, 2am UTC)
+
+    Returns:
+        Dictionary with counts: {'daily_deleted': N, 'monthly_created': N}
+    """
+    from homelab_cmd.services.cost_history import CostHistoryService
+
+    logger.info("Starting cost snapshot rollup")
+    start_time = time.monotonic()
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        service = CostHistoryService(session)
+        result = await service.rollup_old_data()
+
+    elapsed = time.monotonic() - start_time
+    logger.info(
+        "Cost snapshot rollup completed in %.2f seconds: "
+        "monthly_created=%d, daily_deleted=%d",
+        elapsed,
+        result["monthly_created"],
+        result["daily_deleted"],
+    )
+
+    return result

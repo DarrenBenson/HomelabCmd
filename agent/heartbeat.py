@@ -1,8 +1,10 @@
 """Heartbeat sender for the HomelabCmd monitoring agent.
 
 This module handles sending heartbeats to the hub API with retry logic
-for handling transient network failures. Also processes pending commands
-from heartbeat responses (US0027).
+for handling transient network failures.
+
+US0152: Command execution has been removed from the agent. The hub now
+uses SSH for synchronous command execution instead of the async channel.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ def get_agent_version() -> str:
     or in /opt/homelab-agent/ for installed agents.
 
     Returns:
-        Version string (e.g., "1.0.0") or "unknown" if not found.
+        Version string (e.g., "2.0.0") or "unknown" if not found.
     """
     # Try module directory first (development)
     module_dir = Path(__file__).parent
@@ -57,24 +59,11 @@ REQUEST_TIMEOUT = 30.0
 
 
 @dataclass
-class PendingCommand:
-    """Pending command from hub to execute (US0027)."""
-
-    action_id: int
-    action_type: str
-    command: str
-    parameters: dict[str, Any]
-    timeout_seconds: int
-
-
-@dataclass
 class HeartbeatResult:
-    """Result of heartbeat request (US0027)."""
+    """Result of heartbeat request."""
 
     success: bool
     server_registered: bool
-    pending_commands: list[PendingCommand]
-    results_acknowledged: list[int]
 
 
 def send_heartbeat(
@@ -84,7 +73,6 @@ def send_heartbeat(
     mac_address: str | None,  # noqa: ARG001 - collected for future use
     package_updates: dict[str, int | None] | None,
     services: list[dict[str, Any]] | None = None,
-    command_results: list[dict[str, Any]] | None = None,
     cpu_info: dict[str, Any] | None = None,
     packages: list[dict[str, Any]] | None = None,
     filesystems: list[dict[str, Any]] | None = None,
@@ -99,14 +87,17 @@ def send_heartbeat(
         mac_address: Primary interface MAC address (for future schema extension).
         package_updates: Package update counts (updates_available, security_updates).
         services: List of service status dictionaries (name, status, pid, memory_mb, cpu_percent).
-        command_results: List of command execution results to report (US0027).
         cpu_info: CPU model and core count for power profile detection.
         packages: Detailed package update list (US0051).
         filesystems: Per-filesystem disk metrics (US0178).
         network_interfaces: Per-interface network metrics (US0179).
 
     Returns:
-        HeartbeatResult with success status and pending commands.
+        HeartbeatResult with success status.
+
+    Note:
+        US0152: Command execution has been removed. The hub now uses SSH
+        for synchronous command execution instead of the async channel.
     """
     url = f"{config.hub_url}/api/v1/agents/heartbeat"
 
@@ -130,10 +121,6 @@ def send_heartbeat(
     # Include service status if provided (US0018)
     if services:
         payload["services"] = services
-
-    # Include command results if provided (US0027)
-    if command_results:
-        payload["command_results"] = command_results
 
     # Include detailed package list if provided (US0051)
     if packages:
@@ -172,37 +159,9 @@ def send_heartbeat(
                         logger.info("Server auto-registered with hub")
                     logger.debug("Heartbeat sent successfully")
 
-                    # Parse pending commands (US0027)
-                    pending_commands = []
-                    for cmd in data.get("pending_commands", []):
-                        pending_commands.append(
-                            PendingCommand(
-                                action_id=cmd["action_id"],
-                                action_type=cmd["action_type"],
-                                command=cmd["command"],
-                                parameters=cmd.get("parameters", {}),
-                                timeout_seconds=cmd.get("timeout_seconds", 30),
-                            )
-                        )
-
-                    if pending_commands:
-                        logger.info(
-                            "Received %d pending command(s) from hub",
-                            len(pending_commands),
-                        )
-
-                    results_acknowledged = data.get("results_acknowledged", [])
-                    if results_acknowledged:
-                        logger.debug(
-                            "Hub acknowledged results for actions: %s",
-                            results_acknowledged,
-                        )
-
                     return HeartbeatResult(
                         success=True,
                         server_registered=data.get("server_registered", False),
-                        pending_commands=pending_commands,
-                        results_acknowledged=results_acknowledged,
                     )
                 elif response.status_code == 401:
                     auth_method = "api_token" if config.api_token else "api_key"
@@ -210,8 +169,6 @@ def send_heartbeat(
                     return HeartbeatResult(
                         success=False,
                         server_registered=False,
-                        pending_commands=[],
-                        results_acknowledged=[],
                     )
                 else:
                     logger.warning(
@@ -259,6 +216,4 @@ def send_heartbeat(
     return HeartbeatResult(
         success=False,
         server_registered=False,
-        pending_commands=[],
-        results_acknowledged=[],
     )

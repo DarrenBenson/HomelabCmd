@@ -3,7 +3,7 @@ import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import { getServers } from '../api/servers';
-import { getAlerts, acknowledgeAlert, resolveAlert } from '../api/alerts';
+import { getAlerts, acknowledgeAlert, resolveAlert, getPendingBreaches } from '../api/alerts';
 import { getActions, approveAction, rejectAction } from '../api/actions';
 import { restartService } from '../api/services';
 import { ApiError } from '../api/client';
@@ -19,6 +19,7 @@ vi.mock('../api/alerts', () => ({
   getAlerts: vi.fn(),
   acknowledgeAlert: vi.fn(),
   resolveAlert: vi.fn(),
+  getPendingBreaches: vi.fn(),
 }));
 
 vi.mock('../api/services', () => ({
@@ -242,6 +243,7 @@ describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (getAlerts as Mock).mockResolvedValue(emptyAlertsResponse);
+    (getPendingBreaches as Mock).mockResolvedValue({ pending: [], total: 0 });
     (getActions as Mock).mockResolvedValue(emptyActionsResponse);
   });
 

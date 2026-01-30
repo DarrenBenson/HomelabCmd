@@ -1,0 +1,50 @@
+# Starship prompt configuration
+# Managed by HomelabCmd
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_status\
+$python\
+$nodejs\
+$docker_context\
+$line_break\
+$character"""
+
+[username]
+style_user = "green bold"
+style_root = "red bold"
+format = "[$user]($style) "
+disabled = false
+show_always = false
+
+[hostname]
+ssh_only = true
+format = "on [$hostname](bold blue) "
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "cyan bold"
+
+[git_branch]
+symbol = " "
+style = "purple bold"
+
+[git_status]
+style = "red bold"
+
+[python]
+symbol = " "
+
+[nodejs]
+symbol = " "
+
+[docker_context]
+symbol = " "
+
+[character]
+success_symbol = "[>](bold green)"
+error_symbol = "[>](bold red)"

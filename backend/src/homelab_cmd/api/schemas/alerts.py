@@ -77,3 +77,27 @@ class AlertResolveResponse(BaseModel):
     status: str = Field(..., description="New status (resolved)")
     resolved_at: datetime = Field(..., description="Resolution timestamp")
     auto_resolved: bool = Field(..., description="True if auto-resolved, False if manual")
+
+
+class PendingBreachResponse(BaseModel):
+    """Schema for a pending breach (condition breached but duration not yet met)."""
+
+    server_id: str = Field(..., description="Server identifier")
+    server_name: str | None = Field(None, description="Server display name")
+    metric_type: str = Field(..., description="Type of metric (cpu, memory, disk)")
+    current_value: float | None = Field(None, description="Current metric value")
+    threshold_value: float = Field(..., description="Threshold being breached")
+    severity: str = Field(..., description="Severity if alert fires (high or critical)")
+    first_breach_at: datetime = Field(..., description="When the breach started")
+    sustained_seconds: int = Field(..., description="Required sustained duration")
+    elapsed_seconds: int = Field(..., description="Time elapsed since breach started")
+    time_until_alert: int = Field(
+        ..., description="Seconds until alert fires (0 or negative if ready to fire)"
+    )
+
+
+class PendingBreachListResponse(BaseModel):
+    """Schema for list of pending breaches."""
+
+    pending: list[PendingBreachResponse] = Field(..., description="List of pending breaches")
+    total: int = Field(..., description="Total number of pending breaches")

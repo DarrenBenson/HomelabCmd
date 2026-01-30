@@ -126,6 +126,16 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
     applicableTo: ['server', 'workstation'],
     requiresFeature: 'docker',
   },
+  {
+    id: 'compliance_dashboard',
+    title: 'Configuration Compliance',
+    description: 'Fleet-wide configuration compliance status',
+    minW: 4,
+    minH: 4,
+    defaultW: 6,
+    defaultH: 4,
+    applicableTo: ['server', 'workstation'],
+  },
 ];
 
 /**

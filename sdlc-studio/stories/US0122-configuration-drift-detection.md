@@ -1,6 +1,6 @@
 # US0122: Configuration Drift Detection
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Owner:** Darren
 > **Reviewer:** -
@@ -306,3 +306,5 @@ None
 |------|--------|--------|
 | 2026-01-28 | Claude | Initial story creation (renumbered from US0100) |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Added Story Points to header |
+| 2026-01-29 | Claude | Status: Draft → Planned. Plan PL0186 and Test Spec TS0186 created |
+| 2026-01-29 | Claude | Status: Planned → Done. Implementation complete, 14 backend tests passing |

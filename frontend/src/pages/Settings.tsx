@@ -134,8 +134,8 @@ function MetricCard({
         <div>
           <label className="mb-2 block text-sm text-text-secondary">Duration</label>
           <DurationSelector
-            value={metric.sustained_heartbeats}
-            onChange={(value) => onChange({ sustained_heartbeats: value })}
+            value={metric.sustained_seconds}
+            onChange={(value) => onChange({ sustained_seconds: value })}
             disabled={saving}
             testId={`${testIdPrefix}-duration`}
           />
@@ -253,6 +253,7 @@ export function Settings() {
         notify_on_remediation: notifications.notify_on_remediation,
         notify_on_action_failure: notifications.notify_on_action_failure,
         notify_on_action_success: notifications.notify_on_action_success,
+        notify_on_auto_resolve: notifications.notify_on_auto_resolve,
       };
       const response = await updateNotifications(update);
       setNotifications(response.notifications);
@@ -580,22 +581,44 @@ export function Settings() {
               </span>
             </div>
 
-            <label className="flex items-center gap-3 border-t border-border-default pt-4">
-              <input
-                type="checkbox"
-                checked={notifications.notify_on_remediation}
-                onChange={(e) =>
-                  setNotifications((prev) => ({
-                    ...prev,
-                    notify_on_remediation: e.target.checked,
-                  }))
-                }
-                disabled={saving}
-                className="h-4 w-4 rounded border-border-default bg-bg-tertiary text-status-success focus:ring-status-success"
-                data-testid="notify-remediation-checkbox"
-              />
-              <span className="text-text-primary">Notify when issues resolve</span>
-            </label>
+            <div className="space-y-3 border-t border-border-default pt-4">
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={notifications.notify_on_remediation}
+                  onChange={(e) =>
+                    setNotifications((prev) => ({
+                      ...prev,
+                      notify_on_remediation: e.target.checked,
+                    }))
+                  }
+                  disabled={saving}
+                  className="h-4 w-4 rounded border-border-default bg-bg-tertiary text-status-success focus:ring-status-success"
+                  data-testid="notify-remediation-checkbox"
+                />
+                <span className="text-text-primary">Notify when issues resolve</span>
+              </label>
+
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={notifications.notify_on_auto_resolve}
+                  onChange={(e) =>
+                    setNotifications((prev) => ({
+                      ...prev,
+                      notify_on_auto_resolve: e.target.checked,
+                    }))
+                  }
+                  disabled={saving}
+                  className="h-4 w-4 rounded border-border-default bg-bg-tertiary text-status-success focus:ring-status-success"
+                  data-testid="notify-auto-resolve-checkbox"
+                />
+                <span className="text-text-primary">Notify on auto-resolve</span>
+              </label>
+              <p className="ml-6 text-xs text-text-tertiary">
+                Send Slack notification when alerts automatically clear
+              </p>
+            </div>
           </div>
         </section>
 

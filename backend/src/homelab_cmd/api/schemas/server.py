@@ -115,6 +115,11 @@ class ServerUpdate(BaseModel):
         pattern=r"^(passwordless|password)$",
         description="Sudo mode: 'passwordless' or 'password'",
     )
+    config_user: str | None = Field(
+        None,
+        max_length=255,
+        description="User whose home directory to check for compliance",
+    )
     # US0137: Machine type change via drag-and-drop
     machine_type: str | None = Field(
         None,
@@ -227,6 +232,9 @@ class ServerResponse(BaseModel):
     sudo_mode: str = Field(
         default="passwordless", description="Sudo mode: 'passwordless' or 'password'"
     )
+    config_user: str | None = Field(
+        None, description="User whose home directory to check for compliance"
+    )
     created_at: datetime = Field(..., description="Server registration timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
     latest_metrics: LatestMetrics | None = Field(None, description="Most recent metrics snapshot")
@@ -243,6 +251,13 @@ class ServerResponse(BaseModel):
     active_alert_summaries: list[str] = Field(
         default_factory=list,
         description="Alert titles for tooltip display (max 3)",
+    )
+    # US0121: Pack assignment fields
+    assigned_packs: list[str] | None = Field(
+        None, description="List of assigned configuration pack names"
+    )
+    drift_detection_enabled: bool = Field(
+        True, description="Whether drift detection is enabled for this server"
     )
 
 
@@ -342,4 +357,44 @@ class StoreServerCredentialResponse(BaseModel):
     message: str = Field(
         default="Credential stored successfully",
         description="Confirmation message",
+    )
+
+
+# ===========================================================================
+# Pack Assignment Schemas (US0121)
+# ===========================================================================
+
+
+class PackAssignmentRequest(BaseModel):
+    """Request to update assigned packs for a server (US0121 AC2)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"packs": ["base", "developer-lite"]},
+                {"packs": ["base", "developer-max"]},
+            ]
+        }
+    )
+
+    packs: list[str] = Field(
+        ...,
+        min_length=1,
+        description="List of pack names to assign. Must include 'base' pack.",
+        examples=[["base", "developer-lite"], ["base", "developer-max"]],
+    )
+
+
+class PackAssignmentResponse(BaseModel):
+    """Response containing assigned packs for a server (US0121 AC2/AC3)."""
+
+    server_id: str = Field(..., description="Server identifier")
+    assigned_packs: list[str] = Field(
+        ...,
+        description="List of assigned pack names",
+        examples=[["base", "developer-lite"]],
+    )
+    drift_detection_enabled: bool = Field(
+        ...,
+        description="Whether drift detection is enabled for this server",
     )
