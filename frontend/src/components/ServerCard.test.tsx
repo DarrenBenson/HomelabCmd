@@ -127,7 +127,7 @@ describe('ServerCard', () => {
     };
     render(<ServerCard server={offlineServer} />);
     const statusLed = screen.getByRole('status');
-    expect(statusLed).toHaveClass('bg-red-500');
+    expect(statusLed).toHaveClass('border-gray-400');
   });
 
   /**
@@ -342,9 +342,9 @@ describe('ServerCard', () => {
       });
     });
 
-    // AC2: Server OFFLINE display unchanged
-    describe('AC2: Server OFFLINE display unchanged', () => {
-      it('shows "OFFLINE" for offline server (TC-US0090-02)', () => {
+    // AC2: Server OFFLINE display - consistent with workstation
+    describe('AC2: Server OFFLINE display', () => {
+      it('shows "Last seen" for offline server (consistent with workstation)', () => {
         const offlineServer: Server = {
           ...mockServer,
           status: 'offline',
@@ -353,12 +353,12 @@ describe('ServerCard', () => {
         };
         render(<ServerCard server={offlineServer} />);
 
-        // Server should NOT show "Last seen" text
-        expect(screen.queryByText(/Last seen:/)).not.toBeInTheDocument();
+        // Server should show "Last seen" text (consistent with workstation display)
+        expect(screen.getByText(/Last seen:/)).toBeInTheDocument();
       });
 
-      // US0114: Offline server shows filled red circle with X
-      it('shows red circle with X for offline server (TC-US0090-04)', () => {
+      // Offline server shows grey hollow circle (consistent with workstation)
+      it('shows grey hollow circle for offline server (consistent styling)', () => {
         const offlineServer: Server = {
           ...mockServer,
           status: 'offline',
@@ -368,8 +368,8 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineServer} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-red-500');
-        expect(statusLed).not.toHaveClass('border-gray-400');
+        expect(statusLed).toHaveClass('border-gray-400');
+        expect(statusLed).toHaveClass('bg-transparent');
       });
 
       it('treats undefined machine_type as server (default behaviour)', () => {
@@ -382,7 +382,7 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineServerNoType} />);
 
         const statusLed = screen.getByRole('status');
-        expect(statusLed).toHaveClass('bg-red-500');
+        expect(statusLed).toHaveClass('border-gray-400');
       });
     });
 
@@ -657,9 +657,9 @@ describe('ServerCard', () => {
       });
     });
 
-    // AC4: Offline workstation border style
-    describe('AC4: Offline workstation border style', () => {
-      it('shows dashed border for offline workstations (TC-US0091-07)', () => {
+    // AC4: Offline device border style - consistent grey for all offline devices
+    describe('AC4: Offline device border style', () => {
+      it('shows grey border for offline workstations', () => {
         const offlineWorkstation: Server = {
           ...mockServer,
           status: 'offline',
@@ -668,22 +668,10 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineWorkstation} />);
 
         const card = screen.getByTestId('server-card');
-        expect(card).toHaveClass('border-dashed');
+        expect(card).toHaveClass('border-l-gray-500');
       });
 
-      it('shows solid border for online workstations', () => {
-        const onlineWorkstation: Server = {
-          ...mockServer,
-          status: 'online',
-          machine_type: 'workstation',
-        };
-        render(<ServerCard server={onlineWorkstation} />);
-
-        const card = screen.getByTestId('server-card');
-        expect(card).not.toHaveClass('border-dashed');
-      });
-
-      it('shows solid border for offline servers', () => {
+      it('shows grey border for offline servers (consistent with workstations)', () => {
         const offlineServer: Server = {
           ...mockServer,
           status: 'offline',
@@ -692,10 +680,22 @@ describe('ServerCard', () => {
         render(<ServerCard server={offlineServer} />);
 
         const card = screen.getByTestId('server-card');
-        expect(card).not.toHaveClass('border-dashed');
+        expect(card).toHaveClass('border-l-gray-500');
       });
 
-      it('shows solid border for online servers', () => {
+      it('shows purple border for online workstations', () => {
+        const onlineWorkstation: Server = {
+          ...mockServer,
+          status: 'online',
+          machine_type: 'workstation',
+        };
+        render(<ServerCard server={onlineWorkstation} />);
+
+        const card = screen.getByTestId('server-card');
+        expect(card).toHaveClass('border-l-purple-500');
+      });
+
+      it('shows blue border for online servers', () => {
         const onlineServer: Server = {
           ...mockServer,
           status: 'online',
@@ -704,7 +704,7 @@ describe('ServerCard', () => {
         render(<ServerCard server={onlineServer} />);
 
         const card = screen.getByTestId('server-card');
-        expect(card).not.toHaveClass('border-dashed');
+        expect(card).toHaveClass('border-l-blue-500');
       });
     });
 
@@ -1168,22 +1168,22 @@ describe('ServerCard', () => {
    * Warning state tests (US0110)
    * Tests for servers with active alerts showing warning state
    */
-  describe('Warning state (US0110)', () => {
-    it('shows warning ring for server with active alerts', () => {
-      const warningServer: Server = {
+  describe('Critical state (US0110)', () => {
+    it('shows critical ring for server with active alerts', () => {
+      const criticalServer: Server = {
         ...mockServer,
         status: 'online',
         active_alert_count: 2,
         active_alert_summaries: ['High CPU', 'Low disk'],
       };
-      render(<ServerCard server={warningServer} />);
+      render(<ServerCard server={criticalServer} />);
 
       const card = screen.getByTestId('server-card');
       expect(card).toHaveClass('ring-2');
-      expect(card).toHaveClass('ring-yellow-500/30');
+      expect(card).toHaveClass('ring-red-500/30');
     });
 
-    it('does not show warning ring for server without alerts', () => {
+    it('does not show critical ring for server without alerts', () => {
       const normalServer: Server = {
         ...mockServer,
         status: 'online',
@@ -1193,7 +1193,7 @@ describe('ServerCard', () => {
       render(<ServerCard server={normalServer} />);
 
       const card = screen.getByTestId('server-card');
-      expect(card).not.toHaveClass('ring-yellow-500/30');
+      expect(card).not.toHaveClass('ring-red-500/30');
     });
 
     it('shows warning status tooltip with alert count', () => {

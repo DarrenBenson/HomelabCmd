@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, Wrench, Pause, Play } from 'lucide-react';
+import { AlertCircle, Wrench, Pause, Play, RefreshCw } from 'lucide-react';
 import { StatusLED } from './StatusLED';
 import { MachineTypeBadge } from './MachineTypeBadge';
 import { MachineTypeIcon } from './MachineTypeIcon';
@@ -19,9 +19,9 @@ interface ServerCardProps {
 }
 
 /**
- * US0090: Format last_seen timestamp as relative time for workstations
+ * US0090: Format last_seen timestamp as relative time for offline devices
  */
-function getWorkstationLastSeen(lastSeen: string | null): string {
+function getLastSeenText(lastSeen: string | null): string {
   if (!lastSeen) return 'Last seen: Unknown';
   return `Last seen: ${formatDistanceToNow(new Date(lastSeen), { addSuffix: true })}`;
 }
@@ -81,18 +81,19 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
   // US0115: Toggle button loading state
   const [toggling, setToggling] = useState(false);
 
-  // US0090: Check if this is an offline workstation
+  // US0090: Check if this is a workstation or offline
   const isWorkstation = server.machine_type === 'workstation';
-  const isOfflineWorkstation = server.status === 'offline' && isWorkstation;
+  const isOffline = server.status === 'offline';
+  const isOfflineWorkstation = isOffline && isWorkstation;
 
-  // US0090: Dynamic time updates for offline workstations (every 60 seconds)
+  // US0090: Dynamic time updates for offline devices (every 60 seconds)
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (isOfflineWorkstation) {
+    if (isOffline) {
       const interval = setInterval(() => setTick((t) => t + 1), 60000);
       return () => clearInterval(interval);
     }
-  }, [isOfflineWorkstation]);
+  }, [isOffline]);
 
   // US0090: Tooltip for workstation status
   const statusTitle = isOfflineWorkstation
@@ -107,9 +108,14 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
     ? 'Workstation - intermittent availability expected'
     : 'Server - 24/7 uptime expected';
 
-  // US0091: Border styling based on machine type
-  const borderColour = isWorkstation ? 'border-l-purple-500' : 'border-l-blue-500';
-  const borderStyle = isOfflineWorkstation ? 'border-dashed' : '';
+  // US0091: Border styling based on status and machine type
+  // Offline devices get grey border (consistent for both servers and workstations)
+  // Online devices get machine type colour (purple for workstations, blue for servers)
+  const borderColour = isOffline
+    ? 'border-l-gray-500'
+    : isWorkstation
+      ? 'border-l-purple-500'
+      : 'border-l-blue-500';
 
   // US0109: Maintenance mode indicator - paused but not inactive
   const showMaintenanceIndicator = server.is_paused && !isInactive;
@@ -123,10 +129,10 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
     activeAlertCount > 0;
 
   // US0110: Determine border colour based on state priority
-  // Priority: offline > paused > warning > machine type default
+  // Priority: offline > paused > critical > machine type default
   let effectiveBorderColour = borderColour;
   if (hasWarning) {
-    effectiveBorderColour = 'border-l-yellow-500';
+    effectiveBorderColour = 'border-l-red-500';
   }
 
   // US0110: StatusLED tooltip for warning state
@@ -162,10 +168,10 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
 
   return (
     <div
-      className={`bg-bg-secondary border border-border-default rounded-lg p-4 cursor-pointer transition-all duration-150 hover:border-border-strong hover:shadow-lg border-l-4 ${effectiveBorderColour} ${borderStyle} ${
+      className={`bg-bg-secondary border border-border-default rounded-lg p-4 cursor-pointer transition-all duration-150 hover:border-border-strong hover:shadow-lg border-l-4 min-h-[180px] ${effectiveBorderColour} ${
         isInactive ? 'opacity-50 grayscale' : ''
       } ${showMaintenanceIndicator ? 'ring-2 ring-amber-500/50 border-amber-500' : ''} ${
-        hasWarning ? 'ring-2 ring-yellow-500/30' : ''
+        hasWarning ? 'ring-2 ring-red-500/30' : ''
       }`}
       onClick={onClick}
       role="button"
@@ -227,26 +233,54 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
             Maintenance
           </span>
         )}
-        {/* US0110: Warning badge with alert count */}
+        {/* US0110: Critical badge with alert count */}
         {hasWarning && (
           <span
-            className="ml-auto flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 flex items-center gap-1"
+            className="ml-auto flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded bg-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-1"
             data-testid="warning-badge"
             title={getAlertTooltip(activeAlertCount, server.active_alert_summaries)}
           >
-            <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+            <AlertCircle className="w-3 h-3" aria-hidden="true" />
             {formatAlertCount(activeAlertCount)} alert{activeAlertCount !== 1 ? 's' : ''}
+          </span>
+        )}
+        {/* US0184: Agent update status badge */}
+        {server.agent_update_status && (
+          <span
+            className={`ml-auto flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded flex items-center gap-1 ${
+              server.agent_update_status === 'failed'
+                ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+            }`}
+            data-testid="agent-update-badge"
+            title={
+              server.agent_update_status === 'failed'
+                ? `Update failed: ${server.agent_update_error || 'Unknown error'}`
+                : server.agent_update_status === 'pending'
+                  ? 'Agent update queued'
+                  : 'Agent updating...'
+            }
+          >
+            <RefreshCw
+              className={`w-3 h-3 ${server.agent_update_status === 'downloading' ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {server.agent_update_status === 'failed'
+              ? 'Update failed'
+              : server.agent_update_status === 'pending'
+                ? 'Update pending'
+                : 'Updating'}
           </span>
         )}
       </div>
 
-      {/* US0090: Last seen display for offline workstations */}
-      {isOfflineWorkstation && (
+      {/* US0090: Last seen display for offline devices */}
+      {isOffline && (
         <div
           className="font-mono text-xs text-text-muted mb-3"
-          data-testid="workstation-last-seen"
+          data-testid="device-last-seen"
         >
-          {getWorkstationLastSeen(server.last_seen)}
+          {getLastSeenText(server.last_seen)}
         </div>
       )}
 
@@ -338,7 +372,7 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
             ↑ {formatUptime(metrics?.uptime_seconds ?? null)}
           </span>
         </div>
-        {/* Update indicator */}
+        {/* Update indicator - US0198: Shows upgradable vs held-back */}
         {server.updates_available !== null && server.updates_available > 0 ? (
           <span
             className="font-mono text-xs"
@@ -352,6 +386,15 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
                 ({formatUpdateCount(server.security_updates)} security)
               </span>
             )}
+          </span>
+        ) : server.held_back_count !== null && server.held_back_count !== undefined && server.held_back_count > 0 ? (
+          // All packages are held back - show held count in amber
+          <span
+            className="font-mono text-xs text-amber-500"
+            data-testid="update-indicator"
+            title="All updates held back (phased rollout or dependency)"
+          >
+            {formatUpdateCount(server.held_back_count)} held back
           </span>
         ) : server.security_updates !== null && server.security_updates > 0 ? (
           <span

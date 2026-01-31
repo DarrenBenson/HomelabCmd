@@ -29,17 +29,13 @@ describe('StatusLED (US0114: Accessible Status Indicators)', () => {
   });
 
   describe('AC2: Offline status indicator', () => {
-    it('renders red filled circle with X for offline status', () => {
+    it('renders grey hollow circle for offline status (consistent for all devices)', () => {
       render(<StatusLED status="offline" />);
       const led = screen.getByRole('status');
-      expect(led).toHaveClass('bg-red-500');
+      expect(led).toHaveClass('border-2');
+      expect(led).toHaveClass('border-gray-400');
+      expect(led).toHaveClass('bg-transparent');
       expect(led).toHaveClass('rounded-full');
-    });
-
-    it('has red glow shadow for offline status', () => {
-      render(<StatusLED status="offline" />);
-      const led = screen.getByRole('status');
-      expect(led).toHaveClass('shadow-[0_0_10px_rgba(248,113,113,0.4)]');
     });
 
     it('has accessible label for offline status', () => {
@@ -47,27 +43,36 @@ describe('StatusLED (US0114: Accessible Status Indicators)', () => {
       const led = screen.getByRole('status');
       expect(led).toHaveAttribute('aria-label', 'Server status: offline');
     });
+
+    it('offline servers and workstations have same styling', () => {
+      const { rerender } = render(<StatusLED status="offline" isWorkstation={false} />);
+      let led = screen.getByRole('status');
+      expect(led).toHaveClass('border-gray-400');
+
+      rerender(<StatusLED status="offline" isWorkstation={true} />);
+      led = screen.getByRole('status');
+      expect(led).toHaveClass('border-gray-400');
+    });
   });
 
-  describe('AC3: Warning status indicator', () => {
-    it('renders yellow triangle for warning state (online with alerts)', () => {
+  describe('AC3: Critical status indicator', () => {
+    it('renders red filled circle for critical state (online with alerts)', () => {
       render(<StatusLED status="online" activeAlertCount={2} />);
       const led = screen.getByRole('status');
-      expect(led).toHaveClass('bg-yellow-500');
-      // Triangle shape via clip-path
-      expect(led).toHaveClass('[clip-path:polygon(50%_0%,0%_100%,100%_100%)]');
+      expect(led).toHaveClass('bg-red-500');
+      expect(led).toHaveClass('rounded-full');
     });
 
     it('has accessible label showing alert count', () => {
       render(<StatusLED status="online" activeAlertCount={3} />);
       const led = screen.getByRole('status');
-      expect(led).toHaveAttribute('aria-label', 'Server status: warning - 3 active alerts');
+      expect(led).toHaveAttribute('aria-label', 'Server status: critical - 3 active alerts');
     });
 
     it('uses singular "alert" for count of 1', () => {
       render(<StatusLED status="online" activeAlertCount={1} />);
       const led = screen.getByRole('status');
-      expect(led).toHaveAttribute('aria-label', 'Server status: warning - 1 active alert');
+      expect(led).toHaveAttribute('aria-label', 'Server status: critical - 1 active alert');
     });
   });
 
@@ -97,14 +102,14 @@ describe('StatusLED (US0114: Accessible Status Indicators)', () => {
       render(<StatusLED status="offline" isPaused={true} />);
       const led = screen.getByRole('status');
       expect(led).toHaveClass('border-amber-500');
-      expect(led).not.toHaveClass('bg-red-500');
+      expect(led).not.toHaveClass('border-gray-400');
     });
 
-    it('paused takes precedence over warning state', () => {
+    it('paused takes precedence over critical state', () => {
       render(<StatusLED status="online" isPaused={true} activeAlertCount={5} />);
       const led = screen.getByRole('status');
       expect(led).toHaveClass('border-amber-500');
-      expect(led).not.toHaveClass('bg-yellow-500');
+      expect(led).not.toHaveClass('bg-red-500');
       expect(led).toHaveAttribute('aria-label', 'Server status: paused');
     });
   });
@@ -137,11 +142,11 @@ describe('StatusLED (US0114: Accessible Status Indicators)', () => {
       expect(led).toHaveClass('bg-green-500');
       expect(led.querySelector('svg')).toHaveClass('text-white');
 
-      // Offline: white icon on red background
+      // Offline: grey border (hollow circle)
       rerender(<StatusLED status="offline" />);
       led = screen.getByRole('status');
-      expect(led).toHaveClass('bg-red-500');
-      expect(led.querySelector('svg')).toHaveClass('text-white');
+      expect(led).toHaveClass('border-gray-400');
+      expect(led.querySelector('svg')).toHaveClass('text-gray-400');
     });
 
     it('paused uses border instead of background for visibility', () => {
@@ -160,7 +165,8 @@ describe('StatusLED (US0114: Accessible Status Indicators)', () => {
       expect(led).toHaveAttribute('aria-label', 'Server status: unknown');
     });
 
-    it('renders grey hollow circle for offline workstation', () => {
+    it('renders grey hollow circle for offline regardless of machine type', () => {
+      // Both workstations and servers show the same offline indicator
       render(<StatusLED status="offline" isWorkstation={true} />);
       const led = screen.getByRole('status');
       expect(led).toHaveClass('border-2');

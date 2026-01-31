@@ -6,13 +6,13 @@
  */
 
 import { cn } from '../lib/utils';
-import { Check, X, AlertTriangle, Pause, HelpCircle, Circle } from 'lucide-react';
+import { Check, AlertTriangle, Pause, HelpCircle, Circle } from 'lucide-react';
 import type { ServerStatus } from '../types/server';
 
 interface StatusLEDProps {
   status: ServerStatus;
   className?: string;
-  /** US0090: When true, offline status shows grey hollow circle */
+  /** @deprecated No longer affects display - all offline devices show grey hollow circle */
   isWorkstation?: boolean;
   /** US0109: When true, shows hollow amber circle with pause icon */
   isPaused?: boolean;
@@ -45,7 +45,6 @@ function getStatusConfig(
   status: ServerStatus,
   isPaused: boolean | undefined,
   hasWarning: boolean,
-  isWorkstation: boolean | undefined,
   activeAlertCount: number,
 ): StatusConfig {
   // Paused: hollow amber circle with pause icon
@@ -58,30 +57,22 @@ function getStatusConfig(
     };
   }
 
-  // Warning: yellow triangle with exclamation (online with alerts)
+  // Critical: red filled circle with triangle alert icon (online with alerts)
   if (hasWarning) {
     return {
-      containerClass: 'bg-yellow-500 [clip-path:polygon(50%_0%,0%_100%,100%_100%)]',
+      containerClass: 'bg-red-500',
       Icon: AlertTriangle,
-      iconClass: 'text-white mt-0.5',
-      label: `Server status: warning - ${activeAlertCount} active alert${activeAlertCount !== 1 ? 's' : ''}`,
+      iconClass: 'text-white',
+      label: `Server status: critical - ${activeAlertCount} active alert${activeAlertCount !== 1 ? 's' : ''}`,
     };
   }
 
-  // Offline: red filled circle with X (or grey hollow for workstations)
+  // Offline: grey hollow circle (consistent for all device types)
   if (status === 'offline') {
-    if (isWorkstation) {
-      return {
-        containerClass: 'border-2 border-gray-400 bg-transparent',
-        Icon: Circle,
-        iconClass: 'text-gray-400',
-        label: 'Server status: offline',
-      };
-    }
     return {
-      containerClass: 'bg-red-500 shadow-[0_0_10px_rgba(248,113,113,0.4)]',
-      Icon: X,
-      iconClass: 'text-white',
+      containerClass: 'border-2 border-gray-400 bg-transparent',
+      Icon: Circle,
+      iconClass: 'text-gray-400',
       label: 'Server status: offline',
     };
   }
@@ -108,7 +99,6 @@ function getStatusConfig(
 export function StatusLED({
   status,
   className,
-  isWorkstation,
   isPaused,
   activeAlertCount,
   title,
@@ -120,7 +110,6 @@ export function StatusLED({
     status,
     isPaused,
     hasWarning,
-    isWorkstation,
     activeAlertCount ?? 0,
   );
 
