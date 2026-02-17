@@ -64,6 +64,10 @@ class HeartbeatResult:
 
     success: bool
     server_registered: bool
+    # US0184: Agent auto-update fields from response
+    latest_agent_version: str | None = None
+    update_command: str | None = None
+    response_data: dict | None = None  # Full response for update handling
 
 
 def send_heartbeat(
@@ -77,6 +81,8 @@ def send_heartbeat(
     packages: list[dict[str, Any]] | None = None,
     filesystems: list[dict[str, Any]] | None = None,
     network_interfaces: list[dict[str, Any]] | None = None,
+    docker_installed: bool | None = None,
+    docker_status: dict[str, int] | None = None,
 ) -> HeartbeatResult:
     """Send heartbeat to hub API with retry logic.
 
@@ -91,6 +97,8 @@ def send_heartbeat(
         packages: Detailed package update list (US0051).
         filesystems: Per-filesystem disk metrics (US0178).
         network_interfaces: Per-interface network metrics (US0179).
+        docker_installed: Whether Docker CLI is installed (US0157).
+        docker_status: Container status summary (US0163).
 
     Returns:
         HeartbeatResult with success status.
@@ -112,6 +120,8 @@ def send_heartbeat(
         "metrics": metrics,
         "updates_available": package_updates.get("updates_available") if package_updates else None,
         "security_updates": package_updates.get("security_updates") if package_updates else None,
+        # US0198: held-back package count (phased, dependency, manual holds)
+        "held_back_count": package_updates.get("held_back_count") if package_updates else None,
     }
 
     # Include CPU info for power profile detection
@@ -133,6 +143,14 @@ def send_heartbeat(
     # Include per-interface network metrics (US0179)
     if network_interfaces:
         payload["network_interfaces"] = network_interfaces
+
+    # US0157: Include Docker detection status (EP0014)
+    if docker_installed is not None:
+        payload["docker_installed"] = docker_installed
+
+    # US0163: Include Docker container status (EP0014)
+    if docker_status is not None:
+        payload["docker_status"] = docker_status
 
     # Build authentication headers (per-agent token preferred, fall back to legacy key)
     headers: dict[str, str] = {
@@ -159,9 +177,21 @@ def send_heartbeat(
                         logger.info("Server auto-registered with hub")
                     logger.debug("Heartbeat sent successfully")
 
+                    # US0184: Extract auto-update fields from response
+                    latest_version = data.get("latest_agent_version")
+                    update_cmd = data.get("update_command")
+
+                    if latest_version:
+                        logger.debug("Hub reports latest agent version: %s", latest_version)
+                    if update_cmd:
+                        logger.info("Received update command from hub: %s", update_cmd)
+
                     return HeartbeatResult(
                         success=True,
                         server_registered=data.get("server_registered", False),
+                        latest_agent_version=latest_version,
+                        update_command=update_cmd,
+                        response_data=data,
                     )
                 elif response.status_code == 401:
                     auth_method = "api_token" if config.api_token else "api_key"

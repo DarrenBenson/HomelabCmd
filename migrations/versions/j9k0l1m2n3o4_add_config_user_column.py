@@ -1,7 +1,7 @@
 """Add config_user column to servers table.
 
-Revision ID: j8k9l0m1n2o3
-Revises: i7j8k9l0m1n2
+Revision ID: j9k0l1m2n3o4
+Revises: j8k9l0m1n2o3
 Create Date: 2026-01-30
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "j8k9l0m1n2o3"
-down_revision = "i7j8k9l0m1n2"
+revision = "j9k0l1m2n3o4"
+down_revision = "j8k9l0m1n2o3"
 branch_labels = None
 depends_on = None
 

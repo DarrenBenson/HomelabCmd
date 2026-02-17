@@ -43,13 +43,28 @@ def temp_packs_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def setup_test_packs(temp_packs_dir: Path):
-    """Set up test packs for API tests."""
+    """Set up test packs for API tests.
+
+    Patches ConfigPackService in both config_packs and servers modules
+    to use the temp directory with test packs.
+    """
+    from unittest.mock import patch
+
     import homelab_cmd.api.routes.config_packs as config_packs_module
 
-    original_service = config_packs_module._service
-    config_packs_module._service = ConfigPackService(packs_dir=temp_packs_dir)
+    test_service = ConfigPackService(packs_dir=temp_packs_dir)
 
-    yield config_packs_module._service
+    original_service = config_packs_module._service
+    config_packs_module._service = test_service
+
+    # Also patch ConfigPackService class in the services module.
+    # The servers.py imports it inside update_assigned_packs function,
+    # so we patch the class itself to return our test service instance.
+    with patch(
+        "homelab_cmd.services.config_pack_service.ConfigPackService",
+        return_value=test_service,
+    ):
+        yield test_service
 
     config_packs_module._service = original_service
 

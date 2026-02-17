@@ -245,8 +245,8 @@ describe('ActionsPage', () => {
       });
 
       const statusFilter = screen.getByTestId('status-filter') as HTMLSelectElement;
-      // All + 6 statuses (pending, approved, executing, completed, failed, rejected)
-      expect(statusFilter.options.length).toBe(7);
+      // All + 7 statuses (pending, approved, executing, completed, failed, rejected, timed_out)
+      expect(statusFilter.options.length).toBe(8);
     });
 
     it('calls API with status filter when changed', async () => {

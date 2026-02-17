@@ -1,6 +1,6 @@
 # WF0008: Remove Agent API SSH Credentials and Verification - Story Workflow
 
-> **Status:** Paused
+> **Status:** Done
 > **Story:** [US0075: Remove Agent API SSH Credentials and Verification](../stories/US0075-remove-agent-ssh-credentials.md)
 > **Epic:** [EP0001: Core Monitoring](../epics/EP0001-core-monitoring.md)
 > **Started:** 2026-01-24
@@ -13,7 +13,7 @@
 | Story | US0075 |
 | Approach | TDD |
 | Phases | 7 |
-| Current Phase | 2 |
+| Current Phase | 7 (Done) |
 
 ## Approach Decision
 
@@ -72,18 +72,11 @@
 | 2026-01-24 | 1 | Story status is Draft, not Ready. | Updated story readiness checklist and set status to Ready. |
 | 2026-01-24 | 1 | Plan paused pending story Ready status. | Created PL0053 after marking story Ready. |
 
-## Resume Instructions
+## Completion Notes
 
-**Paused at:** Phase 2 - Test Spec
-**Reason:** Phase 1 completed; ready to generate test specification.
+**Status:** Story US0075 completed outside of workflow tracking.
 
-**To resume:**
-```
-/sdlc-studio story implement --story US0075 --from-phase 2
-```
-
-**Before resuming:**
-Run test specification generation for US0075.
+The story was implemented and marked Done, but this workflow was not updated during implementation. Workflow status updated to Done on 2026-01-30 to reflect actual state.
 
 ## Artifacts Created
 
@@ -101,4 +94,4 @@ Run test specification generation for US0075.
 
 ## Notes
 
-Story is Draft and cannot enter planning phase until Ready criteria are satisfied.
+Story US0075 was completed outside of this workflow tracking. Workflow retroactively marked as Done.

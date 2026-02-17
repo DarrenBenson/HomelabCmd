@@ -22,7 +22,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ServiceManagementModal } from './ServiceManagementModal';
-import { listSSHKeys } from '../api/scans';
+import { listSSHKeys, getSSHConfig } from '../api/scans';
 import {
   getServerServices,
   discoverServices,
@@ -33,6 +33,7 @@ import type { ServerDetail } from '../types/server';
 
 vi.mock('../api/scans', () => ({
   listSSHKeys: vi.fn(),
+  getSSHConfig: vi.fn(),
 }));
 
 vi.mock('../api/services', () => ({
@@ -44,6 +45,7 @@ vi.mock('../api/services', () => ({
 }));
 
 const mockListSSHKeys = listSSHKeys as ReturnType<typeof vi.fn>;
+const mockGetSSHConfig = getSSHConfig as ReturnType<typeof vi.fn>;
 const mockGetServerServices = getServerServices as ReturnType<typeof vi.fn>;
 const mockDiscoverServices = discoverServices as ReturnType<typeof vi.fn>;
 const mockCreateExpectedService = createExpectedService as ReturnType<typeof vi.fn>;
@@ -140,6 +142,7 @@ describe('ServiceManagementModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListSSHKeys.mockResolvedValue({ keys: mockSSHKeys });
+    mockGetSSHConfig.mockResolvedValue({ default_username: 'root' });
     mockGetServerServices.mockResolvedValue({ services: mockServices });
     mockDiscoverServices.mockResolvedValue({
       services: [
@@ -187,6 +190,7 @@ describe('ServiceManagementModal', () => {
     it('shows loading spinner while fetching data', async () => {
       // Delay resolution to capture loading state
       mockListSSHKeys.mockReturnValue(new Promise(() => {}));
+      mockGetSSHConfig.mockReturnValue(new Promise(() => {}));
       mockGetServerServices.mockReturnValue(new Promise(() => {}));
 
       renderModal();

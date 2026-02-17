@@ -55,7 +55,15 @@ def mock_ssh_executor():
 @pytest.fixture
 def mock_session():
     """Create a mock database session."""
-    session = AsyncMock()
+    session = MagicMock()
+    # Mock execute to return a result with synchronous scalar_one_or_none method
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    session.execute = AsyncMock(return_value=mock_result)
+    # commit is async
+    session.commit = AsyncMock()
+    # add is sync (no await)
+    session.add = MagicMock()
     return session
 
 

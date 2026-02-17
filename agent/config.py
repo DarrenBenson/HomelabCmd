@@ -55,6 +55,8 @@ class AgentConfig:
     command_execution_enabled: bool = False
     use_sudo: bool = False
     command_timeout: int = DEFAULT_COMMAND_TIMEOUT
+    # US0184: Agent auto-update settings (local override, hub still controls per-server)
+    auto_update: bool = True  # Local preference, combined with hub setting
 
     def has_valid_auth(self) -> bool:
         """Check if this agent has valid authentication configured.
@@ -201,6 +203,9 @@ def load_config_from_env() -> AgentConfig | None:
     use_sudo = os.environ.get("HOMELAB_AGENT_USE_SUDO", "false").lower() == "true"
     command_timeout = int(os.environ.get("HOMELAB_AGENT_COMMAND_TIMEOUT", DEFAULT_COMMAND_TIMEOUT))
 
+    # US0184: Auto-update setting (local preference)
+    auto_update = os.environ.get("HOMELAB_AGENT_AUTO_UPDATE", "true").lower() == "true"
+
     auth_method = "per_agent" if api_token else "legacy"
     logger.info(
         "Loaded configuration from environment variables (mode=%s, auth=%s)", mode, auth_method
@@ -217,6 +222,7 @@ def load_config_from_env() -> AgentConfig | None:
         command_execution_enabled=command_execution_enabled,
         use_sudo=use_sudo,
         command_timeout=command_timeout,
+        auto_update=auto_update,
     )
 
 
@@ -282,6 +288,11 @@ def load_config(
         api_key = data.get("api_key")
         auth_method = "per_agent" if api_token else "legacy"
 
+        # US0184: Auto-update setting (local preference)
+        auto_update = data.get("auto_update", True)
+        if not isinstance(auto_update, bool):
+            auto_update = str(auto_update).lower() == "true"
+
         logger.info(
             "Loaded configuration from %s (mode=%s, auth=%s)", config_path, mode, auth_method
         )
@@ -297,6 +308,7 @@ def load_config(
             command_execution_enabled=bool(command_config.get("enabled", False)),
             use_sudo=bool(command_config.get("use_sudo", False)),
             command_timeout=int(command_config.get("timeout_seconds", DEFAULT_COMMAND_TIMEOUT)),
+            auto_update=auto_update,
         )
 
     # Fall back to environment variables

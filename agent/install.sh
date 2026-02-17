@@ -231,6 +231,10 @@ if [[ "$SCRIPT_DIR" != "$AGENT_DIR" ]]; then
     cp "$SCRIPT_DIR/config.py" "$AGENT_DIR/"
     cp "$SCRIPT_DIR/collectors.py" "$AGENT_DIR/"
     cp "$SCRIPT_DIR/heartbeat.py" "$AGENT_DIR/"
+    # Copy updater.py for self-update support (US0184)
+    if [[ -f "$SCRIPT_DIR/updater.py" ]]; then
+        cp "$SCRIPT_DIR/updater.py" "$AGENT_DIR/"
+    fi
     # Copy executor.py if it exists (for readwrite mode)
     if [[ -f "$SCRIPT_DIR/executor.py" ]]; then
         cp "$SCRIPT_DIR/executor.py" "$AGENT_DIR/"

@@ -304,8 +304,8 @@ class ConfigApplyService:
                 await self._fail_apply(apply_record, session, str(e))
                 return
 
-            # Get SSH connection
-            hostname = server.tailscale_hostname or server.hostname
+            # Get SSH connection - prefer Tailscale hostname, then IP address
+            hostname = server.tailscale_hostname or server.ip_address
             username = server.ssh_username or "root"
 
             try:
@@ -805,8 +805,8 @@ class ConfigApplyService:
         # Load pack
         pack = self._pack_service.load_pack(pack_name)
 
-        # Get SSH connection
-        hostname = server.tailscale_hostname or server.hostname
+        # Get SSH connection - prefer Tailscale hostname, then IP address
+        hostname = server.tailscale_hostname or server.ip_address
         username = server.ssh_username or "root"
 
         try:

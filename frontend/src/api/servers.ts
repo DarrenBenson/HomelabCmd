@@ -5,6 +5,7 @@ import type {
   MetricsHistoryResponse,
   TimeRange,
   PackagesResponse,
+  PackageStatusResponse,
   ServerCredentialsResponse,
   SudoMode,
   PackAssignmentResponse,
@@ -41,6 +42,14 @@ export async function getServerPackages(serverId: string): Promise<PackagesRespo
 }
 
 /**
+ * Get package status with held-back detection (US0198).
+ * Connects via SSH to query apt status in real-time.
+ */
+export async function getPackageStatus(serverId: string): Promise<PackageStatusResponse> {
+  return api.get<PackageStatusResponse>(`/api/v1/servers/${serverId}/packages/status`);
+}
+
+/**
  * Update server fields (power config, credential settings).
  */
 export async function updateServer(
@@ -58,6 +67,8 @@ export interface ServerUpdateRequest {
   ssh_username?: string | null;
   sudo_mode?: SudoMode;
   machine_type?: 'server' | 'workstation';
+  // US0184: Agent auto-update toggle
+  auto_update_agent?: boolean;
 }
 
 /**
@@ -140,4 +151,33 @@ export async function updateAssignedPacks(
     `/api/v1/servers/${serverId}/config/packs`,
     { packs }
   );
+}
+
+// ===========================================================================
+// Agent Auto-Update API (US0184)
+// ===========================================================================
+
+/**
+ * Trigger a manual agent update for a server.
+ * Queues the agent for update on next heartbeat.
+ */
+export async function triggerAgentUpdate(
+  serverId: string
+): Promise<{ message: string; status: string }> {
+  return api.post<{ message: string; status: string }>(
+    `/api/v1/servers/${serverId}/trigger-update`,
+    {}
+  );
+}
+
+/**
+ * Toggle auto-update setting for a server's agent.
+ */
+export async function setAutoUpdateAgent(
+  serverId: string,
+  enabled: boolean
+): Promise<ServerDetail> {
+  return api.put<ServerDetail>(`/api/v1/servers/${serverId}`, {
+    auto_update_agent: enabled,
+  });
 }

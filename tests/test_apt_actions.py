@@ -7,9 +7,7 @@ Test Cases Covered:
 - TC190-TC206: API endpoints, whitelist validation, approval workflow
 """
 
-from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from homelab_cmd.api.schemas.actions import ActionType
@@ -260,13 +258,13 @@ class TestAptActionDuplicates:
         client.post("/api/v1/agents/heartbeat", json=heartbeat_data, headers=auth_headers)
 
     def test_duplicate_apt_action_rejected(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """TC199: Duplicate apt action rejected while one is pending/approved/executing."""
         server_id = "apt-dup-server"
         self._create_server(client, auth_headers, server_id)
 
-        # Create first action
+        # Create first action (SSH execution mocked to keep status as approved)
         response1 = client.post(
             "/api/v1/actions",
             json={"server_id": server_id, "action_type": "apt_update"},
@@ -285,13 +283,13 @@ class TestAptActionDuplicates:
         assert data["detail"]["code"] == "CONFLICT"
 
     def test_different_apt_action_types_conflict(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """Different apt action types on same server should conflict."""
         server_id = "apt-cross-dup-server"
         self._create_server(client, auth_headers, server_id)
 
-        # Create apt_update action
+        # Create apt_update action (SSH execution mocked to keep status as approved)
         response1 = client.post(
             "/api/v1/actions",
             json={"server_id": server_id, "action_type": "apt_update"},
@@ -308,56 +306,9 @@ class TestAptActionDuplicates:
         assert response2.status_code == 409
 
 
-class TestExecutorWhitelist:
-    """Test agent executor whitelist validation for APT commands."""
-
-    def test_apt_update_in_whitelist(self):
-        """TC191: apt-get update command passes whitelist validation."""
-        from agent.executor import DEBIAN_FRONTEND, is_whitelisted
-
-        assert (
-            is_whitelisted(f"{DEBIAN_FRONTEND} apt-get update -q -o APT::Sandbox::User=root")
-            is True
-        )
-
-    def test_apt_upgrade_in_whitelist(self):
-        """TC193: apt-get dist-upgrade -y command passes whitelist validation."""
-        from agent.executor import APT_OPTIONS, DEBIAN_FRONTEND, is_whitelisted
-
-        assert (
-            is_whitelisted(f"{DEBIAN_FRONTEND} apt-get dist-upgrade {APT_OPTIONS} -o APT::Sandbox::User=root")
-            is True
-        )
-
-    def test_apt_install_packages_in_whitelist(self):
-        """TC196: apt-get install -y <packages> command passes whitelist validation."""
-        from agent.executor import APT_OPTIONS, DEBIAN_FRONTEND, is_whitelisted
-
-        assert (
-            is_whitelisted(
-                f"{DEBIAN_FRONTEND} apt-get install {APT_OPTIONS} -o APT::Sandbox::User=root openssl libssl3"
-            )
-            is True
-        )
-
-    def test_echo_no_security_in_whitelist(self):
-        """Verify echo command for no security packages is whitelisted."""
-        from agent.executor import is_whitelisted
-
-        assert is_whitelisted("echo 'No security packages to upgrade'") is True
-
-    def test_apt_remove_not_in_whitelist(self):
-        """TC200: apt remove command is not in whitelist (security)."""
-        from agent.executor import is_whitelisted
-
-        assert is_whitelisted("apt remove openssl") is False
-
-    def test_command_injection_blocked(self):
-        """TC206: Command injection via package name is blocked."""
-        from agent.executor import is_whitelisted
-
-        assert is_whitelisted("apt install -y openssl; rm -rf /") is False
-        assert is_whitelisted("apt install -y $(cat /etc/passwd)") is False
+# Note: TestExecutorWhitelist tests were removed - agent.executor module was removed
+# in EP0013 (synchronous SSH command execution). Command whitelist validation is now
+# tested in test_command_whitelist.py against the backend service.
 
 
 class TestAptActionResults:
@@ -409,22 +360,6 @@ class TestAptActionResults:
         assert len(apt_actions) >= 1
 
 
-class TestAptCommandExecution:
-    """Test APT command execution with timeout."""
-
-    @pytest.mark.asyncio
-    async def test_apt_command_execution_with_timeout(self):
-        """TC201: apt command executed with extended timeout."""
-        from agent.executor import APT_OPTIONS, DEBIAN_FRONTEND, execute_command
-
-        with patch("agent.executor.asyncio.create_subprocess_shell") as mock_proc:
-            mock_proc.return_value.communicate.return_value = (b"Success", b"")
-            mock_proc.return_value.returncode = 0
-
-            result = await execute_command(
-                action_id=1,
-                command=f"{DEBIAN_FRONTEND} apt-get dist-upgrade {APT_OPTIONS} -o APT::Sandbox::User=root",
-                timeout=600,  # 10 minute timeout
-            )
-
-            assert result.success is True
+# Note: TestAptCommandExecution tests were removed - agent.executor module was removed
+# in EP0013 (synchronous SSH command execution). Command execution is now handled by
+# the hub's SSH executor and tested in test_ssh_executor_service.py.

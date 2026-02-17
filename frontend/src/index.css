@@ -205,6 +205,18 @@ body {
   border-color: var(--color-status-info);
 }
 
+/* Device card animations (EP0019: Unified Discovery) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Mobile touch handling (US0177: Responsive Widget Layout) */
 @media (max-width: 767px) {
   /* Ensure smooth scrolling on mobile - no drag conflicts */

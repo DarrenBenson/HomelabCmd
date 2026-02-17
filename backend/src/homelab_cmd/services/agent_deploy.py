@@ -30,11 +30,12 @@ from homelab_cmd.db.models.agent_credential import AgentCredential
 from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.db.models.service import ExpectedService
-from homelab_cmd.services.ssh import SSHConnectionService
+from homelab_cmd.services.ssh import get_ssh_service
 from homelab_cmd.services.token_service import TokenService
 
 if TYPE_CHECKING:
     from homelab_cmd.services.credential_service import CredentialService
+    from homelab_cmd.services.ssh import SSHConnectionService
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ AGENT_FILES = [
     "config.py",
     "collectors.py",
     "heartbeat.py",
-    "executor.py",
+    "updater.py",  # US0184: Agent auto-update module
     "homelab-agent.service",
     "install.sh",
     "requirements.txt",
@@ -208,15 +209,17 @@ class AgentDeploymentService:
         self,
         session: AsyncSession,
         credential_service: CredentialService | None = None,
+        ssh_service: "SSHConnectionService | None" = None,
     ) -> None:
         """Initialise the deployment service.
 
         Args:
             session: Database session for server operations.
             credential_service: Optional credential service for retrieving stored credentials.
+            ssh_service: Optional SSH connection service (for testing).
         """
         self.session = session
-        self.ssh = SSHConnectionService()
+        self.ssh = ssh_service if ssh_service is not None else get_ssh_service()
         self.settings = get_settings()
         self.credential_service = credential_service
 
@@ -484,20 +487,21 @@ class AgentDeploymentService:
                 error="Cannot upgrade inactive server. Re-install agent instead.",
             )
 
-        if not server.ip_address and not server.hostname:
+        # Prefer tailscale_hostname for SSH connection, fall back to IP/hostname
+        hostname = server.tailscale_hostname or server.ip_address or server.hostname
+        if not hostname:
             return DeploymentResult(
                 success=False,
                 server_id=server_id,
-                error="Server has no hostname or IP address for connection",
+                error="Server has no hostname, IP address, or Tailscale hostname for connection",
             )
 
-        hostname = server.ip_address or server.hostname
-
-        # Get key_usernames from database (US0072/US0073)
+        # Get SSH config from database (US0072/US0073)
         ssh_config = await self.session.execute(select(Config).where(Config.key == "ssh"))
         ssh_config_row = ssh_config.scalar_one_or_none()
         ssh_db_config = ssh_config_row.value if ssh_config_row else {}
         key_usernames = ssh_db_config.get("key_usernames", {})
+        default_username = ssh_db_config.get("default_username")
 
         # Use existing GUID or generate new one for upgrade
         server_guid = server.guid or str(uuid.uuid4())
@@ -562,6 +566,7 @@ class AgentDeploymentService:
         # Execute via SSH
         result = await self.ssh.execute_command(
             hostname=hostname,
+            username=default_username,
             command=upgrade_cmd,
             command_timeout=60,
             key_usernames=key_usernames,
@@ -617,7 +622,8 @@ class AgentDeploymentService:
                 error=f"Server '{server_id}' not found",
             )
 
-        hostname = server.ip_address or server.hostname
+        # Prefer tailscale_hostname for SSH connection
+        hostname = server.tailscale_hostname or server.ip_address or server.hostname
         warnings: list[str] = []
 
         # Get SSH config from database (US0072/US0073)
@@ -825,6 +831,225 @@ class AgentDeploymentService:
             return message
         return message + ". Warning: " + " Warning: ".join(warnings)
 
+    async def switch_agent_mode(
+        self,
+        server_id: str,
+        new_mode: str,
+        sudo_password: str | None = None,
+    ) -> DeploymentResult:
+        """Switch an agent's mode remotely via SSH.
+
+        US0188: Remote Agent Mode Switch
+
+        Args:
+            server_id: Server identifier.
+            new_mode: Target mode ("readonly" or "readwrite").
+            sudo_password: Password for sudo (if user requires password for sudo).
+
+        Returns:
+            DeploymentResult with success/failure details.
+        """
+        # Validate mode
+        if new_mode not in ("readonly", "readwrite"):
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error=f"Invalid mode '{new_mode}'. Must be 'readonly' or 'readwrite'.",
+            )
+
+        # Get server
+        server = await self.session.get(Server, server_id)
+        if not server:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error=f"Server '{server_id}' not found",
+            )
+
+        if server.is_inactive:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error="Cannot switch mode for inactive server",
+            )
+
+        # Check if mode is already the target
+        if server.agent_mode == new_mode:
+            return DeploymentResult(
+                success=True,
+                server_id=server_id,
+                message=f"Agent is already in {new_mode} mode",
+            )
+
+        # Get SSH config from database
+        ssh_config = await self.session.execute(select(Config).where(Config.key == "ssh"))
+        ssh_config_row = ssh_config.scalar_one_or_none()
+        ssh_db_config = ssh_config_row.value if ssh_config_row else {}
+
+        # Check if SSH keys are available on disk
+        available_keys = self.ssh.get_available_keys()
+        if not available_keys:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error="SSH key not configured. Configure SSH key in Settings first.",
+            )
+
+        # Get default username
+        default_username = ssh_db_config.get(
+            "default_username", self.settings.ssh_default_username
+        )
+
+        # Get key_usernames for per-key username associations
+        key_usernames = ssh_db_config.get("key_usernames", {})
+
+        # Get server hostname - prefer tailscale hostname, then IP address
+        # Avoid using server.hostname as it may resolve to 127.0.1.1 via /etc/hosts
+        hostname = server.tailscale_hostname or server.ip_address
+        if not hostname:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error="No hostname or Tailscale hostname configured for server",
+            )
+
+        # Get the server's GUID and existing credential for API token
+        if not server.guid:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error="Server has no GUID. Agent may need to be reinstalled.",
+            )
+
+        # Get existing agent credential
+        credential_result = await self.session.execute(
+            select(AgentCredential).where(AgentCredential.server_guid == server.guid)
+        )
+        credential = credential_result.scalar_one_or_none()
+
+        if not credential:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error="No agent credential found. Agent may need to be reinstalled.",
+            )
+
+        # Build the tarball with new mode
+        try:
+            hub_url = (
+                self.settings.external_url
+                or f"http://{self.settings.host}:{self.settings.port}"
+            )
+
+            # Get existing monitored services for this server
+            services_result = await self.session.execute(
+                select(ExpectedService.service_name, ExpectedService.is_critical).where(
+                    ExpectedService.server_id == server_id
+                )
+            )
+            services = services_result.all()
+            monitored_services = [s[0] for s in services]
+            core_services = [s[0] for s in services if s[1]]
+
+            # Generate a fresh API token for the mode switch
+            # This ensures the agent has a valid token after reinstall
+            new_token = TokenService.generate_agent_token(server.guid)
+
+            tarball = build_agent_tarball(
+                hub_url=hub_url,
+                server_id=server_id,
+                server_guid=server.guid,
+                api_token=new_token.plaintext,
+                monitored_services=monitored_services if monitored_services else None,
+                core_services=core_services if core_services else None,
+                command_execution_enabled=(new_mode == "readwrite"),
+                use_sudo=(new_mode == "readwrite"),
+            )
+        except FileNotFoundError as e:
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error=str(e),
+            )
+
+        # Encode tarball as base64 for transfer
+        tarball_b64 = base64.b64encode(tarball).decode("ascii")
+
+        # Build installation command for mode switch
+        if sudo_password:
+            escaped_pw = sudo_password.replace("'", "'\"'\"'")
+            install_cmd = f"""
+                echo "{tarball_b64}" | base64 -d > /tmp/homelab-agent.tar.gz && \
+                echo '{escaped_pw}' | sudo -S bash -c '
+                    mkdir -p {INSTALL_DIR} {CONFIG_DIR} && \
+                    tar -xzf /tmp/homelab-agent.tar.gz -C / && \
+                    chmod 600 {CONFIG_DIR}/config.yaml && \
+                    chmod +x {INSTALL_DIR}/install.sh && \
+                    cd {INSTALL_DIR} && ./install.sh --remote --mode {new_mode} && \
+                    cp {INSTALL_DIR}/homelab-agent.service /etc/systemd/system/homelab-agent.service && \
+                    systemctl daemon-reload && \
+                    systemctl restart homelab-agent.service
+                ' && \
+                rm -f /tmp/homelab-agent.tar.gz
+            """
+        else:
+            install_cmd = f"""
+                echo "{tarball_b64}" | base64 -d > /tmp/homelab-agent.tar.gz && \
+                sudo mkdir -p {INSTALL_DIR} {CONFIG_DIR} && \
+                sudo tar -xzf /tmp/homelab-agent.tar.gz -C / && \
+                sudo chmod 600 {CONFIG_DIR}/config.yaml && \
+                sudo chmod +x {INSTALL_DIR}/install.sh && \
+                cd {INSTALL_DIR} && sudo ./install.sh --remote --mode {new_mode} && \
+                sudo cp {INSTALL_DIR}/homelab-agent.service /etc/systemd/system/homelab-agent.service && \
+                sudo systemctl daemon-reload && \
+                sudo systemctl restart homelab-agent.service && \
+                rm -f /tmp/homelab-agent.tar.gz
+            """
+
+        # Execute via SSH
+        result = await self.ssh.execute_command(
+            hostname=hostname,
+            command=install_cmd,
+            command_timeout=120,  # 2 minutes for installation
+            key_usernames=key_usernames,
+            username=default_username,
+        )
+
+        if not result.success:
+            error_msg = result.error or result.stderr or "Mode switch failed"
+            # Add helpful context for common errors
+            if "permission denied" in error_msg.lower():
+                error_msg = f"{error_msg}. Sudo access may be required."
+            elif "no such file" in error_msg.lower() and "install.sh" in error_msg.lower():
+                error_msg = "Agent install script not found. Agent may not be properly installed."
+            return DeploymentResult(
+                success=False,
+                server_id=server_id,
+                error=error_msg,
+            )
+
+        # Update server's agent_mode in database
+        server.agent_mode = new_mode
+        await self.session.flush()
+
+        # Update credential with new token hash
+        credential.api_token_hash = new_token.token_hash
+        credential.api_token_prefix = new_token.prefix
+        await self.session.flush()
+
+        logger.info(
+            "Switched agent mode for server %s to %s",
+            server_id,
+            new_mode,
+        )
+
+        return DeploymentResult(
+            success=True,
+            server_id=server_id,
+            message=f"Agent mode switched to {new_mode}",
+            agent_version=get_agent_version(),
+        )
+
     async def activate_server(self, server_id: str) -> DeploymentResult:
         """Re-activate an inactive server.
 
@@ -868,14 +1093,18 @@ class AgentDeploymentService:
 def get_deployment_service(
     session: AsyncSession,
     credential_service: CredentialService | None = None,
+    ssh_service: "SSHConnectionService | None" = None,
 ) -> AgentDeploymentService:
     """Get an agent deployment service instance.
 
     Args:
         session: Database session.
         credential_service: Optional credential service for retrieving stored credentials.
+        ssh_service: Optional SSH connection service (for testing).
 
     Returns:
         AgentDeploymentService instance.
     """
-    return AgentDeploymentService(session, credential_service=credential_service)
+    return AgentDeploymentService(
+        session, credential_service=credential_service, ssh_service=ssh_service
+    )

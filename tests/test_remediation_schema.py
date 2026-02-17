@@ -43,9 +43,14 @@ class TestActionStatusEnum:
         assert hasattr(ActionStatus, "FAILED")
         assert ActionStatus.FAILED.value == "failed"
 
+    def test_timed_out_status_exists(self) -> None:
+        """ActionStatus.TIMED_OUT exists and has correct value (US0186)."""
+        assert hasattr(ActionStatus, "TIMED_OUT")
+        assert ActionStatus.TIMED_OUT.value == "timed_out"
+
     def test_all_statuses_count(self) -> None:
-        """ActionStatus enum has exactly 6 values."""
-        assert len(ActionStatus) == 6
+        """ActionStatus enum has exactly 7 values."""
+        assert len(ActionStatus) == 7
 
 
 class TestRemediationActionApprovalFields:

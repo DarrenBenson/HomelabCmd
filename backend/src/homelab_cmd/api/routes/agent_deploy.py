@@ -20,6 +20,8 @@ from homelab_cmd.api.responses import AUTH_RESPONSES
 from homelab_cmd.api.schemas.agent_deploy import (
     AgentInstallRequest,
     AgentInstallResponse,
+    AgentModeSwitchRequest,
+    AgentModeSwitchResponse,
     AgentRemoveRequest,
     AgentRemoveResponse,
     AgentUpgradeResponse,
@@ -170,6 +172,53 @@ async def remove_agent(
     return AgentRemoveResponse(
         success=result.success,
         server_id=server_id,
+        message=result.message,
+        error=result.error,
+    )
+
+
+# US0188: Remote Agent Mode Switch
+@router.post(
+    "/{server_id}/mode",
+    response_model=AgentModeSwitchResponse,
+    operation_id="switch_agent_mode",
+    summary="Switch agent mode remotely",
+    responses={
+        **AUTH_RESPONSES,
+        404: {"description": "Server not found"},
+        400: {"description": "Invalid mode or SSH not configured"},
+    },
+)
+async def switch_agent_mode(
+    server_id: str,
+    request: AgentModeSwitchRequest,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> AgentModeSwitchResponse:
+    """Switch agent mode between readonly and readwrite via SSH.
+
+    Remotely reinstalls the agent with the new mode configuration.
+    Requires SSH key to be configured in Settings.
+    """
+    service = get_deployment_service(session)
+    result = await service.switch_agent_mode(
+        server_id=server_id,
+        new_mode=request.mode,
+        sudo_password=request.sudo_password,
+    )
+
+    if not result.success:
+        if "not found" in (result.error or "").lower():
+            raise HTTPException(status_code=404, detail=result.error)
+        if "invalid mode" in (result.error or "").lower():
+            raise HTTPException(status_code=400, detail=result.error)
+        if "ssh" in (result.error or "").lower() and "not configured" in (result.error or "").lower():
+            raise HTTPException(status_code=400, detail=result.error)
+
+    return AgentModeSwitchResponse(
+        success=result.success,
+        server_id=server_id,
+        new_mode=request.mode if result.success else None,
         message=result.message,
         error=result.error,
     )

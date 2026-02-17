@@ -220,6 +220,7 @@ describe('API Client', () => {
     it('sends DELETE request and returns void', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
+        status: 204,
       });
 
       const result = await api.delete('/api/v1/scans/123');
@@ -289,6 +290,7 @@ describe('API Client', () => {
     it('includes X-API-Key header', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
+        status: 204,
       });
 
       await api.delete('/api/v1/scans/123');

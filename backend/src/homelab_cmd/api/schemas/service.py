@@ -100,6 +100,15 @@ class ExpectedServiceResponse(BaseModel):
         None,
         description="Current status from latest heartbeat (if available)",
     )
+    # US0185: Grace period tracking
+    last_restart_at: datetime | None = Field(
+        None,
+        description="Timestamp of last restart (for grace period calculation)",
+    )
+    grace_period_remaining: int | None = Field(
+        None,
+        description="Seconds remaining in grace period (None if not in grace period)",
+    )
 
 
 class ExpectedServiceListResponse(BaseModel):

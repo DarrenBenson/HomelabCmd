@@ -126,6 +126,11 @@ class ServerUpdate(BaseModel):
         pattern=r"^(server|workstation)$",
         description="Machine type: 'server' or 'workstation'",
     )
+    # US0184: Agent auto-update toggle
+    auto_update_agent: bool | None = Field(
+        None,
+        description="Enable automatic agent updates for this server (opt-in)",
+    )
 
 
 class FilesystemMetricResponse(BaseModel):
@@ -180,6 +185,17 @@ class LatestMetrics(BaseModel):
     uptime_seconds: int | None = Field(None, description="System uptime in seconds")
 
 
+class DockerStatusResponse(BaseModel):
+    """Docker container status summary for API response (US0163).
+
+    Contains running/stopped/total container counts from the agent.
+    """
+
+    running_containers: int = Field(..., ge=0, description="Number of containers in running state")
+    stopped_containers: int = Field(..., ge=0, description="Number of containers in stopped/exited state")
+    total_containers: int = Field(..., ge=0, description="Total number of containers")
+
+
 class ServerResponse(BaseModel):
     """Schema for server response."""
 
@@ -208,8 +224,10 @@ class ServerResponse(BaseModel):
     os_version: str | None = Field(None, description="Operating system version")
     kernel_version: str | None = Field(None, description="Linux kernel version")
     architecture: str | None = Field(None, description="CPU architecture (x86_64, aarch64)")
-    updates_available: int | None = Field(None, description="Number of package updates available")
+    updates_available: int | None = Field(None, description="Number of package updates available (excludes held-back)")
     security_updates: int | None = Field(None, description="Number of security updates available")
+    # US0198: held-back package count
+    held_back_count: int | None = Field(None, description="Number of packages held back (phased rollout, dependency, manual)")
     is_paused: bool = Field(False, description="Whether server is in maintenance mode")
     paused_at: datetime | None = Field(None, description="Timestamp when server was paused")
     agent_version: str | None = Field(None, description="Installed agent version")
@@ -258,6 +276,28 @@ class ServerResponse(BaseModel):
     )
     drift_detection_enabled: bool = Field(
         True, description="Whether drift detection is enabled for this server"
+    )
+    # US0184: Agent auto-update fields
+    auto_update_agent: bool = Field(
+        False, description="Whether automatic agent updates are enabled for this server"
+    )
+    agent_update_status: str | None = Field(
+        None,
+        description="Agent update status: 'pending', 'downloading', 'failed', or None (idle)",
+    )
+    agent_update_error: str | None = Field(
+        None, description="Error message if agent update failed"
+    )
+    agent_update_available: bool = Field(
+        False, description="True if a newer agent version is available"
+    )
+    # US0157: Docker detection (EP0014)
+    has_docker: bool | None = Field(
+        None, description="True if Docker is installed on this host"
+    )
+    # US0163: Docker container status (EP0014)
+    docker_status: "DockerStatusResponse | None" = Field(
+        None, description="Docker container status summary (running, stopped, total)"
     )
 
 

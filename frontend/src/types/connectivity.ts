@@ -19,9 +19,9 @@ export interface TailscaleInfo {
 
 /** SSH configuration information */
 export interface SSHInfo {
-  /** Default SSH username */
-  username: string;
-  /** Whether SSH private key is uploaded */
+  /** Default SSH username from SSH key config, or null if not set */
+  username: string | null;
+  /** Whether SSH keys are available */
   key_configured: boolean;
   /** When SSH key was uploaded */
   key_uploaded_at: string | null;

@@ -1,8 +1,8 @@
 # v2.0 Completed Stories Archive
 
-> **Status:** In Progress (36/77 stories done)
-> **Total Points Done:** 250
-> **Last Updated:** 2026-01-29
+> **Status:** Complete (81/88 v2.0 stories done, EP0014 pending)
+> **Total Points Done:** 337
+> **Last Updated:** 2026-02-01
 
 This archive contains completed v2.0 user stories. For current work, see [Story Registry](_index.md).
 
@@ -188,15 +188,18 @@ EP0009 (Workstation Management) ◄── dependency
 
 ---
 
-## EP0010: Configuration Management (18 pts done / 42 total)
+## EP0010: Configuration Management (42 pts - Complete)
 
-| Story | Title | Points | Status |
-|-------|-------|--------|--------|
-| [US0116](US0116-configuration-pack-definitions.md) | Configuration Pack Definitions | 5 | Done |
-| [US0117](US0117-pack-compliance-check.md) | Configuration Compliance Checker | 8 | Done |
-| [US0118](US0118-configuration-diff-view.md) | Configuration Diff View | 5 | Done |
-
-*Remaining stories in main index.*
+| Story | Title | Points |
+|-------|-------|--------|
+| [US0116](US0116-configuration-pack-definitions.md) | Configuration Pack Definitions | 5 |
+| [US0117](US0117-pack-compliance-check.md) | Configuration Compliance Checker | 8 |
+| [US0118](US0118-configuration-diff-view.md) | Configuration Diff View | 5 |
+| [US0119](US0119-apply-configuration-pack.md) | Apply Configuration Pack | 8 |
+| [US0120](US0120-compliance-dashboard-widget.md) | Compliance Dashboard Widget | 5 |
+| [US0121](US0121-pack-assignment-per-machine.md) | Pack Assignment per Machine | 3 |
+| [US0122](US0122-configuration-drift-detection.md) | Configuration Drift Detection | 5 |
+| [US0123](US0123-remove-configuration-pack.md) | Remove Configuration Pack | 3 |
 
 ---
 
@@ -206,3 +209,60 @@ EP0009 (Workstation Management) ◄── dependency
 |-------|-------|--------|
 | [US0181](US0181-alert-sustained-duration.md) | Alert Sustained Duration Configuration | 5 |
 | [US0182](US0182-alert-auto-resolve-notifications.md) | Alert Auto-Resolve Notifications | 3 |
+
+---
+
+## EP0018: Dashboard UX Simplification (13 pts - Complete)
+
+| Story | Title | Points |
+|-------|-------|--------|
+| [US0189](US0189-create-fleet-status-component.md) | Create FleetStatus Component | 5 |
+| [US0190](US0190-streamline-dashboard-header.md) | Streamline Dashboard Header | 2 |
+| [US0191](US0191-remove-type-filter-chips.md) | Remove Type Filter Chips | 3 |
+| [US0192](US0192-dashboard-integration-cleanup.md) | Dashboard Integration and Cleanup | 3 |
+
+### Dependency Graph
+
+```
+US0189 (FleetStatus) ── foundation
+  │
+  └─► US0190 (Header) - machine count now in FleetStatus
+        │
+        └─► US0191 (Type Filters) - independent
+              │
+              └─► US0192 (Integration) - depends on all above
+```
+
+### Summary
+
+Merged AlertBanner and SummaryBar into unified FleetStatus component. Removed type filter chips since MachineSection grouping provides equivalent functionality. Streamlined header by removing server count and adding visual separator.
+
+---
+
+## EP0019: Unified Device Discovery (22 pts - Complete)
+
+| Story | Title | Points |
+|-------|-------|--------|
+| [US0193](US0193-unified-device-list-merging.md) | Unified Device List with Merging | 8 |
+| [US0194](US0194-discovery-source-panel.md) | Discovery Source Control Panel | 5 |
+| [US0195](US0195-enhanced-device-cards.md) | Enhanced Device Cards | 3 |
+| [US0196](US0196-smart-import-path.md) | Smart Import Path Selection | 3 |
+| [US0197](US0197-testing-cleanup.md) | Testing and Cleanup | 3 |
+
+### Dependency Graph
+
+```
+US0193 (Unified List) ── foundation
+  │
+  ├─► US0194 (Source Panel) - uses unified device list
+  │
+  ├─► US0195 (Enhanced Cards) - uses MergedDevice type
+  │
+  └─► US0196 (Import Path) - uses merged device info
+        │
+        └─► US0197 (Testing/Cleanup) - depends on all above
+```
+
+### Summary
+
+Evolved EP0016's tabbed discovery into a true "Single Pane of Glass" experience. Devices from Network Scan and Tailscale appear in a unified list with intelligent hostname matching. Matched devices show [N+T] badge with dual IPs and recommended connection path. Implementation was discovered to already exist in codebase (retrofitted documentation).

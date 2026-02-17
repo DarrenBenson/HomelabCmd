@@ -1,9 +1,10 @@
 # US0188: Remote Agent Mode Switch
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Owner:** Darren
 > **Created:** 2026-01-29
+> **Completed:** 2026-01-31
 > **Story Points:** 3
 
 ## User Story
@@ -158,13 +159,13 @@ class AgentModeSwitchResponse(BaseModel):
 
 ## Test Scenarios
 
-- [ ] Button visible only for readonly agents with SSH configured
-- [ ] Button disabled when SSH not configured
-- [ ] Mode switch succeeds and UI updates
-- [ ] Error displayed on SSH failure
-- [ ] Loading state shown during operation
-- [ ] Success notification shown
-- [ ] Agent heartbeat reflects new mode
+- [x] Button visible only for readonly agents with SSH configured
+- [x] Button disabled when SSH not configured
+- [x] Mode switch succeeds and UI updates
+- [x] Error displayed on SSH failure
+- [x] Loading state shown during operation
+- [x] Success notification shown
+- [x] Agent heartbeat reflects new mode
 
 ---
 

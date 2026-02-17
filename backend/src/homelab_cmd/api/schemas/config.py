@@ -48,10 +48,14 @@ class MetricThreshold(BaseModel):
 
         If sustained_heartbeats is provided and sustained_seconds is default (0),
         convert heartbeats to seconds (assuming 60s heartbeat interval).
+
+        Uses __dict__ access to avoid triggering deprecation warning.
         """
-        if self.sustained_heartbeats is not None and self.sustained_seconds == 0:
+        # Access via __dict__ to avoid triggering the deprecated field warning
+        heartbeats = self.__dict__.get("sustained_heartbeats")
+        if heartbeats is not None and self.sustained_seconds == 0:
             # Convert heartbeats to seconds (60s per heartbeat)
-            self.sustained_seconds = self.sustained_heartbeats * 60
+            self.sustained_seconds = heartbeats * 60
         return self
 
 
@@ -139,6 +143,9 @@ class NotificationsConfig(BaseModel):
 
     Auto-resolve notifications (US0182):
     - notify_on_auto_resolve: Send notification when alerts auto-resolve (default: True)
+
+    Service restart grace period (US0185):
+    - service_restart_grace_seconds: Time to suppress service alerts after restart (default: 60)
     """
 
     slack_webhook_url: str = ""
@@ -149,6 +156,8 @@ class NotificationsConfig(BaseModel):
     notify_on_action_failure: bool = True
     notify_on_action_success: bool = False
     notify_on_auto_resolve: bool = True
+    # US0185: Grace period in seconds after service restart
+    service_restart_grace_seconds: int = Field(default=60, ge=0, le=600)
 
 
 class NotificationsUpdate(BaseModel):
@@ -162,6 +171,8 @@ class NotificationsUpdate(BaseModel):
     notify_on_action_failure: bool | None = None
     notify_on_action_success: bool | None = None
     notify_on_auto_resolve: bool | None = None
+    # US0185: Grace period update
+    service_restart_grace_seconds: int | None = Field(default=None, ge=0, le=600)
 
 
 class ConfigResponse(BaseModel):
@@ -197,6 +208,37 @@ class TestWebhookResponse(BaseModel):
     success: bool
     message: str | None = None
     error: str | None = None
+
+
+class ActionTimeoutConfig(BaseModel):
+    """Command timeout configuration (US0186).
+
+    Controls how long commands can run before being killed:
+    - default_timeout: Global default (300s = 5 minutes)
+    - service_restart_timeout: Service restart operations (60s)
+    - package_update_timeout: Package update operations (600s = 10 minutes)
+    """
+
+    default_timeout: int = Field(default=300, ge=30, le=3600)
+    service_restart_timeout: int = Field(default=60, ge=10, le=600)
+    package_update_timeout: int = Field(default=600, ge=60, le=3600)
+
+
+class ActionTimeoutConfigUpdate(BaseModel):
+    """Schema for updating action timeout config (all fields optional)."""
+
+    default_timeout: int | None = Field(default=None, ge=30, le=3600)
+    service_restart_timeout: int | None = Field(default=None, ge=10, le=600)
+    package_update_timeout: int | None = Field(default=None, ge=60, le=3600)
+
+
+class ActionTimeoutConfigResponse(BaseModel):
+    """Response for action timeout settings endpoint."""
+
+    default_timeout: int
+    service_restart_timeout: int
+    package_update_timeout: int
+    updated_at: str | None = None
 
 
 class CostConfig(BaseModel):

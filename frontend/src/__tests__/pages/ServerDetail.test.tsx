@@ -343,15 +343,16 @@ describe('ServerDetail', () => {
   });
 
   describe('Maintenance mode (US0029)', () => {
-    it('shows maintenance mode status', async () => {
+    it('shows maintenance mode toggle in off state', async () => {
       renderServerDetail();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Disabled');
+        const toggle = screen.getByTestId('maintenance-toggle');
+        expect(toggle).toHaveAttribute('aria-label', 'Enable maintenance mode');
       });
     });
 
-    it('shows Enabled when server is paused', async () => {
+    it('shows toggle in on state when server is paused', async () => {
       mockGetServer.mockResolvedValue(
         createMockServer({ is_paused: true, paused_at: '2026-01-29T09:00:00Z' })
       );
@@ -359,7 +360,9 @@ describe('ServerDetail', () => {
       renderServerDetail();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Enabled');
+        const toggle = screen.getByTestId('maintenance-toggle');
+        expect(toggle).toHaveAttribute('aria-label', 'Disable maintenance mode');
+        expect(toggle).toHaveClass('bg-status-warning');
       });
     });
 
@@ -400,7 +403,7 @@ describe('ServerDetail', () => {
       renderServerDetail();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-toggle')).toHaveTextContent('Disable');
+        expect(screen.getByTestId('maintenance-toggle')).toHaveAttribute('aria-label', 'Disable maintenance mode');
       });
 
       fireEvent.click(screen.getByTestId('maintenance-toggle'));
@@ -582,35 +585,40 @@ describe('ServerDetail', () => {
       });
     });
 
-    it('shows agent mode badge', async () => {
+    it('shows agent mode toggle', async () => {
       renderServerDetail();
 
       await waitFor(() => {
-        expect(screen.getByTestId('agent-mode')).toBeInTheDocument();
+        expect(screen.getByTestId('agent-mode-toggle')).toBeInTheDocument();
       });
     });
 
-    it('shows readonly notice for readonly agents', async () => {
-      mockGetServer.mockResolvedValue(createMockServer({ agent_mode: 'readonly' }));
+    it('shows toggle in off state for readonly agents', async () => {
+      // Default mock already has agent_mode: 'readonly', so just use it
+      renderServerDetail();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('agent-mode-toggle')).toBeInTheDocument();
+      });
+      // Check the toggle shows "Read/Write Mode" label (toggle is off for readonly)
+      expect(screen.getByText('Read/Write Mode')).toBeInTheDocument();
+    });
+
+    it('shows inline update button for agents supporting self-update', async () => {
+      // Agent version 2.1.0+ supports self-update
+      mockGetServer.mockResolvedValue(createMockServer({ agent_version: '2.1.0' }));
+      mockGetAgentVersion.mockResolvedValue({ version: '2.2.0' });
 
       renderServerDetail();
 
       await waitFor(() => {
-        expect(screen.getByTestId('readonly-notice')).toBeInTheDocument();
+        expect(screen.getByTestId('trigger-update-button')).toBeInTheDocument();
       });
     });
 
-    it('shows upgrade available badge when newer version exists', async () => {
-      mockGetAgentVersion.mockResolvedValue({ version: '2.0.0' });
-
-      renderServerDetail();
-
-      await waitFor(() => {
-        expect(screen.getByText(/Update available/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows upgrade button when upgrade is available', async () => {
+    it('shows upgrade button for agents not supporting self-update', async () => {
+      // Agent version < 2.1.0 requires SSH upgrade
+      mockGetServer.mockResolvedValue(createMockServer({ agent_version: '1.0.0' }));
       mockGetAgentVersion.mockResolvedValue({ version: '2.0.0' });
 
       renderServerDetail();

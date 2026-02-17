@@ -7,7 +7,7 @@ Creates tables for:
 - cost_snapshots_monthly: Monthly aggregates for long-term retention
 
 Revision ID: k9l0m1n2o3p4
-Revises: j8k9l0m1n2o3
+Revises: j9k0l1m2n3o4
 Create Date: 2026-01-29 21:00:00.000000
 
 """
@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "k9l0m1n2o3p4"
-down_revision: Union[str, None] = "j8k9l0m1n2o3"
+down_revision: Union[str, None] = "j9k0l1m2n3o4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

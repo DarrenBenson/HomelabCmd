@@ -65,7 +65,7 @@ export function ConnectivitySettings(): React.ReactElement {
     try {
       const result = await updateConnectivityMode({
         mode: selectedMode,
-        ssh_username: status?.ssh.username,
+        ssh_username: status?.ssh.username ?? undefined,
       });
       setSuccess(result.message);
       await fetchStatus();

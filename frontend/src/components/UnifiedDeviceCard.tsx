@@ -2,6 +2,7 @@
  * Unified Device Card component.
  *
  * EP0016: Unified Discovery Experience (US0095)
+ * EP0019: Enhanced for merged devices with dual IPs and source badges
  *
  * Consistent device card for both Network and Tailscale discovery
  * with availability states, greyed-out unavailable devices, and tooltips.
@@ -15,17 +16,28 @@ import {
   Download,
   ExternalLink,
   Clock,
-  Wifi,
-  Globe,
   ShieldCheck,
   Key,
+  Wifi,
+  Globe,
+  ArrowRight,
 } from 'lucide-react';
 import { formatRelativeTime } from '../lib/formatters';
-import type { UnifiedDevice } from '../types/discovery';
+import { SourceIndicator } from './SourceBadge';
+import type { UnifiedDevice, MergedDevice, MergedSource } from '../types/discovery';
 
 interface UnifiedDeviceCardProps {
-  device: UnifiedDevice;
-  onImport: (device: UnifiedDevice) => void;
+  device: UnifiedDevice | MergedDevice;
+  onImport: (device: UnifiedDevice | MergedDevice) => void;
+  /** Animation delay for staggered entry (in ms) */
+  animationDelay?: number;
+}
+
+/**
+ * Type guard to check if device is a MergedDevice.
+ */
+function isMergedDevice(device: UnifiedDevice | MergedDevice): device is MergedDevice {
+  return 'mergedSource' in device;
 }
 
 /**
@@ -40,26 +52,46 @@ function getOsIcon(os: string) {
 }
 
 /**
- * Get source icon.
+ * Get recommended path icon and text.
  */
-function getSourceIcon(source: 'network' | 'tailscale') {
-  return source === 'network' ? (
-    <Wifi className="h-3 w-3" />
-  ) : (
-    <Globe className="h-3 w-3" />
+function RecommendedPathIndicator({
+  path,
+}: {
+  path: 'network' | 'tailscale' | undefined;
+}) {
+  if (!path) return null;
+
+  return (
+    <span
+      className="flex items-center gap-1 text-xs text-status-info"
+      title={`Recommended: ${path === 'tailscale' ? 'Tailscale' : 'Direct network'} connection`}
+    >
+      <ArrowRight className="h-3 w-3" />
+      {path === 'tailscale' ? (
+        <Globe className="h-3 w-3" />
+      ) : (
+        <Wifi className="h-3 w-3" />
+      )}
+    </span>
   );
 }
 
-export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) {
+export function UnifiedDeviceCard({
+  device,
+  onImport,
+  animationDelay = 0,
+}: UnifiedDeviceCardProps) {
   const isUnavailable = device.availability === 'unavailable';
   const isAvailable = device.availability === 'available';
   const isMonitored = device.isMonitored;
+  const merged = isMergedDevice(device);
+  const mergedSource: MergedSource = merged ? device.mergedSource : device.source;
 
   // Card wrapper classes based on availability
-  const cardClasses = `rounded-lg border p-4 transition-colors ${
+  const cardClasses = `rounded-lg border p-4 transition-all duration-200 ${
     isUnavailable
       ? 'border-border-default bg-bg-tertiary opacity-50 cursor-not-allowed'
-      : 'border-border-default bg-bg-secondary hover:border-border-hover'
+      : 'border-border-default bg-bg-secondary hover:border-border-hover hover:shadow-md hover:-translate-y-0.5'
   }`;
 
   // Status indicator classes
@@ -67,11 +99,21 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
     isAvailable ? 'bg-status-success' : 'bg-text-tertiary'
   }`;
 
+  // Animation style for staggered entry
+  const animationStyle = animationDelay > 0
+    ? {
+        animation: 'fadeInUp 0.3s ease-out forwards',
+        animationDelay: `${animationDelay}ms`,
+        opacity: 0,
+      }
+    : undefined;
+
   return (
     <div
       className={cardClasses}
       data-testid={`device-card-${device.id}`}
       title={isUnavailable ? device.unavailableReason || 'Device unavailable' : undefined}
+      style={animationStyle}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -88,8 +130,8 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
           />
 
           <div className="min-w-0 flex-1">
-            {/* Hostname */}
-            <div className="flex items-center gap-2">
+            {/* Hostname and badges */}
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-medium text-text-primary truncate">{device.hostname}</h3>
               {isMonitored && (
                 <span
@@ -99,32 +141,49 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
                   <ShieldCheck className="h-3 w-3" />
                 </span>
               )}
+              {/* Source badge for merged view */}
+              <span data-testid={`device-source-${device.id}`}>
+                <SourceIndicator
+                  source={mergedSource}
+                  matchConfidence={merged ? device.matchConfidence : undefined}
+                />
+              </span>
             </div>
 
-            {/* IP, OS, and source */}
+            {/* IP addresses */}
             <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
-              <span className="font-mono">{device.ip}</span>
+              {/* Show dual IPs for merged devices */}
+              {merged && mergedSource === 'both' && device.networkIp && device.tailscaleIp ? (
+                <>
+                  <span className="flex items-center gap-1 font-mono">
+                    <Wifi className="h-3 w-3 text-blue-400" />
+                    {device.networkIp}
+                  </span>
+                  <span className="flex items-center gap-1 font-mono">
+                    <Globe className="h-3 w-3 text-purple-400" />
+                    {device.tailscaleIp}
+                  </span>
+                </>
+              ) : (
+                <span className="font-mono">{device.ip}</span>
+              )}
+
+              {/* OS */}
               <span className="flex items-center gap-1">
                 {getOsIcon(device.os)}
                 <span className="capitalize">{device.os}</span>
-              </span>
-              <span
-                className="flex items-center gap-1 text-text-tertiary"
-                title={device.source === 'network' ? 'Network discovery' : 'Tailscale'}
-              >
-                {getSourceIcon(device.source)}
               </span>
             </div>
 
             {/* Additional info row */}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-tertiary">
               {/* Response time for network devices */}
-              {device.source === 'network' && device.responseTimeMs !== null && (
+              {device.responseTimeMs !== null && (
                 <span className="font-mono">{device.responseTimeMs}ms</span>
               )}
 
               {/* Last seen for Tailscale devices */}
-              {device.source === 'tailscale' && device.lastSeen && (
+              {device.lastSeen && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {formatRelativeTime(device.lastSeen)}
@@ -141,6 +200,11 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
                   {device.sshKeyUsed}
                 </span>
               )}
+
+              {/* Recommended path for merged devices */}
+              {merged && mergedSource === 'both' && device.recommendedPath && (
+                <RecommendedPathIndicator path={device.recommendedPath} />
+              )}
             </div>
           </div>
         </div>
@@ -152,6 +216,7 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
               to={`/servers/${device.serverId}`}
               className="flex items-center gap-1.5 rounded-md bg-bg-tertiary px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors"
               title="View server"
+              data-testid={`device-view-${device.id}`}
             >
               <ExternalLink className="h-4 w-4" />
               View
@@ -159,8 +224,9 @@ export function UnifiedDeviceCard({ device, onImport }: UnifiedDeviceCardProps) 
           ) : isAvailable && !isMonitored ? (
             <button
               onClick={() => onImport(device)}
-              className="flex items-center gap-1.5 rounded-md bg-status-info px-3 py-1.5 text-sm font-medium text-white hover:bg-status-info/80 transition-colors"
+              className="flex items-center gap-1.5 rounded-md bg-status-info px-3 py-1.5 text-sm font-medium text-white hover:bg-status-info/80 transition-colors active:scale-95"
               title="Import as server"
+              data-testid={`device-import-${device.id}`}
             >
               <Download className="h-4 w-4" />
               Import

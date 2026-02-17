@@ -142,13 +142,15 @@ describe('UnifiedDeviceCard', () => {
     it('shows network source indicator', () => {
       renderCard(createMockDevice({ source: 'network' }));
 
-      expect(screen.getByTitle('Network discovery')).toBeInTheDocument();
+      // SourceIndicator uses "Discovered via Network Scan" title
+      expect(screen.getByTitle('Discovered via Network Scan')).toBeInTheDocument();
     });
 
     it('shows tailscale source indicator', () => {
       renderCard(createMockDevice({ source: 'tailscale' }));
 
-      expect(screen.getByTitle('Tailscale')).toBeInTheDocument();
+      // SourceIndicator uses "Discovered via Tailscale" title
+      expect(screen.getByTitle('Discovered via Tailscale')).toBeInTheDocument();
     });
   });
 

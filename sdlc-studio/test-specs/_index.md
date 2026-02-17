@@ -2,16 +2,16 @@
 
 This document provides an overview of all Test Specifications for the HomelabCmd project.
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-31
 
 ## Summary
 
 | Status | Count | Test Cases |
 |--------|-------|------------|
-| Draft | 8 | 135 |
+| Draft | 9 | 164 |
 | In Progress | 3 | 62 |
 | Complete | 19 | 345 |
-| **Total** | **30** | **542** |
+| **Total** | **31** | **571** |
 
 ## Specifications by Epic
 
@@ -28,6 +28,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | [TS0010](TS0010-package-update-list.md) | Package Update List View Tests | US0051 | 15 | Complete |
 | [TS0011](TS0011-trigger-package-updates.md) | Trigger Package Updates Tests | US0052 | 17 | Complete |
 | [TS0020](TS0020-remove-agent-ssh-credentials.md) | Remove Agent API SSH Credentials Tests | US0075 | 9 | Draft |
+| [TS0201](TS0201-agent-auto-update.md) | Agent Auto-Update Mechanism Tests | US0184 | 29 | Draft |
 
 ### [EP0002: Alerting & Notifications](../../epics/EP0002-alerting.md)
 
@@ -41,6 +42,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
 | [TS0008](TS0008-service-monitoring.md) | Service Monitoring Tests | US0017-US0022 | 34 | Complete |
+| [TS0202](TS0202-service-restart-grace-period.md) | Service Restart Grace Period Tests | US0185 | 26 | Ready |
 
 ### [EP0004: Remediation Engine](../../epics/EP0004-remediation.md)
 
@@ -127,6 +129,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 
 - **TS0015**: Scan Results Display Tests - 20 test cases (0 automated)
 - **TS0020**: Remove Agent API SSH Credentials Tests - 9 test cases (0 automated)
+- **TS0201**: Agent Auto-Update Mechanism Tests - 29 test cases (0 automated)
 - **TS0109**: Enhanced Maintenance Mode Indicator Tests - 9 test cases (0 automated)
 - **TS0132**: Server and Workstation Grouping Tests - 20 test cases (0 automated)
 

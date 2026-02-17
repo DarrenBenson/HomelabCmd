@@ -489,7 +489,7 @@ class TestCannotApproveNonPending:
         assert response.status_code == 409
 
     def test_conflict_error_includes_current_status(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """Conflict error message includes current status."""
         client.post(

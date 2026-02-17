@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Settings } from '../../pages/Settings';
-import { getConfig, updateThresholds, updateNotifications, testWebhook } from '../../api/config';
+import { getConfig, updateThresholds, updateNotifications, testWebhook, getActionTimeouts, updateActionTimeouts } from '../../api/config';
 import { getCostConfig, updateCostConfig } from '../../api/costs';
 import type { ConfigResponse, ThresholdsConfig, NotificationsConfig } from '../../types/config';
 import type { CostConfig } from '../../types/cost';
@@ -20,6 +20,8 @@ vi.mock('../../api/config', () => ({
   updateThresholds: vi.fn(),
   updateNotifications: vi.fn(),
   testWebhook: vi.fn(),
+  getActionTimeouts: vi.fn(),
+  updateActionTimeouts: vi.fn(),
 }));
 
 vi.mock('../../api/costs', () => ({
@@ -59,6 +61,9 @@ const mockGetConfig = getConfig as Mock;
 const mockUpdateThresholds = updateThresholds as Mock;
 const mockUpdateNotifications = updateNotifications as Mock;
 const mockTestWebhook = testWebhook as Mock;
+const mockGetActionTimeouts = getActionTimeouts as Mock;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _mockUpdateActionTimeouts = updateActionTimeouts as Mock;
 const mockGetCostConfig = getCostConfig as Mock;
 const mockUpdateCostConfig = updateCostConfig as Mock;
 
@@ -113,6 +118,10 @@ describe('Settings', () => {
     // Default mocks
     mockGetConfig.mockResolvedValue(mockConfigResponse);
     mockGetCostConfig.mockResolvedValue(mockCostConfig);
+    mockGetActionTimeouts.mockResolvedValue({
+      action_timeout_seconds: 300,
+      poll_interval_seconds: 5,
+    });
   });
 
   afterEach(() => {
@@ -122,6 +131,7 @@ describe('Settings', () => {
   describe('Loading state', () => {
     it('shows loading spinner while fetching config', () => {
       mockGetConfig.mockImplementation(() => new Promise(() => {}));
+      mockGetActionTimeouts.mockImplementation(() => new Promise(() => {}));
 
       renderSettings();
 

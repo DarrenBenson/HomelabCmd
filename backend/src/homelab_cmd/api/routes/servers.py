@@ -117,6 +117,11 @@ async def list_servers(
         if len(server_alert_summaries[server_id]) < 3:
             server_alert_summaries[server_id].append(title)
 
+    # Get current agent version for update available check
+    from homelab_cmd.services.agent_deploy import get_agent_version
+
+    latest_agent_version = get_agent_version()
+
     # Build response - each row is (Server, Metrics or None, active_count or None)
     server_responses = []
     for server, latest_metrics_record, active_count in rows:
@@ -142,6 +147,12 @@ async def list_servers(
         # US0110: Populate alert count and summaries
         response.active_alert_count = active_count or 0
         response.active_alert_summaries = server_alert_summaries.get(server.id, [])
+
+        # Check if agent update is available (compare versions)
+        if server.agent_version and latest_agent_version:
+            response.agent_update_available = server.agent_version != latest_agent_version
+        else:
+            response.agent_update_available = False
 
         server_responses.append(response)
 
@@ -247,6 +258,15 @@ async def get_server(
             load_15m=latest_metrics_record.load_15m,
             uptime_seconds=latest_metrics_record.uptime_seconds,
         )
+
+    # Check if agent update is available
+    from homelab_cmd.services.agent_deploy import get_agent_version
+
+    latest_agent_version = get_agent_version()
+    if server.agent_version and latest_agent_version:
+        response.agent_update_available = server.agent_version != latest_agent_version
+    else:
+        response.agent_update_available = False
 
     return response
 
@@ -747,11 +767,19 @@ async def test_server_ssh(
             },
         )
 
-    # Check SSH key is configured
+    # Check SSH key is configured (file-based or credential-based)
     settings = get_settings()
     credential_service = CredentialService(session, settings.encryption_key or "")
 
-    if not await credential_service.credential_exists("ssh_private_key"):
+    # Check for file-based keys first (in /app/ssh/)
+    from homelab_cmd.services.ssh import SSHConnectionService
+    ssh_service = SSHConnectionService()
+    file_based_keys = ssh_service.get_available_keys()
+
+    # Check for credential-based key
+    has_credential_key = await credential_service.credential_exists("ssh_private_key")
+
+    if not file_based_keys and not has_credential_key:
         raise HTTPException(
             status_code=400,
             detail={
@@ -760,11 +788,13 @@ async def test_server_ssh(
             },
         )
 
-    # Get default username from config
-    stmt = select(Config).where(Config.key == "ssh_username")
+    # Get default username from SSH config
+    stmt = select(Config).where(Config.key == "ssh")
     result = await session.execute(stmt)
     config = result.scalar_one_or_none()
-    username = config.value if config else "homelabcmd"
+    username = None
+    if config and isinstance(config.value, dict):
+        username = config.value.get("default_username")
 
     # Test connection
     host_key_service = HostKeyService(session)
@@ -1033,3 +1063,84 @@ async def get_server_cost_history(
         items=items,
         currency_symbol=cost_config.currency_symbol,
     )
+
+
+# ===========================================================================
+# Agent Auto-Update (US0184)
+# ===========================================================================
+
+
+@router.post(
+    "/{server_id}/trigger-update",
+    operation_id="trigger_agent_update",
+    summary="Trigger agent update for a server",
+    responses={
+        **AUTH_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+        400: {
+            "description": "No update available",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "NO_UPDATE_AVAILABLE",
+                            "message": "Server is running the latest agent version",
+                        }
+                    }
+                }
+            },
+        },
+    },
+)
+async def trigger_agent_update(
+    server_id: str,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> dict:
+    """Trigger manual agent update for a server (US0184 AC6).
+
+    Queues an update command that will be delivered to the agent
+    on its next heartbeat. Works regardless of auto_update_agent setting.
+    """
+    from homelab_cmd.config import get_settings
+
+    server = await session.get(Server, server_id)
+    if not server:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
+        )
+
+    settings = get_settings()
+
+    # Check if an update is available
+    if not settings.agent_version:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "NO_UPDATE_AVAILABLE",
+                "message": "No agent version configured on hub",
+            },
+        )
+
+    if server.agent_version == settings.agent_version:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "NO_UPDATE_AVAILABLE",
+                "message": "Server is running the latest agent version",
+            },
+        )
+
+    # Queue the update command
+    server.agent_update_status = "pending"
+    server.agent_update_error = None
+    await session.commit()
+
+    return {
+        "status": "queued",
+        "server_id": server_id,
+        "current_version": server.agent_version,
+        "target_version": settings.agent_version,
+        "message": "Update will be delivered on next heartbeat",
+    }

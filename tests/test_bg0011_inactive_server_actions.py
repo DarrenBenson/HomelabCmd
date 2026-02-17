@@ -6,6 +6,7 @@ actions endpoint rejects action creation with 409 Conflict.
 """
 
 from contextlib import asynccontextmanager
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,8 +90,13 @@ class TestBG0011InactiveServerActionsGuard:
             service_name="test-service",
         )
 
+        # Create mock background tasks (SSH execution is handled in background)
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
         assert "inactive" in exc_info.value.detail["message"].lower()
@@ -118,8 +124,12 @@ class TestBG0011InactiveServerActionsGuard:
             action_type=ActionType.CLEAR_LOGS,
         )
 
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
         assert "agent removed" in exc_info.value.detail["message"].lower()
@@ -147,14 +157,20 @@ class TestBG0011InactiveServerActionsGuard:
             action_type=ActionType.APT_UPDATE,
         )
 
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
 
     @pytest.mark.asyncio
     async def test_action_on_active_server_succeeds(self, db_session: AsyncSession) -> None:
         """BG0011: Active server allows action creation."""
+        from unittest.mock import patch
+
         # Create an active server
         server = Server(
             id="bg0011-active-test",
@@ -173,8 +189,14 @@ class TestBG0011InactiveServerActionsGuard:
             service_name="test-service",
         )
 
-        # Should not raise - action creation succeeds
-        result = await create_action(action_data, db_session, "test-key")
+        mock_bg_tasks = MagicMock()
+
+        # Mock SSH execution to prevent background task failure
+        with patch("homelab_cmd.api.routes.actions._execute_action_via_ssh"):
+            # Should not raise - action creation succeeds
+            result = await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert result.server_id == "bg0011-active-test"
         assert result.status == "approved"  # Auto-approved for active server

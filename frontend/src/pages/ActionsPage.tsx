@@ -18,6 +18,7 @@ const statusConfig: Record<ActionStatus, { label: string; color: string }> = {
   completed: { label: 'Completed', color: 'text-status-success' },
   failed: { label: 'Failed', color: 'text-status-error' },
   rejected: { label: 'Rejected', color: 'text-text-muted' },
+  timed_out: { label: 'Timed Out', color: 'text-status-error' },
 };
 
 export function ActionsPage() {
@@ -172,6 +173,7 @@ export function ActionsPage() {
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
             <option value="rejected">Rejected</option>
+            <option value="timed_out">Timed Out</option>
           </select>
 
           {/* Server filter */}
@@ -271,7 +273,7 @@ export function ActionsPage() {
                 <tbody className="divide-y divide-border-default">
                   {actions.map((action) => {
                     const statConfig = statusConfig[action.status];
-                    const isTerminal = ['completed', 'failed', 'rejected'].includes(action.status);
+                    const isTerminal = ['completed', 'failed', 'rejected', 'timed_out'].includes(action.status);
 
                     return (
                       <tr

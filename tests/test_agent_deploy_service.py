@@ -11,8 +11,9 @@ Tests verify the agent deployment functionality:
 
 import io
 import tarfile
+import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
@@ -426,11 +427,9 @@ class TestAgentUpgradeSudoSupport:
         db_session.add(server)
         await db_session.commit()
 
-        service = AgentDeploymentService(db_session)
-
         captured_command = []
 
-        async def mock_execute(hostname, command, command_timeout, key_usernames=None):
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
             captured_command.append(command)
             result = MagicMock()
             result.success = True
@@ -439,19 +438,26 @@ class TestAgentUpgradeSudoSupport:
             result.error = None
             return result
 
-        with patch.object(service.ssh, "execute_command", side_effect=mock_execute):
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
             with patch(
-                "homelab_cmd.services.agent_deploy.build_agent_tarball",
-                return_value=b"fake-tarball",
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
             ):
-                with patch(
-                    "homelab_cmd.services.agent_deploy.get_agent_version",
-                    return_value="1.0.0",
-                ):
-                    result = await service.upgrade_agent(
-                        "sudo-upgrade-server",
-                        sudo_password="mysudopassword",
-                    )
+                result = await service.upgrade_agent(
+                    "sudo-upgrade-server",
+                    sudo_password="mysudopassword",
+                )
 
         assert result.success is True
         assert len(captured_command) == 1
@@ -466,8 +472,6 @@ class TestAgentUpgradeSudoSupport:
         credential_service is available, it should retrieve the stored
         sudo_password credential.
         """
-        from unittest.mock import AsyncMock
-
         from homelab_cmd.db.models.server import Server
 
         server = Server(
@@ -485,26 +489,35 @@ class TestAgentUpgradeSudoSupport:
             return_value="stored-sudo-password"
         )
 
-        service = AgentDeploymentService(db_session, credential_service=mock_credential_service)
-
         captured_command = []
 
-        async def mock_execute(hostname, command, command_timeout, key_usernames=None):
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
             captured_command.append(command)
             result = MagicMock()
             result.success = True
             return result
 
-        with patch.object(service.ssh, "execute_command", side_effect=mock_execute):
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject both mock services via constructor
+        service = AgentDeploymentService(
+            db_session,
+            credential_service=mock_credential_service,
+            ssh_service=mock_ssh_service,
+        )
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
             with patch(
-                "homelab_cmd.services.agent_deploy.build_agent_tarball",
-                return_value=b"fake-tarball",
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
             ):
-                with patch(
-                    "homelab_cmd.services.agent_deploy.get_agent_version",
-                    return_value="1.0.0",
-                ):
-                    result = await service.upgrade_agent("stored-cred-server")
+                result = await service.upgrade_agent("stored-cred-server")
 
         assert result.success is True
         # Credential service should have been called
@@ -521,8 +534,6 @@ class TestAgentUpgradeSudoSupport:
         When upgrade_agent is called without sudo_password and no stored
         credential exists, it should use plain sudo commands (existing behaviour).
         """
-        from unittest.mock import AsyncMock
-
         from homelab_cmd.db.models.server import Server
 
         server = Server(
@@ -538,26 +549,35 @@ class TestAgentUpgradeSudoSupport:
         mock_credential_service = MagicMock()
         mock_credential_service.get_effective_credential = AsyncMock(return_value=None)
 
-        service = AgentDeploymentService(db_session, credential_service=mock_credential_service)
-
         captured_command = []
 
-        async def mock_execute(hostname, command, command_timeout, key_usernames=None):
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
             captured_command.append(command)
             result = MagicMock()
             result.success = True
             return result
 
-        with patch.object(service.ssh, "execute_command", side_effect=mock_execute):
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject both mock services via constructor
+        service = AgentDeploymentService(
+            db_session,
+            credential_service=mock_credential_service,
+            ssh_service=mock_ssh_service,
+        )
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
             with patch(
-                "homelab_cmd.services.agent_deploy.build_agent_tarball",
-                return_value=b"fake-tarball",
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
             ):
-                with patch(
-                    "homelab_cmd.services.agent_deploy.get_agent_version",
-                    return_value="1.0.0",
-                ):
-                    result = await service.upgrade_agent("passwordless-server")
+                result = await service.upgrade_agent("passwordless-server")
 
         assert result.success is True
         # Command should NOT contain password pipe
@@ -582,30 +602,35 @@ class TestAgentUpgradeSudoSupport:
         db_session.add(server)
         await db_session.commit()
 
-        service = AgentDeploymentService(db_session)
-
         captured_command = []
 
-        async def mock_execute(hostname, command, command_timeout, key_usernames=None):
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
             captured_command.append(command)
             result = MagicMock()
             result.success = True
             return result
 
-        with patch.object(service.ssh, "execute_command", side_effect=mock_execute):
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
             with patch(
-                "homelab_cmd.services.agent_deploy.build_agent_tarball",
-                return_value=b"fake-tarball",
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
             ):
-                with patch(
-                    "homelab_cmd.services.agent_deploy.get_agent_version",
-                    return_value="1.0.0",
-                ):
-                    # Password with single quote that needs escaping
-                    result = await service.upgrade_agent(
-                        "special-char-server",
-                        sudo_password="pass'word",
-                    )
+                # Password with single quote that needs escaping
+                result = await service.upgrade_agent(
+                    "special-char-server",
+                    sudo_password="pass'word",
+                )
 
         assert result.success is True
         # Single quote should be escaped using shell quoting
@@ -1494,6 +1519,481 @@ class TestDeploymentResult:
         assert result.server_id == "test-server"
         assert result.message == "Success"
         assert result.agent_version == "1.0.0"
+
+
+# =============================================================================
+# US0188: Remote Agent Mode Switch Tests
+# =============================================================================
+
+
+class TestAgentModeSwitchService:
+    """Tests for AgentDeploymentService.switch_agent_mode method (US0188).
+
+    Tests verify that switch_agent_mode can:
+    - Validate mode values
+    - Check server existence and activity status
+    - Check SSH configuration
+    - Build and deploy agent tarball with new mode
+    - Update server agent_mode in database
+    - Handle errors gracefully
+    """
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_invalid_mode_rejects(self, db_session) -> None:
+        """US0188 AC1: Should reject invalid mode values."""
+        service = AgentDeploymentService(db_session)
+
+        result = await service.switch_agent_mode("some-server", "invalid-mode")
+
+        assert result.success is False
+        assert "Invalid mode" in result.error
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_server_not_found(self, db_session) -> None:
+        """US0188: Should fail when server not found."""
+        service = AgentDeploymentService(db_session)
+
+        result = await service.switch_agent_mode("nonexistent-server", "readwrite")
+
+        assert result.success is False
+        assert "not found" in result.error
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_inactive_server_fails(self, db_session) -> None:
+        """US0188: Should fail when server is inactive."""
+        from homelab_cmd.db.models.server import Server
+
+        server = Server(
+            id="inactive-mode-server",
+            hostname="inactive.local",
+            is_inactive=True,
+        )
+        db_session.add(server)
+        await db_session.commit()
+
+        service = AgentDeploymentService(db_session)
+
+        result = await service.switch_agent_mode("inactive-mode-server", "readwrite")
+
+        assert result.success is False
+        assert "inactive" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_already_in_target_mode(self, db_session) -> None:
+        """US0188: Should succeed immediately if already in target mode."""
+        from homelab_cmd.db.models.server import Server
+
+        server = Server(
+            id="already-readwrite-server",
+            hostname="already.local",
+            agent_mode="readwrite",
+        )
+        db_session.add(server)
+        await db_session.commit()
+
+        service = AgentDeploymentService(db_session)
+
+        result = await service.switch_agent_mode("already-readwrite-server", "readwrite")
+
+        assert result.success is True
+        assert "already in readwrite mode" in result.message
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_no_ssh_configured(self, db_session) -> None:
+        """US0188 AC3: Should fail when SSH is not configured."""
+        from homelab_cmd.db.models.server import Server
+
+        server = Server(
+            id="no-ssh-server",
+            hostname="nossh.local",
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+        await db_session.commit()
+
+        service = AgentDeploymentService(db_session)
+
+        result = await service.switch_agent_mode("no-ssh-server", "readwrite")
+
+        assert result.success is False
+        assert "SSH" in result.error
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_success_readonly_to_readwrite(self, db_session) -> None:
+        """US0188 AC1, AC2: Should successfully switch from readonly to readwrite."""
+        from homelab_cmd.db.models.agent_credential import AgentCredential
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        # Create server with readonly mode
+        server_guid = str(uuid.uuid4())
+        server = Server(
+            id="switch-mode-server",
+            hostname="switchmode.local",
+            ip_address="192.168.1.100",
+            guid=server_guid,
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        # Add SSH configuration
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True, "default_username": "admin"},
+        )
+        db_session.add(ssh_config)
+
+        # Add agent credential
+        credential = AgentCredential(
+            server_guid=server_guid,
+            api_token_prefix="hlh_ag_test",
+            api_token_hash="oldhash",
+        )
+        db_session.add(credential)
+        await db_session.commit()
+
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.stdout = "Installation complete"
+        mock_result.stderr = ""
+        mock_result.error = None
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(return_value=mock_result)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
+            with patch(
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
+            ):
+                result = await service.switch_agent_mode("switch-mode-server", "readwrite")
+
+        assert result.success is True
+        assert "readwrite" in result.message
+        assert result.agent_version == "1.0.0"
+
+        # Verify database was updated
+        await db_session.refresh(server)
+        assert server.agent_mode == "readwrite"
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_success_readwrite_to_readonly(self, db_session) -> None:
+        """US0188 AC1: Should successfully switch from readwrite to readonly."""
+        from homelab_cmd.db.models.agent_credential import AgentCredential
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server_guid = str(uuid.uuid4())
+        server = Server(
+            id="downgrade-mode-server",
+            hostname="downgrade.local",
+            ip_address="192.168.1.101",
+            guid=server_guid,
+            agent_mode="readwrite",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+
+        credential = AgentCredential(
+            server_guid=server_guid,
+            api_token_prefix="hlh_ag_test",
+            api_token_hash="oldhash",
+        )
+        db_session.add(credential)
+        await db_session.commit()
+
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.error = None
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(return_value=mock_result)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
+            with patch(
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
+            ):
+                result = await service.switch_agent_mode("downgrade-mode-server", "readonly")
+
+        assert result.success is True
+        assert "readonly" in result.message
+
+        await db_session.refresh(server)
+        assert server.agent_mode == "readonly"
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_with_sudo_password(self, db_session) -> None:
+        """US0188 AC2: Should accept sudo password and use password pipe."""
+        from homelab_cmd.db.models.agent_credential import AgentCredential
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server_guid = str(uuid.uuid4())
+        server = Server(
+            id="sudo-mode-server",
+            hostname="sudo.local",
+            ip_address="192.168.1.102",
+            guid=server_guid,
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+
+        credential = AgentCredential(
+            server_guid=server_guid,
+            api_token_prefix="hlh_ag_test",
+            api_token_hash="oldhash",
+        )
+        db_session.add(credential)
+        await db_session.commit()
+
+        captured_commands = []
+
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
+            captured_commands.append(command)
+            result = MagicMock()
+            result.success = True
+            result.error = None
+            return result
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
+            with patch(
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
+            ):
+                result = await service.switch_agent_mode(
+                    "sudo-mode-server",
+                    "readwrite",
+                    sudo_password="mysudopass",
+                )
+
+        assert result.success is True
+        # Verify password pipe was used
+        assert len(captured_commands) == 1
+        assert "echo 'mysudopass' | sudo -S" in captured_commands[0]
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_ssh_failure(self, db_session) -> None:
+        """US0188 AC4: Should return error when SSH command fails."""
+        from homelab_cmd.db.models.agent_credential import AgentCredential
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server_guid = str(uuid.uuid4())
+        server = Server(
+            id="ssh-fail-mode-server",
+            hostname="sshfail.local",
+            ip_address="192.168.1.103",
+            guid=server_guid,
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+
+        credential = AgentCredential(
+            server_guid=server_guid,
+            api_token_prefix="hlh_ag_test",
+            api_token_hash="oldhash",
+        )
+        db_session.add(credential)
+        await db_session.commit()
+
+        mock_result = MagicMock()
+        mock_result.success = False
+        mock_result.error = "Permission denied"
+        mock_result.stderr = ""
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(return_value=mock_result)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
+            result = await service.switch_agent_mode("ssh-fail-mode-server", "readwrite")
+
+        assert result.success is False
+        assert "Permission denied" in result.error
+        assert "Sudo access may be required" in result.error
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_no_server_guid(self, db_session) -> None:
+        """US0188: Should fail when server has no GUID."""
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server = Server(
+            id="no-guid-server",
+            hostname="noguid.local",
+            ip_address="192.168.1.104",
+            guid=None,  # No GUID
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+        await db_session.commit()
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        result = await service.switch_agent_mode("no-guid-server", "readwrite")
+
+        assert result.success is False
+        assert "GUID" in result.error
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_no_agent_credential(self, db_session) -> None:
+        """US0188: Should fail when no agent credential exists."""
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server = Server(
+            id="no-cred-mode-server",
+            hostname="nocred.local",
+            ip_address="192.168.1.105",
+            guid=str(uuid.uuid4()),
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+        await db_session.commit()
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        result = await service.switch_agent_mode("no-cred-mode-server", "readwrite")
+
+        assert result.success is False
+        assert "credential" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_switch_mode_uses_tailscale_hostname_when_available(self, db_session) -> None:
+        """US0188: Should prefer Tailscale hostname over regular hostname."""
+        from homelab_cmd.db.models.agent_credential import AgentCredential
+        from homelab_cmd.db.models.config import Config
+        from homelab_cmd.db.models.server import Server
+
+        server_guid = str(uuid.uuid4())
+        server = Server(
+            id="tailscale-mode-server",
+            hostname="local.hostname",
+            ip_address="192.168.1.106",
+            tailscale_hostname="tailscale.hostname.ts.net",
+            guid=server_guid,
+            agent_mode="readonly",
+        )
+        db_session.add(server)
+
+        ssh_config = Config(
+            key="ssh",
+            value={"key_configured": True},
+        )
+        db_session.add(ssh_config)
+
+        credential = AgentCredential(
+            server_guid=server_guid,
+            api_token_prefix="hlh_ag_test",
+            api_token_hash="oldhash",
+        )
+        db_session.add(credential)
+        await db_session.commit()
+
+        captured_hostnames = []
+
+        async def mock_execute(hostname, command, command_timeout, **kwargs):
+            captured_hostnames.append(hostname)
+            result = MagicMock()
+            result.success = True
+            result.error = None
+            return result
+
+        # Create mock SSH service with available keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = ["id_rsa"]
+        mock_ssh_service.execute_command = AsyncMock(side_effect=mock_execute)
+
+        # Inject mock SSH service via constructor
+        service = AgentDeploymentService(db_session, ssh_service=mock_ssh_service)
+
+        with patch(
+            "homelab_cmd.services.agent_deploy.build_agent_tarball",
+            return_value=b"fake-tarball",
+        ):
+            with patch(
+                "homelab_cmd.services.agent_deploy.get_agent_version",
+                return_value="1.0.0",
+            ):
+                result = await service.switch_agent_mode("tailscale-mode-server", "readwrite")
+
+        assert result.success is True
+        assert len(captured_hostnames) == 1
+        assert captured_hostnames[0] == "tailscale.hostname.ts.net"
 
 
 class TestGetDeploymentService:

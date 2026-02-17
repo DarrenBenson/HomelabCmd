@@ -531,12 +531,17 @@ _ssh_status_cache: dict[str, tuple[str, str | None, str | None, datetime]] = {}
 SSH_STATUS_CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
-async def _get_ssh_username(session: AsyncSession) -> str:
-    """Get the configured SSH username from database."""
-    stmt = select(Config).where(Config.key == "ssh_username")
+async def _get_ssh_username(session: AsyncSession) -> str | None:
+    """Get the configured SSH username from database.
+
+    Returns the default_username from the 'ssh' config key, or None if not set.
+    """
+    stmt = select(Config).where(Config.key == "ssh")
     result = await session.execute(stmt)
     config = result.scalar_one_or_none()
-    return config.value if config else "homelabcmd"
+    if config and isinstance(config.value, dict):
+        return config.value.get("default_username")
+    return None
 
 
 async def _test_ssh_for_device(

@@ -23,8 +23,10 @@ if __name__ == "__main__" and __package__ is None:
     # Running as standalone script - add parent dir to path for imports
     sys.path.insert(0, str(Path(__file__).parent))
     from collectors import (
+        detect_docker,
         get_all_services_status,
         get_cpu_info,
+        get_docker_status,
         get_filesystem_metrics,
         get_mac_address,
         get_metrics,
@@ -34,12 +36,15 @@ if __name__ == "__main__" and __package__ is None:
         get_package_updates,
     )
     from config import load_config
-    from heartbeat import HeartbeatResult, send_heartbeat
+    from heartbeat import HeartbeatResult, get_agent_version, send_heartbeat
+    from updater import handle_heartbeat_update
 else:
     # Running as module
     from .collectors import (
+        detect_docker,
         get_all_services_status,
         get_cpu_info,
+        get_docker_status,
         get_filesystem_metrics,
         get_mac_address,
         get_metrics,
@@ -49,7 +54,8 @@ else:
         get_package_updates,
     )
     from .config import load_config
-    from .heartbeat import HeartbeatResult, send_heartbeat
+    from .heartbeat import HeartbeatResult, get_agent_version, send_heartbeat
+    from .updater import handle_heartbeat_update
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +135,14 @@ Examples:
         cpu_info.get("cpu_cores") or 0,
     )
 
+    # US0157: Detect Docker installation once at startup
+    # Re-detection happens on agent restart if Docker is installed/removed
+    docker_installed = detect_docker()
+    if docker_installed:
+        logger.info("Docker detected on this host")
+    else:
+        logger.debug("Docker not detected on this host")
+
     # Main loop - metrics collection only
     while True:
         try:
@@ -140,22 +154,23 @@ Examples:
             filesystems = get_filesystem_metrics()
             network_interfaces = get_network_interfaces()
 
-            # Derive counts from detailed package list to ensure consistency
-            # (apt-get -s upgrade can miss packages that need dist-upgrade)
-            package_updates: dict[str, int | None] | None = None
-            if packages:
-                package_updates = {
-                    "updates_available": len(packages),
-                    "security_updates": sum(1 for p in packages if p.get("is_security")),
-                }
-            else:
-                package_updates = get_package_updates()
+            # US0198: Always use get_package_updates() for accurate counts
+            # This parses apt-get -s upgrade which correctly distinguishes:
+            # - updates_available: packages that WILL upgrade
+            # - held_back_count: packages held back (phased rollout, dependency, manual)
+            # The detailed package list may include held-back packages
+            package_updates = get_package_updates()
 
             # Collect service status if configured (US0018)
             services = None
             if config.monitored_services:
                 logger.debug("Collecting status for %d services...", len(config.monitored_services))
                 services = get_all_services_status(config.monitored_services)
+
+            # US0163: Collect Docker container status if Docker is installed (AC3)
+            docker_status = None
+            if docker_installed:
+                docker_status = get_docker_status()
 
             # Send heartbeat (metrics only - no command results)
             result: HeartbeatResult = send_heartbeat(
@@ -169,10 +184,37 @@ Examples:
                 packages=packages if packages else None,
                 filesystems=filesystems if filesystems else None,
                 network_interfaces=network_interfaces if network_interfaces else None,
+                docker_installed=docker_installed,  # US0157: Docker detection
+                docker_status=docker_status,  # US0163: Container status
             )
 
             if not result.success:
                 logger.warning("Heartbeat failed")
+            elif result.response_data and config.auto_update:
+                # US0184: Check for and handle agent updates
+                current_version = get_agent_version()
+                update_result = handle_heartbeat_update(
+                    config=config,
+                    current_version=current_version,
+                    heartbeat_response=result.response_data,
+                    auto_update_enabled=config.auto_update,
+                )
+                if update_result:
+                    if update_result.status == "success":
+                        logger.info("Agent updated to version %s", update_result.version)
+                        # Agent will restart via systemd or supervisor
+                    elif update_result.status == "failed":
+                        logger.error(
+                            "Agent update to %s failed: %s",
+                            update_result.version,
+                            update_result.error,
+                        )
+                    elif update_result.status == "skipped":
+                        logger.debug(
+                            "Update to %s skipped: %s",
+                            update_result.version,
+                            update_result.error,
+                        )
 
         except KeyboardInterrupt:
             logger.info("Shutting down...")

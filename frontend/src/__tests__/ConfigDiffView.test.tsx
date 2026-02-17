@@ -389,7 +389,22 @@ describe('ConfigDiffView', () => {
     });
 
     it('back button navigates to server detail', async () => {
-      renderWithRouter();
+      // Render with history stack: server detail -> config diff
+      // so navigate(-1) has somewhere to go back to
+      render(
+        <MemoryRouter
+          initialEntries={[
+            '/servers/test-server',
+            '/servers/test-server/config/diff?pack=base',
+          ]}
+          initialIndex={1}
+        >
+          <Routes>
+            <Route path="/servers/:serverId/config/diff" element={<ConfigDiffView />} />
+            <Route path="/servers/:serverId" element={<div>Server Detail Page</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('back-button')).toBeInTheDocument();

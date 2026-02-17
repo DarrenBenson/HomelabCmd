@@ -15,11 +15,8 @@ import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { MachineSection } from '../components/MachineSection';
 import { SectionDropZone } from '../components/SectionDropZone';
 import { ServerCard } from '../components/ServerCard';
-import { DashboardFilters } from '../components/DashboardFilters';
-import type { StatusFilter, TypeFilter } from '../components/DashboardFilters';
-import { SummaryBar } from '../components/SummaryBar';
-import type { SummaryFilterCallback } from '../components/SummaryBar';
-import { AlertBanner } from '../components/AlertBanner';
+import { FleetStatus } from '../components/FleetStatus';
+import type { StatusFilter } from '../components/FleetStatus';
 import { AlertDetailPanel } from '../components/AlertDetailPanel';
 import { PendingActionsPanel } from '../components/PendingActionsPanel';
 import { PendingAlertCard } from '../components/PendingAlertCard';
@@ -397,7 +394,6 @@ export function Dashboard() {
   // US0112: Filter state from URL parameters
   const searchQuery = searchParams.get('q') || '';
   const statusFilterParam = searchParams.get('status') || 'all';
-  const typeFilterParam = searchParams.get('type') || 'all';
 
   // Validate status filter from URL
   const validStatuses: StatusFilter[] = ['all', 'online', 'offline', 'warning', 'paused'];
@@ -405,15 +401,9 @@ export function Dashboard() {
     ? (statusFilterParam as StatusFilter)
     : 'all';
 
-  // Validate type filter from URL
-  const validTypes: TypeFilter[] = ['all', 'server', 'workstation'];
-  const typeFilter: TypeFilter = validTypes.includes(typeFilterParam as TypeFilter)
-    ? (typeFilterParam as TypeFilter)
-    : 'all';
-
   // US0112: Update URL when filters change
   const updateSearchParams = useCallback(
-    (updates: { q?: string; status?: StatusFilter; type?: TypeFilter }) => {
+    (updates: { q?: string; status?: StatusFilter }) => {
       const newParams = new URLSearchParams(searchParams);
 
       if (updates.q !== undefined) {
@@ -429,14 +419,6 @@ export function Dashboard() {
           newParams.set('status', updates.status);
         } else {
           newParams.delete('status');
-        }
-      }
-
-      if (updates.type !== undefined) {
-        if (updates.type && updates.type !== 'all') {
-          newParams.set('type', updates.type);
-        } else {
-          newParams.delete('type');
         }
       }
 
@@ -460,31 +442,12 @@ export function Dashboard() {
     [updateSearchParams]
   );
 
-  const handleTypeChange = useCallback(
-    (type: TypeFilter) => {
-      updateSearchParams({ type });
-    },
-    [updateSearchParams]
-  );
-
   const handleClearFilters = useCallback(() => {
     setSearchParams(new URLSearchParams(), { replace: true });
   }, [setSearchParams]);
 
-  // US0134: Handle summary bar filter clicks
-  const handleSummaryFilter: SummaryFilterCallback = useCallback(
-    (status?: StatusFilter, type?: TypeFilter) => {
-      updateSearchParams({
-        status: status ?? 'all',
-        type: type ?? 'all',
-        q: '', // Clear search when using summary filters
-      });
-    },
-    [updateSearchParams]
-  );
-
   // US0112: Check if any filters are active
-  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || typeFilter !== 'all';
+  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all';
 
   // US0112: Filter servers based on search and filters
   const filteredServers = useMemo(() => {
@@ -514,13 +477,9 @@ export function Dashboard() {
         }
       }
 
-      // Type filter
-      const matchesType =
-        typeFilter === 'all' || server.machine_type === typeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
+      return matchesSearch && matchesStatus;
     });
-  }, [servers, searchQuery, statusFilter, typeFilter]);
+  }, [servers, searchQuery, statusFilter]);
 
   // US0115: Handle quick action message display
   const handleQuickActionMessage = useCallback((msg: { type: 'success' | 'info' | 'error'; text: string }) => {
@@ -865,9 +824,6 @@ export function Dashboard() {
           <div className="flex items-center gap-4">
             <ConnectivityStatusBar />
             <CostBadge />
-            <span className="text-text-tertiary text-sm font-mono">
-              {servers.length} server{servers.length !== 1 ? 's' : ''}
-            </span>
             <button
               onClick={() => setShowAddServerModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-status-success text-bg-primary rounded-md text-sm font-medium hover:bg-status-success/90 transition-colors"
@@ -878,51 +834,58 @@ export function Dashboard() {
               <Plus className="w-4 h-4" />
               Add Server
             </button>
-            <Link
-              to="/scans"
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Scans"
-              title="Scans"
-              data-testid="scans-link"
-            >
-              <Radar className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/discovery"
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Device Discovery"
-              title="Device Discovery"
-              data-testid="discovery-link"
-            >
-              <Globe className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/actions"
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Actions"
-              title="Actions"
-              data-testid="actions-link"
-            >
-              <ListTodo className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/config"
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Configuration Compliance"
-              title="Configuration Compliance"
-              data-testid="config-link"
-            >
-              <ShieldCheck className="w-5 h-5" />
-            </Link>
-            <button
-              onClick={() => navigate('/settings')}
-              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
-              aria-label="Settings"
-              title="Settings"
-              data-testid="settings-button"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+
+            {/* Visual separator between actions and navigation */}
+            <div className="w-px h-6 bg-border-default" aria-hidden="true" />
+
+            {/* Navigation icons - tighter spacing */}
+            <div className="flex items-center gap-2">
+              <Link
+                to="/scans"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Scans"
+                title="Scans"
+                data-testid="scans-link"
+              >
+                <Radar className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/discovery"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Device Discovery"
+                title="Device Discovery"
+                data-testid="discovery-link"
+              >
+                <Globe className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/actions"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Actions"
+                title="Actions"
+                data-testid="actions-link"
+              >
+                <ListTodo className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/config"
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Configuration Compliance"
+                title="Configuration Compliance"
+                data-testid="config-link"
+              >
+                <ShieldCheck className="w-5 h-5" />
+              </Link>
+              <button
+                onClick={() => navigate('/settings')}
+                className="p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Settings"
+                title="Settings"
+                data-testid="settings-button"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -1110,12 +1073,21 @@ export function Dashboard() {
       <main className="p-6 space-y-6">
         {hasServers ? (
           <>
-            {/* Alert Banner */}
-            <AlertBanner
+            {/* Fleet Status - unified status, alerts, and filters */}
+            <FleetStatus
+              machines={servers}
               alerts={alerts}
               onAcknowledge={handleAcknowledge}
               onAlertSelect={setSelectedAlert}
               acknowledgingIds={acknowledgingIds}
+              onRefresh={handleRefreshWithState}
+              isRefreshing={isRefreshing}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              statusFilter={statusFilter}
+              onStatusChange={handleStatusChange}
+              onClearFilters={handleClearFilters}
+              hasActiveFilters={hasActiveFilters}
             />
 
             {/* Pending Actions Panel (US0030) */}
@@ -1169,36 +1141,15 @@ export function Dashboard() {
               </section>
             )}
 
-            {/* US0134: Summary Bar */}
-            <SummaryBar
-              machines={servers}
-              onFilter={handleSummaryFilter}
-              onRefresh={handleRefreshWithState}
-              isRefreshing={isRefreshing}
-            />
-
-            {/* US0112: Dashboard Filters */}
-            <DashboardFilters
-              searchQuery={searchQuery}
-              onSearchChange={handleSearchChange}
-              statusFilter={statusFilter}
-              onStatusChange={handleStatusChange}
-              typeFilter={typeFilter}
-              onTypeChange={handleTypeChange}
-              onClear={handleClearFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-
             {/* US0132/US0137: Machine Sections with cross-section drag-and-drop */}
             {(() => {
               // Check which sections have machines after filtering
               // Note: machines without machine_type default to 'server' section
               const hasFilteredServers = filteredServers.some((s) => s.machine_type === 'server' || !s.machine_type);
               const hasFilteredWorkstations = filteredServers.some((s) => s.machine_type === 'workstation');
-              // Show servers section: not filtering by workstations AND has servers (or no active filters)
-              const showServersSection = typeFilter !== 'workstation' && (hasFilteredServers || !hasActiveFilters);
-              // Show workstations section: not filtering by servers AND has workstations (or no active filters)
-              const showWorkstationsSection = typeFilter !== 'server' && (hasFilteredWorkstations || !hasActiveFilters);
+              // Show both sections when there are machines (sections handle their own type filtering)
+              const showServersSection = hasFilteredServers || !hasActiveFilters;
+              const showWorkstationsSection = hasFilteredWorkstations || !hasActiveFilters;
 
               return filteredServers.length > 0 ? (
                 <DndContext

@@ -47,11 +47,11 @@ def executor(mock_credential_service, mock_host_key_service):
 
 @pytest.fixture
 def mock_server():
-    """Create mock server with tailscale hostname."""
+    """Create mock server with tailscale hostname and username."""
     server = MagicMock()
     server.id = "test-server"
     server.tailscale_hostname = "test-server.tailnet.ts.net"
-    server.ssh_username = None
+    server.ssh_username = "testuser"
     return server
 
 
@@ -142,13 +142,15 @@ class TestExecuteValidation:
             await executor.execute(mock_server, "   ")
 
     @pytest.mark.asyncio
-    async def test_no_tailscale_hostname_raises_valueerror(self, executor):
-        """Server without tailscale_hostname should raise ValueError."""
+    async def test_no_hostname_raises_valueerror(self, executor):
+        """Server without any hostname/IP should raise ValueError."""
         server = MagicMock()
         server.id = "test-server"
         server.tailscale_hostname = None
+        server.ip_address = None
+        server.hostname = None
 
-        with pytest.raises(ValueError, match="no tailscale_hostname"):
+        with pytest.raises(ValueError, match="no hostname"):
             await executor.execute(server, "hostname")
 
 
@@ -446,14 +448,11 @@ class TestExecuteUsernameResolution:
             assert call_args[0][1] == "custom-user"  # username is second positional arg
 
     @pytest.mark.asyncio
-    async def test_falls_back_to_global_username(
+    async def test_uses_provided_username_parameter(
         self, executor, mock_server, mock_credential_service
     ):
-        """Should use global SSH username if server has none."""
-        mock_server.ssh_username = None
-        mock_credential_service.get_credential = AsyncMock(
-            side_effect=lambda key: "global-user" if key == "ssh_username" else "key-content"
-        )
+        """Should use username parameter when server.ssh_username is not set."""
+        mock_server.ssh_username = None  # No per-server username
 
         mock_client = MagicMock()
         mock_stdout = MagicMock()
@@ -466,34 +465,23 @@ class TestExecuteUsernameResolution:
         with patch.object(executor, "get_connection", new_callable=AsyncMock) as mock_get_conn:
             mock_get_conn.return_value = mock_client
 
-            await executor.execute(mock_server, "hostname")
+            # Pass username as parameter (like callers do from Config)
+            await executor.execute(mock_server, "hostname", username="provided-user")
 
             call_args = mock_get_conn.call_args
-            assert call_args[0][1] == "global-user"
+            assert call_args[0][1] == "provided-user"
 
     @pytest.mark.asyncio
-    async def test_defaults_to_homelabcmd_username(
+    async def test_raises_error_if_no_username_configured(
         self, executor, mock_server, mock_credential_service
     ):
-        """Should default to 'homelabcmd' if no username configured."""
+        """Should raise ValueError if no username is configured."""
         mock_server.ssh_username = None
-        mock_credential_service.get_credential = AsyncMock(return_value=None)
 
-        mock_client = MagicMock()
-        mock_stdout = MagicMock()
-        mock_stdout.read.return_value = b"output"
-        mock_stdout.channel.recv_exit_status.return_value = 0
-        mock_stderr = MagicMock()
-        mock_stderr.read.return_value = b""
-        mock_client.exec_command.return_value = (MagicMock(), mock_stdout, mock_stderr)
-
-        with patch.object(executor, "get_connection", new_callable=AsyncMock) as mock_get_conn:
-            mock_get_conn.return_value = mock_client
-
+        with pytest.raises(ValueError) as exc_info:
             await executor.execute(mock_server, "hostname")
 
-            call_args = mock_get_conn.call_args
-            assert call_args[0][1] == "homelabcmd"
+        assert "No SSH username configured" in str(exc_info.value)
 
 
 class TestOutputLimiting:

@@ -1,6 +1,9 @@
-import { X, CheckCircle, XCircle, Clock, Loader2, Ban } from 'lucide-react';
+import { X, CheckCircle, XCircle, Clock, Loader2, Ban, Timer } from 'lucide-react';
+import { useEffect } from 'react';
 import type { Action, ActionStatus } from '../types/action';
+import { useCommandStream } from '../hooks/useCommandStream';
 import { formatActionType } from '../lib/formatters';
+import { StreamingTerminal } from './StreamingTerminal';
 
 interface ActionDetailPanelProps {
   action: Action;
@@ -8,6 +11,8 @@ interface ActionDetailPanelProps {
   serverName?: string;
   onCancel?: (actionId: number) => void;
   cancelLoading?: boolean;
+  /** Enable real-time streaming for executing actions (US0156) */
+  enableStreaming?: boolean;
 }
 
 const statusConfig: Record<ActionStatus, { label: string; color: string; bgColor: string; icon: React.ReactNode }> = {
@@ -47,6 +52,12 @@ const statusConfig: Record<ActionStatus, { label: string; color: string; bgColor
     bgColor: 'bg-text-muted/10',
     icon: <Ban className="w-4 h-4" />,
   },
+  timed_out: {
+    label: 'Timed Out',
+    color: 'text-status-error',
+    bgColor: 'bg-status-error/10',
+    icon: <Timer className="w-4 h-4" />,
+  },
 };
 
 function formatTimestamp(isoTimestamp: string | null): string {
@@ -54,10 +65,47 @@ function formatTimestamp(isoTimestamp: string | null): string {
   return new Date(isoTimestamp).toLocaleString();
 }
 
-export function ActionDetailPanel({ action, onClose, serverName, onCancel, cancelLoading }: ActionDetailPanelProps) {
+export function ActionDetailPanel({
+  action,
+  onClose,
+  serverName,
+  onCancel,
+  cancelLoading,
+  enableStreaming = true,
+}: ActionDetailPanelProps) {
   const statConfig = statusConfig[action.status];
   const displayServerName = serverName || action.server_id;
   const canCancel = (action.status === 'pending' || action.status === 'approved') && onCancel;
+
+  // US0156: Real-time streaming for executing actions
+  const {
+    output: streamOutput,
+    isStreaming,
+    progress: streamProgress,
+    exitInfo: streamExitInfo,
+    error: streamError,
+    startStream,
+    stopStream,
+  } = useCommandStream();
+
+  // Start streaming when action is executing
+  const isExecuting = action.status === 'executing';
+  const shouldStream = enableStreaming && isExecuting;
+
+  useEffect(() => {
+    if (shouldStream && action.command && action.action_type) {
+      startStream(
+        action.server_id,
+        action.command,
+        action.action_type,
+        action.timeout_seconds || 300
+      );
+    }
+
+    return () => {
+      stopStream();
+    };
+  }, [shouldStream, action.server_id, action.command, action.action_type, action.timeout_seconds, startStream, stopStream]);
 
   // Build title
   const actionTitle = action.service_name
@@ -151,10 +199,20 @@ export function ActionDetailPanel({ action, onClose, serverName, onCancel, cance
                 />
               )}
 
+              {/* Timed out */}
+              {action.timed_out_at && (
+                <TimelineEntry
+                  label="Timed Out"
+                  timestamp={action.timed_out_at}
+                  detail={action.timeout_seconds ? `after ${action.timeout_seconds}s` : undefined}
+                  testId="timeline-timed-out"
+                />
+              )}
+
               {/* Completed */}
               {action.completed_at && (
                 <TimelineEntry
-                  label={action.status === 'failed' ? 'Failed' : 'Completed'}
+                  label={action.status === 'failed' ? 'Failed' : action.status === 'timed_out' ? 'Timed Out' : 'Completed'}
                   timestamp={action.completed_at}
                   testId="timeline-completed"
                 />
@@ -183,8 +241,23 @@ export function ActionDetailPanel({ action, onClose, serverName, onCancel, cance
             </div>
           </div>
 
-          {/* Execution details */}
-          {action.executed_at && (
+          {/* US0156: Streaming output for executing actions */}
+          {shouldStream && (
+            <div className="space-y-2" data-testid="streaming-output-section">
+              <h4 className="text-sm font-medium text-text-tertiary uppercase tracking-wider">Live Output</h4>
+              <StreamingTerminal
+                output={streamOutput}
+                isStreaming={isStreaming}
+                progress={streamProgress}
+                exitInfo={streamExitInfo}
+                error={streamError}
+                maxHeight={300}
+              />
+            </div>
+          )}
+
+          {/* Execution details (shown for completed/failed actions, or when not streaming) */}
+          {action.executed_at && !shouldStream && (
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-text-tertiary uppercase tracking-wider">Execution Details</h4>
 
@@ -203,6 +276,22 @@ export function ActionDetailPanel({ action, onClose, serverName, onCancel, cance
                 </div>
               )}
 
+              {/* Timeout */}
+              {action.timeout_seconds !== null && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-tertiary">Timeout:</span>
+                  <span
+                    className={`font-mono text-sm font-medium ${
+                      action.status === 'timed_out' ? 'text-status-error' : 'text-text-secondary'
+                    }`}
+                    data-testid="action-timeout"
+                  >
+                    {action.timeout_seconds}s
+                    {action.status === 'timed_out' && ' (exceeded)'}
+                  </span>
+                </div>
+              )}
+
               {/* Output (stdout) */}
               <div className="space-y-2">
                 <span className="text-sm text-text-tertiary">Output:</span>
@@ -210,7 +299,7 @@ export function ActionDetailPanel({ action, onClose, serverName, onCancel, cance
                   className="bg-bg-tertiary border border-border-default rounded-md p-3 font-mono text-xs text-text-secondary max-h-48 overflow-auto whitespace-pre-wrap"
                   data-testid="action-stdout"
                 >
-                  {action.stdout || (action.status === 'executing' ? 'Executing...' : '(empty)')}
+                  {action.stdout || '(empty)'}
                 </div>
               </div>
 

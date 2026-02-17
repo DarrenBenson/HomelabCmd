@@ -15,6 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES
 from homelab_cmd.api.schemas.config import (
+    ActionTimeoutConfig,
+    ActionTimeoutConfigResponse,
+    ActionTimeoutConfigUpdate,
     ConfigResponse,
     CostConfig,
     CostConfigResponse,
@@ -37,6 +40,7 @@ router = APIRouter(prefix="/config", tags=["Configuration"])
 DEFAULT_THRESHOLDS = ThresholdsConfig()
 DEFAULT_NOTIFICATIONS = NotificationsConfig()
 DEFAULT_COST = CostConfig()
+DEFAULT_ACTION_TIMEOUTS = ActionTimeoutConfig()  # US0186
 
 
 async def get_config_value(session: AsyncSession, key: str) -> dict | None:
@@ -460,5 +464,110 @@ async def update_cost_config(
     return CostConfigResponse(
         electricity_rate=cost.electricity_rate,
         currency_symbol=cost.currency_symbol,
+        updated_at=updated_at,
+    )
+
+
+# US0186: Command Timeout Configuration
+
+
+@router.get(
+    "/action-timeouts",
+    response_model=ActionTimeoutConfigResponse,
+    operation_id="get_action_timeout_config",
+    summary="Get command timeout configuration",
+    responses={**AUTH_RESPONSES},
+)
+async def get_action_timeout_config(
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> ActionTimeoutConfigResponse:
+    """Get command timeout configuration.
+
+    Returns the current timeout settings for remediation commands:
+    - default_timeout: Global default (300s)
+    - service_restart_timeout: Service restart operations (60s)
+    - package_update_timeout: Package update operations (600s)
+    """
+    timeout_data = await get_config_value(session, "action_timeouts")
+    if timeout_data:
+        timeouts = ActionTimeoutConfig(**timeout_data)
+        # Get updated_at from the config record
+        result = await session.execute(select(Config).where(Config.key == "action_timeouts"))
+        config_record = result.scalar_one_or_none()
+        updated_at = (
+            config_record.updated_at.isoformat()
+            if config_record and config_record.updated_at
+            else None
+        )
+    else:
+        timeouts = DEFAULT_ACTION_TIMEOUTS
+        updated_at = None
+
+    return ActionTimeoutConfigResponse(
+        default_timeout=timeouts.default_timeout,
+        service_restart_timeout=timeouts.service_restart_timeout,
+        package_update_timeout=timeouts.package_update_timeout,
+        updated_at=updated_at,
+    )
+
+
+@router.put(
+    "/action-timeouts",
+    response_model=ActionTimeoutConfigResponse,
+    operation_id="update_action_timeout_config",
+    summary="Update command timeout configuration",
+    responses={**AUTH_RESPONSES},
+)
+async def update_action_timeout_config(
+    update: ActionTimeoutConfigUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_api_key),
+) -> ActionTimeoutConfigResponse:
+    """Update command timeout configuration.
+
+    Supports partial updates - only provided fields are updated.
+    Omitted fields retain their current values.
+
+    Example request body:
+    ```json
+    {
+        "default_timeout": 300,
+        "service_restart_timeout": 90
+    }
+    ```
+    """
+    # Get current timeout config
+    current_data = await get_config_value(session, "action_timeouts")
+    if current_data:
+        current = ActionTimeoutConfig(**current_data)
+    else:
+        current = DEFAULT_ACTION_TIMEOUTS
+
+    # Apply partial updates
+    result_dict = current.model_dump()
+    update_dict = update.model_dump(exclude_unset=True)
+
+    for field in ["default_timeout", "service_restart_timeout", "package_update_timeout"]:
+        if field in update_dict and update_dict[field] is not None:
+            result_dict[field] = update_dict[field]
+
+    # Create validated config
+    timeouts = ActionTimeoutConfig(**result_dict)
+
+    # Save to database
+    await set_config_value(session, "action_timeouts", timeouts.model_dump())
+
+    # Get updated_at
+    result = await session.execute(select(Config).where(Config.key == "action_timeouts"))
+    config_record = result.scalar_one_or_none()
+    updated_at = (
+        config_record.updated_at.isoformat() if config_record and config_record.updated_at else None
+    )
+
+    return ActionTimeoutConfigResponse(
+        default_timeout=timeouts.default_timeout,
+        service_restart_timeout=timeouts.service_restart_timeout,
+        package_update_timeout=timeouts.package_update_timeout,
         updated_at=updated_at,
     )

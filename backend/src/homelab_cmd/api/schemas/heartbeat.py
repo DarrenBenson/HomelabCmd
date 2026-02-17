@@ -317,6 +317,33 @@ class ServiceStatusPayload(BaseModel):
     )
 
 
+class DockerStatus(BaseModel):
+    """Docker container status summary (US0163).
+
+    Provides running/stopped/total container counts from the agent.
+    Only included in heartbeat if Docker is installed (AC3).
+    """
+
+    running_containers: int = Field(
+        ...,
+        ge=0,
+        description="Number of containers in running state",
+        examples=[8, 0],
+    )
+    stopped_containers: int = Field(
+        ...,
+        ge=0,
+        description="Number of containers in stopped/exited state",
+        examples=[2, 0],
+    )
+    total_containers: int = Field(
+        ...,
+        ge=0,
+        description="Total number of containers (running + stopped)",
+        examples=[10, 0],
+    )
+
+
 class HeartbeatRequest(BaseModel):
     """Schema for agent heartbeat request."""
 
@@ -389,12 +416,18 @@ class HeartbeatRequest(BaseModel):
     updates_available: int | None = Field(
         None,
         ge=0,
-        description="Number of package updates available",
+        description="Number of package updates that will install (excludes held-back)",
     )
     security_updates: int | None = Field(
         None,
         ge=0,
         description="Number of security updates available",
+    )
+    # US0198: held-back package count from agent
+    held_back_count: int | None = Field(
+        None,
+        ge=0,
+        description="Number of packages held back (phased rollout, dependency conflict, manual)",
     )
     services: list[ServiceStatusPayload] | None = Field(
         None,
@@ -419,6 +452,33 @@ class HeartbeatRequest(BaseModel):
     network_interfaces: list[NetworkInterfaceMetric] | None = Field(
         None,
         description="Per-interface network metrics (US0179)",
+    )
+    # US0184: Agent Auto-Update fields
+    update_available: bool = Field(
+        False,
+        description="True if agent detected a newer version is available",
+    )
+    update_status: str | None = Field(
+        None,
+        pattern=r"^(downloading|installing|success|failed)$",
+        description="Agent update status: downloading, installing, success, or failed",
+        examples=["downloading", "installing", "success", "failed"],
+    )
+    update_error: str | None = Field(
+        None,
+        max_length=500,
+        description="Error message if update failed",
+        examples=["Checksum mismatch", "Download failed after 3 retries"],
+    )
+    # US0157: Docker detection (EP0014)
+    docker_installed: bool | None = Field(
+        None,
+        description="True if Docker CLI is installed and accessible on the host",
+    )
+    # US0163: Docker container status (EP0014)
+    docker_status: "DockerStatus | None" = Field(
+        None,
+        description="Docker container status summary (running, stopped, total)",
     )
 
 
@@ -487,4 +547,16 @@ class HeartbeatResponse(BaseModel):
     results_acknowledged: list[int] = Field(
         default_factory=list,
         description="Action IDs whose results were acknowledged (US0025)",
+    )
+    # US0184: Agent Auto-Update fields
+    latest_agent_version: str | None = Field(
+        None,
+        description="Latest available agent version (semver format, e.g., '2.1.0')",
+        examples=["2.1.0", "2.0.0"],
+    )
+    update_command: str | None = Field(
+        None,
+        pattern=r"^update$",
+        description="Set to 'update' to trigger agent self-update",
+        examples=["update"],
     )

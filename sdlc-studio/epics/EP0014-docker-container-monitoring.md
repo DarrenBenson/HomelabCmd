@@ -1,6 +1,6 @@
 # EP0014: Docker Container Monitoring
 
-> **Status:** Draft
+> **Status:** Done
 > **Owner:** Darren
 > **Created:** 2026-01-26
 > **Target Release:** Phase 2 (Beta)
@@ -46,13 +46,13 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** Docker features are only shown for Docker hosts
 
 **Acceptance Criteria:**
-- [ ] Agent heartbeat includes `docker_installed` boolean
-- [ ] Detection via `which docker` or `docker --version`
-- [ ] Machine model has `has_docker` field
-- [ ] Field updated on each heartbeat
-- [ ] API includes `has_docker` in machine response
-- [ ] Dashboard card shows Docker icon if Docker installed
-- [ ] Detection works for both docker.io and Docker CE
+- [x] Agent heartbeat includes `docker_installed` boolean
+- [x] Detection via `which docker` or `docker --version`
+- [x] Machine model has `has_docker` field
+- [x] Field updated on each heartbeat
+- [x] API includes `has_docker` in machine response
+- [x] Dashboard card shows Docker icon if Docker installed
+- [x] Detection works for both docker.io and Docker CE
 
 **Technical Notes:**
 - Agent detection:
@@ -89,13 +89,13 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I know what's running
 
 **Acceptance Criteria:**
-- [ ] API endpoint: `GET /api/v1/machines/{id}/containers`
-- [ ] Retrieves container list via SSH
-- [ ] Returns: container ID, name, image, status, uptime, ports
-- [ ] Includes both running and stopped containers
-- [ ] Sorted by status (running first) then name
-- [ ] Cached for 60 seconds (avoid excessive SSH calls)
-- [ ] Returns empty array if Docker not installed
+- [x] API endpoint: `GET /api/v1/machines/{id}/containers`
+- [x] Retrieves container list via SSH
+- [x] Returns: container ID, name, image, status, uptime, ports
+- [x] Includes both running and stopped containers
+- [x] Sorted by status (running first) then name
+- [x] Cached for 60 seconds (avoid excessive SSH calls)
+- [x] Returns empty array if Docker not installed
 
 **Technical Notes:**
 - SSH command to list containers:
@@ -166,15 +166,15 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I can see container status at a glance
 
 **Acceptance Criteria:**
-- [ ] Widget ID: `containers`
-- [ ] Only displayed for machines with `has_docker=true`
-- [ ] Lists all containers with status indicator
-- [ ] Running: green dot, Stopped/Exited: grey dot, Error: red dot
-- [ ] Shows container name, image (truncated), status text
-- [ ] Uptime shown for running containers
-- [ ] Refreshes every 60 seconds
-- [ ] Clickable row expands to show ports, full image name
-- [ ] Minimum widget size: 6x4
+- [x] Widget ID: `containers`
+- [x] Only displayed for machines with `has_docker=true`
+- [x] Lists all containers with status indicator
+- [x] Running: green dot, Stopped/Exited: grey dot, Error: red dot
+- [x] Shows container name, image (truncated), status text
+- [x] Uptime shown for running containers
+- [x] Refreshes every 60 seconds
+- [x] Clickable row expands to show ports, full image name
+- [x] Minimum widget size: 6x4
 
 **Technical Notes:**
 - Widget component:
@@ -245,13 +245,13 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I can bring services back online
 
 **Acceptance Criteria:**
-- [ ] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/start`
-- [ ] Executes `docker start {container_name}` via SSH
-- [ ] Returns success/failure with docker output
-- [ ] Container list refreshed after action
-- [ ] Button disabled while action in progress
-- [ ] Toast notification on success/failure
-- [ ] Audit log entry created
+- [x] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/start`
+- [x] Executes `docker start {container_name}` via SSH
+- [x] Returns success/failure with docker output
+- [x] Container list refreshed after action
+- [x] Button disabled while action in progress
+- [x] Toast notification on success/failure
+- [x] Audit log entry created
 
 **Technical Notes:**
 - API implementation:
@@ -288,13 +288,13 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I can gracefully shut down services
 
 **Acceptance Criteria:**
-- [ ] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/stop`
-- [ ] Executes `docker stop {container_name}` via SSH
-- [ ] Default timeout: 10 seconds (graceful shutdown)
-- [ ] Returns success/failure with docker output
-- [ ] Container list refreshed after action
-- [ ] Confirmation dialog before stopping
-- [ ] Audit log entry created
+- [x] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/stop`
+- [x] Executes `docker stop {container_name}` via SSH
+- [x] Default timeout: 10 seconds (graceful shutdown)
+- [x] Returns success/failure with docker output
+- [x] Container list refreshed after action
+- [x] Confirmation dialog before stopping
+- [x] Audit log entry created
 
 ---
 
@@ -308,11 +308,11 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I can quickly recover from issues
 
 **Acceptance Criteria:**
-- [ ] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/restart`
-- [ ] Executes `docker restart {container_name}` via SSH
-- [ ] Returns success/failure with docker output
-- [ ] Container list refreshed after action
-- [ ] Audit log entry created
+- [x] API endpoint: `POST /api/v1/machines/{id}/containers/{container_id}/restart`
+- [x] Executes `docker restart {container_name}` via SSH
+- [x] Returns success/failure with docker output
+- [x] Container list refreshed after action
+- [x] Audit log entry created
 
 ---
 
@@ -326,12 +326,12 @@ Add basic Docker container monitoring to HomelabCmd. Detect Docker installation 
 **So that** I don't need SSH for summary info
 
 **Acceptance Criteria:**
-- [ ] Heartbeat includes `docker_status` object
-- [ ] Reports: running_containers, stopped_containers, total_containers
-- [ ] Only included if Docker installed
-- [ ] Low overhead (single `docker ps` command)
-- [ ] Machine model stores latest docker status
-- [ ] Dashboard card shows container count badge
+- [x] Heartbeat includes `docker_status` object
+- [x] Reports: running_containers, stopped_containers, total_containers
+- [x] Only included if Docker installed
+- [x] Low overhead (single `docker ps` command)
+- [x] Machine model stores latest docker status
+- [x] Dashboard card shows container count badge
 
 **Technical Notes:**
 - Agent heartbeat addition:
@@ -472,7 +472,7 @@ class ContainerListResponse(BaseModel):
 ---
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-02-01
 **Epic Owner:** Darren
 
 ---
@@ -484,3 +484,4 @@ class ContainerListResponse(BaseModel):
 | 2026-01-26 | Darren | Initial epic creation |
 | 2026-01-28 | Claude | Renumbered stories US0123-US0129 to US0157-US0163 to resolve conflict with EP0010 |
 | 2026-01-28 | Claude | SDLC-Studio v2.1.0: Standardised header format, added Story Points |
+| 2026-02-01 | Claude | All 7 stories implemented (US0157-US0163), epic marked Done |

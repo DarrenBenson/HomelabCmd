@@ -118,8 +118,8 @@ export function ServerCostHistoryWidget({
     };
   }, [serverId, period]);
 
-  // Don't render if no data and not loading
-  if (!loading && (!data || data.length === 0)) {
+  // Don't render if no data and not loading (but allow errors to show)
+  if (!loading && !error && (!data || data.length === 0)) {
     return null;
   }
 

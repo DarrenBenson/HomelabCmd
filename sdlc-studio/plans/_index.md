@@ -2,16 +2,16 @@
 
 This document provides an overview of all Implementation Plans in the project.
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-31
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| Draft | 18 |
+| Draft | 19 |
 | In Progress | 0 |
-| Complete | 60 |
-| **Total** | **78** |
+| Complete | 61 |
+| **Total** | **80** |
 
 ## Plans by Epic
 
@@ -37,6 +37,7 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0037](PL0037-trigger-package-updates.md) | US0052 | Trigger Package Updates | Complete | 2026-01-20 |
 | [PL0050](PL0050-guid-based-server-identity.md) | US0070 | GUID-Based Server Identity | Draft | 2026-01-22 |
 | [PL0053](PL0053-remove-agent-ssh-credentials.md) | US0075 | Remove Agent API SSH Credentials and Verification | Draft | 2026-01-24 |
+| [PL0201](PL0201-agent-auto-update.md) | US0184 | Agent Auto-Update Mechanism | Draft | 2026-01-31 |
 
 ### [EP0002: Alerting & Notifications](../epics/EP0002-alerting.md)
 
@@ -60,6 +61,7 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0025](PL0025-service-alerts.md) | US0021 | Service-Down Alert Generation | Complete | 2026-01-19 |
 | [PL0026](PL0026-service-restart-action.md) | US0022 | Service Restart Action | Complete | 2026-01-19 |
 | [PL0051](PL0051-service-discovery-during-install.md) | US0069 | Service Discovery During Install | Draft | 2026-01-22 |
+| [PL0202](PL0202-service-restart-grace-period.md) | US0185 | Service Restart Grace Period | Ready | 2026-01-31 |
 
 ### [EP0004: Remediation Engine](../epics/EP0004-remediation.md)
 
@@ -220,6 +222,12 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0165](PL0165-cpu-usage-widget.md) | US0165 | CPU Usage Widget | Draft | 2026-01-28 |
 | [PL0177](PL0177-responsive-widget-layout.md) | US0177 | Responsive Widget Layout | Draft | 2026-01-29 |
 
+### [EP0014: Docker Container Monitoring](../epics/EP0014-docker-container-monitoring.md)
+
+| ID | Story | Title | Status | Created |
+|----|-------|-------|--------|---------|
+| [PL0206](PL0206-container-listing.md) | US0158 | Container Listing via SSH | Complete | 2026-02-01 |
+
 ### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 
 | ID | Story | Title | Status | Created |
@@ -244,6 +252,7 @@ This document provides an overview of all Implementation Plans in the project.
 - **PL0093**: Unified SSH Key Management (US0093)
 - **PL0109**: Enhanced Maintenance Mode Indicator (US0109)
 - **PL0110**: Warning State Visual Treatment (US0110)
+- **PL0201**: Agent Auto-Update Mechanism (US0184)
 
 ### In Progress
 

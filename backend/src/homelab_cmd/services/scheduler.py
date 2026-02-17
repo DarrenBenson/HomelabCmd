@@ -35,6 +35,9 @@ RAW_RETENTION_DAYS = 7  # Keep raw data for 7 days
 HOURLY_RETENTION_DAYS = 90  # Keep hourly aggregates for 90 days
 DAILY_RETENTION_DAYS = 365  # Keep daily aggregates for 12 months
 
+# Audit log retention (US0155)
+AUDIT_LOG_RETENTION_DAYS = 90  # Keep audit logs for 90 days
+
 # Legacy constant for backward compatibility
 RETENTION_DAYS = RAW_RETENTION_DAYS
 
@@ -877,3 +880,42 @@ async def rollup_cost_snapshots() -> dict[str, int]:
     )
 
     return result
+
+
+# =============================================================================
+# Command Audit Log Cleanup (US0155)
+# =============================================================================
+
+
+async def cleanup_audit_logs(retention_days: int = AUDIT_LOG_RETENTION_DAYS) -> int:
+    """Clean up audit log entries older than retention period.
+
+    AC4: 90-day retention policy for command execution audit logs.
+    This is the only mechanism for removing audit entries, ensuring
+    intentional retention compliance while maintaining immutability.
+
+    Schedule: 0 3 * * * (3am UTC daily)
+
+    Args:
+        retention_days: Number of days to retain audit entries.
+
+    Returns:
+        Number of audit entries deleted.
+    """
+    from homelab_cmd.services.audit_service import cleanup_old_audit_entries
+
+    logger.info("Starting audit log cleanup (retention_days=%d)", retention_days)
+    start_time = time.monotonic()
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        deleted_count = await cleanup_old_audit_entries(session, retention_days)
+
+    elapsed = time.monotonic() - start_time
+    logger.info(
+        "Audit log cleanup completed in %.2f seconds: %d entries deleted",
+        elapsed,
+        deleted_count,
+    )
+
+    return deleted_count

@@ -564,4 +564,108 @@ test.describe('Settings Page', () => {
       await expect(page.locator('[data-testid="error-toast"]')).toBeVisible({ timeout: 5000 });
     });
   });
+
+  test.describe('Action Timeouts', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.route('**/api/v1/config', (route) => {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockConfig),
+        });
+      });
+
+      await page.route('**/api/v1/config/cost', (route) => {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockCostConfig),
+        });
+      });
+
+      await page.route('**/api/v1/config/action-timeouts', (route) => {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            default_timeout: 300,
+            service_restart_timeout: 60,
+            package_update_timeout: 600,
+            updated_at: null,
+          }),
+        });
+      });
+
+      // Stub connectivity, tailscale, and SSH routes for settings page
+      await page.route('**/api/v1/settings/connectivity', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ mode: 'tailscale', mode_auto_detected: false, tailscale: { configured: false, connected: false, tailnet: null, device_count: 0 }, ssh: { username: null, key_configured: false, key_uploaded_at: null } }) });
+      });
+      await page.route('**/api/v1/settings/tailscale/status', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ configured: false }) });
+      });
+      await page.route('**/api/v1/settings/ssh/status', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ configured: false, keys: [] }) });
+      });
+      await page.route('**/api/v1/settings/ssh/keys', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ keys: [] }) });
+      });
+    });
+
+    test('displays action-timeouts-card', async ({ page }) => {
+      await page.goto('/settings');
+      await page.waitForSelector('[data-testid="action-timeouts-card"]', { timeout: 10000 });
+      await expect(page.locator('[data-testid="action-timeouts-card"]')).toBeVisible();
+    });
+
+    test('default-timeout-input shows current value', async ({ page }) => {
+      await page.goto('/settings');
+      await page.waitForSelector('[data-testid="default-timeout-input"]', { timeout: 10000 });
+      await expect(page.locator('[data-testid="default-timeout-input"]')).toHaveValue('300');
+    });
+
+    test('save-action-timeouts-button calls API with updated values', async ({ page }) => {
+      let saveCalled = false;
+      await page.route('**/api/v1/config/action-timeouts', (route) => {
+        if (route.request().method() === 'PUT') {
+          saveCalled = true;
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              default_timeout: 600,
+              service_restart_timeout: 60,
+              package_update_timeout: 600,
+              updated_at: '2026-02-17T12:00:00Z',
+            }),
+          });
+        } else {
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              default_timeout: 300,
+              service_restart_timeout: 60,
+              package_update_timeout: 600,
+              updated_at: null,
+            }),
+          });
+        }
+      });
+      await page.goto('/settings');
+      await page.waitForSelector('[data-testid="default-timeout-input"]', { timeout: 10000 });
+      await page.locator('[data-testid="default-timeout-input"]').fill('600');
+      await page.locator('[data-testid="save-action-timeouts-button"]').click();
+      await page.waitForTimeout(500);
+      expect(saveCalled).toBe(true);
+    });
+
+    test('validation rejects invalid timeout values', async ({ page }) => {
+      await page.goto('/settings');
+      await page.waitForSelector('[data-testid="default-timeout-input"]', { timeout: 10000 });
+      // The input has min="30" max="3600" - HTML validation prevents invalid values
+      const input = page.locator('[data-testid="default-timeout-input"]');
+      await expect(input).toHaveAttribute('min', '30');
+      await expect(input).toHaveAttribute('max', '3600');
+    });
+  });
 });

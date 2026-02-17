@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -42,11 +42,30 @@ def get_engine() -> AsyncEngine:
         database_url = _get_async_database_url()
         logger.info("Creating database engine: %s", database_url.split("///")[-1])
 
+        # SQLite-specific settings for concurrent access
+        connect_args = {}
+        if "sqlite" in database_url:
+            connect_args = {
+                "check_same_thread": False,
+                "timeout": 30,  # Wait up to 30 seconds for locks
+            }
+
         _engine = create_async_engine(
             database_url,
             echo=False,  # Set to True for SQL logging
-            connect_args={"check_same_thread": False} if "sqlite" in database_url else {},
+            connect_args=connect_args,
+            pool_pre_ping=True,  # Verify connections before use
         )
+
+        # Set PRAGMA settings for every new connection (SQLite)
+        if "sqlite" in database_url:
+
+            @event.listens_for(_engine.sync_engine, "connect")
+            def set_sqlite_pragma(dbapi_conn, connection_record):
+                cursor = dbapi_conn.cursor()
+                cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.close()
 
     return _engine
 
@@ -115,6 +134,14 @@ async def init_database() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created/verified")
+
+    # Enable WAL mode for SQLite (better concurrent access)
+    if settings.database_url.startswith("sqlite:///"):
+        async with engine.connect() as conn:
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA busy_timeout=30000"))  # 30 second timeout
+            await conn.commit()
+            logger.info("SQLite WAL mode enabled for concurrent access")
 
     # Verify connectivity
     async with engine.connect() as conn:

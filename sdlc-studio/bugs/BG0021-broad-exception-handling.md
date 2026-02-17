@@ -1,12 +1,13 @@
 # BG0021: Broad Exception Handling in Connectivity Service
 
-> **Status:** Fixed
+> **Status:** Closed
 > **Severity:** Critical
 > **Priority:** P1
 > **Reporter:** Claude (Code Review)
 > **Assignee:** Claude
 > **Created:** 2026-01-27
-> **Updated:** 2026-01-27
+> **Updated:** 2026-02-17
+> **Close Reason:** Verified
 
 ## Summary
 
@@ -98,12 +99,12 @@ Added import for `TailscaleError` from `tailscale_service` module.
 ## Verification
 
 - [x] Fix verified in development
-- [x] Regression tests pass (1497 tests passing)
+- [x] Regression tests pass (42/42 connectivity tests passing)
 - [x] No side effects observed
-- [ ] Documentation updated (if applicable)
+- [x] Documentation updated (N/A - internal exception handling fix)
 
-**Verified by:** -
-**Verification date:** -
+**Verified by:** Claude
+**Verification date:** 2026-02-17
 
 ## Related Items
 
@@ -127,3 +128,4 @@ The fix ensures:
 | 2026-01-27 | Claude | Bug reported from code review |
 | 2026-01-27 | Claude | Status → In Progress, began investigation |
 | 2026-01-27 | Claude | Status → Fixed, replaced except Exception with except TailscaleError |
+| 2026-02-17 | Claude | Status → Closed (Verified), 42/42 connectivity tests pass |

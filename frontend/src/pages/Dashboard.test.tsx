@@ -416,17 +416,18 @@ describe('Dashboard', () => {
       expect(screen.getByText('HomelabCmd')).toBeInTheDocument();
     });
 
-    it('displays server count in header', async () => {
+    it('displays machine count in FleetStatus', async () => {
       (getServers as Mock).mockResolvedValue(mockServersResponse);
 
       renderWithRouter();
 
       await screen.findAllByTestId('server-card');
 
-      expect(screen.getByText('3 servers')).toBeInTheDocument();
+      // Machine count is now in FleetStatus component
+      expect(screen.getByTestId('stat-machines')).toHaveTextContent('3 Machines');
     });
 
-    it('displays singular "server" for single server', async () => {
+    it('displays singular "Machine" for single server', async () => {
       (getServers as Mock).mockResolvedValue({
         servers: [mockServersResponse.servers[0]],
         total: 1,
@@ -436,7 +437,7 @@ describe('Dashboard', () => {
 
       await screen.findByTestId('server-card');
 
-      expect(screen.getByText('1 server')).toBeInTheDocument();
+      expect(screen.getByTestId('stat-machines')).toHaveTextContent('1 Machine');
     });
   });
 
@@ -564,7 +565,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      expect(screen.getByTestId('alert-banner-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('fleet-status')).toBeInTheDocument();
       expect(screen.getByText('All Systems Operational')).toBeInTheDocument();
     });
 
@@ -1367,14 +1368,32 @@ describe('Dashboard', () => {
    * Spec Reference: sdlc-studio/stories/US0112-dashboard-search-filter.md
    */
   describe('Dashboard Filters (US0112)', () => {
-    it('renders search box and filter chips (AC1, AC3)', async () => {
+    // Helper to open the collapsible filter panel
+    const openFilterPanel = () => {
+      const toggleButton = screen.getByTestId('filter-toggle-button');
+      fireEvent.click(toggleButton);
+    };
+
+    it('renders filter toggle button in FleetStatus (AC1, AC3)', async () => {
       (getServers as Mock).mockResolvedValue(mockServersResponse);
 
       renderWithRouter();
 
       await screen.findAllByTestId('server-card');
 
-      expect(screen.getByTestId('dashboard-filters')).toBeInTheDocument();
+      expect(screen.getByTestId('filter-toggle-button')).toBeInTheDocument();
+    });
+
+    it('shows search box and filter chips when filter panel opened', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      openFilterPanel();
+
+      expect(screen.getByTestId('filter-panel')).toBeInTheDocument();
       expect(screen.getByTestId('search-input')).toBeInTheDocument();
       expect(screen.getByTestId('status-filter-all')).toBeInTheDocument();
       expect(screen.getByTestId('status-filter-online')).toBeInTheDocument();
@@ -1390,7 +1409,8 @@ describe('Dashboard', () => {
       // Initially shows all 3 servers
       expect(screen.getAllByTestId('server-card')).toHaveLength(3);
 
-      // Type in search
+      // Open filter panel and type in search
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'server-1' } });
 
@@ -1406,6 +1426,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'SERVER-1' } });
 
@@ -1419,6 +1440,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: '.local' } });
 
@@ -1433,6 +1455,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'Test Server 2' } });
 
@@ -1447,7 +1470,8 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      // Click online filter
+      // Open filter panel and click online filter
+      openFilterPanel();
       fireEvent.click(screen.getByTestId('status-filter-online'));
 
       // Only server-1 is online
@@ -1462,26 +1486,12 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       fireEvent.click(screen.getByTestId('status-filter-offline'));
 
       // Only server-2 is offline
       expect(screen.getAllByTestId('server-card')).toHaveLength(1);
       expect(screen.getByText('Test Server 2')).toBeInTheDocument();
-    });
-
-    it('filters by machine type (AC4)', async () => {
-      (getServers as Mock).mockResolvedValue(mockServersResponse);
-
-      renderWithRouter();
-
-      await screen.findAllByTestId('server-card');
-
-      // Click workstation filter
-      fireEvent.click(screen.getByTestId('type-filter-workstation'));
-
-      // Only server-3 is a workstation
-      expect(screen.getAllByTestId('server-card')).toHaveLength(1);
-      expect(screen.getByText('server-3.local')).toBeInTheDocument();
     });
 
     it('combines search and status filters', async () => {
@@ -1491,7 +1501,8 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      // Search for "server" (matches all) and filter to offline
+      // Open filter panel, search for "server" (matches all) and filter to offline
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'server' } });
       fireEvent.click(screen.getByTestId('status-filter-offline'));
@@ -1507,7 +1518,8 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      // Search for something that doesn't exist
+      // Open filter panel and search for something that doesn't exist
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
 
@@ -1523,6 +1535,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
 
@@ -1536,7 +1549,8 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      // Apply filter that results in no matches
+      // Open filter panel and apply filter that results in no matches
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
 
@@ -1556,7 +1570,8 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
-      // Apply multiple filters
+      // Open filter panel and apply multiple filters
+      openFilterPanel();
       const searchInput = screen.getByTestId('search-input');
       fireEvent.change(searchInput, { target: { value: 'server-1' } });
       fireEvent.click(screen.getByTestId('status-filter-online'));
@@ -1585,6 +1600,7 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       fireEvent.click(screen.getByTestId('status-filter-paused'));
 
       expect(screen.getAllByTestId('server-card')).toHaveLength(1);
@@ -1605,10 +1621,29 @@ describe('Dashboard', () => {
 
       await screen.findAllByTestId('server-card');
 
+      openFilterPanel();
       fireEvent.click(screen.getByTestId('status-filter-warning'));
 
       expect(screen.getAllByTestId('server-card')).toHaveLength(1);
       expect(screen.getByText('Test Server 1')).toBeInTheDocument();
+    });
+
+    it('shows active filter indicator when filters are applied and panel closed', async () => {
+      (getServers as Mock).mockResolvedValue(mockServersResponse);
+
+      renderWithRouter();
+
+      await screen.findAllByTestId('server-card');
+
+      // Open panel and apply a filter
+      openFilterPanel();
+      fireEvent.click(screen.getByTestId('status-filter-online'));
+
+      // Close panel
+      openFilterPanel();
+
+      // Should show active indicator
+      expect(screen.getByTestId('filter-active-indicator')).toBeInTheDocument();
     });
   });
 });

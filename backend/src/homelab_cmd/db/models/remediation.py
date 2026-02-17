@@ -25,6 +25,7 @@ class ActionStatus(str, Enum):
         pending → approved → executing → completed
                     │           │
                     │           └─► failed
+                    │           └─► timed_out (US0186)
                     │
                     └─► rejected (terminal)
 
@@ -37,6 +38,7 @@ class ActionStatus(str, Enum):
     EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
+    TIMED_OUT = "timed_out"  # US0186: Command timeout configuration
 
 
 class RemediationAction(Base):
@@ -108,6 +110,10 @@ class RemediationAction(Base):
     exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     stdout: Mapped[str | None] = mapped_column(Text, nullable=True)
     stderr: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Timeout fields (US0186: Command timeout configuration)
+    timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    timed_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationship to server
     server: Mapped["Server"] = relationship("Server", back_populates="remediation_actions")

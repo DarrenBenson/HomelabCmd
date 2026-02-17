@@ -2,6 +2,7 @@
  * Unified Import Modal component.
  *
  * EP0016: Unified Discovery Experience (US0099)
+ * EP0019: Enhanced for merged devices with connection path selection
  *
  * Combined import modal for both Network and Tailscale devices
  * with Display Name, TDP, Machine Type, and optional agent installation.
@@ -20,22 +21,31 @@ import {
   Key,
   Wifi,
   Globe,
+  Check,
 } from 'lucide-react';
 import { importTailscaleDevice, checkTailscaleImport } from '../api/tailscale';
 import { installAgent } from '../api/agents';
-import type { UnifiedDevice } from '../types/discovery';
+import type { UnifiedDevice, MergedDevice, MergedSource } from '../types/discovery';
 import type { TailscaleImportedMachine } from '../types/tailscale';
 import type { SSHKeyMetadata } from '../types/scan';
 
 interface UnifiedImportModalProps {
   isOpen: boolean;
-  device: UnifiedDevice;
+  device: UnifiedDevice | MergedDevice;
   sshKeys: SSHKeyMetadata[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
 type ImportPhase = 'idle' | 'importing' | 'installing' | 'success' | 'partial_success';
+type ConnectionPath = 'network' | 'tailscale';
+
+/**
+ * Type guard to check if device is a MergedDevice.
+ */
+function isMergedDevice(device: UnifiedDevice | MergedDevice): device is MergedDevice {
+  return 'mergedSource' in device;
+}
 
 export function UnifiedImportModal({
   isOpen,
@@ -44,6 +54,11 @@ export function UnifiedImportModal({
   onClose,
   onSuccess,
 }: UnifiedImportModalProps) {
+  // Determine if this is a merged device with both sources
+  const merged = isMergedDevice(device);
+  const mergedSource: MergedSource = merged ? device.mergedSource : device.source;
+  const hasBothPaths = mergedSource === 'both';
+
   // Form state
   const [displayName, setDisplayName] = useState(
     device.hostname.charAt(0).toUpperCase() + device.hostname.slice(1)
@@ -51,15 +66,28 @@ export function UnifiedImportModal({
   const [machineType, setMachineType] = useState<'server' | 'workstation'>('server');
   const [tdp, setTdp] = useState<string>('');
 
+  // Connection path selection (EP0019)
+  const [selectedPath, setSelectedPath] = useState<ConnectionPath>(() => {
+    if (hasBothPaths && merged) {
+      return device.recommendedPath || 'tailscale';
+    }
+    return mergedSource === 'tailscale' ? 'tailscale' : 'network';
+  });
+
   // Agent installation state
   const [installAgentChecked, setInstallAgentChecked] = useState(false);
   const [selectedKeyId, setSelectedKeyId] = useState<string>('');
 
   // Derived state
   const sshConfigured = sshKeys.length > 0;
-  const isTailscale = device.source === 'tailscale';
-  // Network devices require agent install - can't import without it
-  const agentInstallRequired = !isTailscale;
+  const isTailscalePath = selectedPath === 'tailscale';
+  // Network path requires agent install - can't import without it
+  const agentInstallRequired = !isTailscalePath;
+
+  // Get the effective device data based on selected path
+  const effectiveDevice = merged && hasBothPaths
+    ? (isTailscalePath ? device.tailscaleDevice : device.networkDevice) || device
+    : device;
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -88,6 +116,13 @@ export function UnifiedImportModal({
     setPhase('idle');
     setSuccessMessage(null);
 
+    // Set initial path selection
+    if (hasBothPaths && merged) {
+      setSelectedPath(device.recommendedPath || 'tailscale');
+    } else {
+      setSelectedPath(mergedSource === 'tailscale' ? 'tailscale' : 'network');
+    }
+
     // Pre-select default key or first key
     const defaultKey = sshKeys.find((k) => k.is_default);
     if (defaultKey) {
@@ -97,21 +132,32 @@ export function UnifiedImportModal({
     }
 
     // Default to install agent if SSH is configured and device is available
-    // Network devices require agent install, so always check for them
-    const isNetwork = device.source !== 'tailscale';
+    // Network path requires agent install, so always check for them
+    const isNetworkPath = mergedSource !== 'tailscale' && !hasBothPaths;
     setInstallAgentChecked(
-      (sshKeys.length > 0 && device.availability === 'available') || isNetwork
+      (sshKeys.length > 0 && device.availability === 'available') || isNetworkPath
     );
-  }, [device, sshKeys]);
+  }, [device, sshKeys, hasBothPaths, merged, mergedSource]);
 
-  // Check for duplicate on mount (Tailscale only)
+  // Update agent install requirement when path changes
   useEffect(() => {
-    if (!isTailscale || !device.tailscaleHostname) return;
+    if (!isTailscalePath && sshConfigured) {
+      setInstallAgentChecked(true);
+    }
+  }, [selectedPath, isTailscalePath, sshConfigured]);
+
+  // Check for duplicate on mount (Tailscale path only)
+  useEffect(() => {
+    const tailscaleHostname = merged && device.tailscaleDevice
+      ? device.tailscaleDevice.tailscaleHostname
+      : device.tailscaleHostname;
+
+    if (!isTailscalePath || !tailscaleHostname) return;
 
     async function checkDuplicate() {
       setCheckingDuplicate(true);
       try {
-        const result = await checkTailscaleImport(device.tailscaleHostname!);
+        const result = await checkTailscaleImport(tailscaleHostname!);
         if (result.imported && result.machine_id && result.display_name) {
           setDuplicate({
             machine_id: result.machine_id,
@@ -125,7 +171,7 @@ export function UnifiedImportModal({
       }
     }
     checkDuplicate();
-  }, [isTailscale, device.tailscaleHostname]);
+  }, [isTailscalePath, device, merged]);
 
   // Validation
   const validate = useCallback((): boolean => {
@@ -157,9 +203,17 @@ export function UnifiedImportModal({
       setAgentError(null);
 
       try {
-        const hostname = isTailscale
-          ? (machine as TailscaleImportedMachine).tailscale_hostname || device.tailscaleHostname || device.ip
-          : device.ip;
+        // Use appropriate hostname based on selected path
+        let hostname: string;
+        if (isTailscalePath) {
+          hostname = (machine as TailscaleImportedMachine).tailscale_hostname
+            || (merged && device.tailscaleDevice?.tailscaleHostname)
+            || device.tailscaleHostname
+            || (merged && device.tailscaleIp)
+            || device.ip;
+        } else {
+          hostname = (merged && device.networkIp) || device.ip;
+        }
 
         const result = await installAgent({
           hostname,
@@ -185,7 +239,7 @@ export function UnifiedImportModal({
         onSuccess();
       }
     },
-    [device, isTailscale, onSuccess]
+    [device, merged, isTailscalePath, onSuccess]
   );
 
   // Retry agent install
@@ -211,13 +265,22 @@ export function UnifiedImportModal({
     setPhase('importing');
 
     try {
-      if (isTailscale && device.tailscaleDeviceId && device.tailscaleHostname) {
+      // Get Tailscale-specific data
+      const tailscaleDeviceId = merged && device.tailscaleDevice
+        ? device.tailscaleDevice.tailscaleDeviceId
+        : device.tailscaleDeviceId;
+      const tailscaleHostname = merged && device.tailscaleDevice
+        ? device.tailscaleDevice.tailscaleHostname
+        : device.tailscaleHostname;
+      const tailscaleIp = merged ? device.tailscaleIp : device.ip;
+
+      if (isTailscalePath && tailscaleDeviceId && tailscaleHostname) {
         // Tailscale import
         const response = await importTailscaleDevice({
-          tailscale_device_id: device.tailscaleDeviceId,
-          tailscale_hostname: device.tailscaleHostname,
-          tailscale_ip: device.ip,
-          os: device.os,
+          tailscale_device_id: tailscaleDeviceId,
+          tailscale_hostname: tailscaleHostname,
+          tailscale_ip: tailscaleIp || device.ip,
+          os: effectiveDevice.os,
           display_name: displayName.trim(),
           machine_type: machineType,
           tdp: tdp ? Number(tdp) : null,
@@ -234,11 +297,12 @@ export function UnifiedImportModal({
           onSuccess();
         }
       } else {
-        // Network device - for now just trigger agent install which creates the server
-        // This follows the existing pattern where agent installation creates the server
+        // Network device - trigger agent install which creates the server
+        const networkIp = merged ? device.networkIp : device.ip;
+
         if (installAgentChecked && sshConfigured) {
           const result = await installAgent({
-            hostname: device.ip,
+            hostname: networkIp || device.ip,
             display_name: displayName.trim(),
           });
 
@@ -251,7 +315,7 @@ export function UnifiedImportModal({
             setError(result.error || 'Installation failed');
           }
         } else {
-          // Can't import network device without agent install in current architecture
+          // Can't import network device without agent install
           setPhase('idle');
           setError('Network devices require agent installation. Please configure an SSH key in Settings first.');
         }
@@ -278,19 +342,32 @@ export function UnifiedImportModal({
 
   if (!isOpen) return null;
 
+  // Get display IPs based on merged device
+  const networkIp = merged ? device.networkIp : (mergedSource === 'network' ? device.ip : null);
+  const tailscaleIp = merged ? device.tailscaleIp : (mergedSource === 'tailscale' ? device.ip : null);
+  const tailscaleHostname = merged && device.tailscaleDevice
+    ? device.tailscaleDevice.tailscaleHostname
+    : device.tailscaleHostname;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-lg rounded-lg bg-bg-primary shadow-xl">
+      <div className="w-full max-w-lg rounded-lg bg-bg-primary shadow-xl max-h-[90vh] overflow-y-auto" data-testid="import-modal">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-default px-6 py-4">
           <div className="flex items-center gap-2">
-            {isTailscale ? (
-              <Globe className="h-5 w-5 text-status-info" />
+            {hasBothPaths ? (
+              <>
+                <Wifi className="h-5 w-5 text-blue-400" />
+                <span className="text-text-tertiary">+</span>
+                <Globe className="h-5 w-5 text-purple-400" />
+              </>
+            ) : isTailscalePath ? (
+              <Globe className="h-5 w-5 text-purple-400" />
             ) : (
-              <Wifi className="h-5 w-5 text-status-info" />
+              <Wifi className="h-5 w-5 text-blue-400" />
             )}
             <h2 className="text-lg font-semibold text-text-primary">
               Import Device
@@ -398,30 +475,100 @@ export function UnifiedImportModal({
             </div>
           )}
 
+          {/* Connection Path Selection (EP0019) */}
+          {hasBothPaths && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-text-primary mb-3">
+                Connection Path
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Network path option */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPath('network')}
+                  disabled={isFormDisabled}
+                  className={`relative rounded-lg border p-3 text-left transition-colors ${
+                    selectedPath === 'network'
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-border-default bg-bg-secondary hover:border-border-hover'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {selectedPath === 'network' && (
+                    <div className="absolute top-2 right-2">
+                      <Check className="h-4 w-4 text-blue-400" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wifi className="h-4 w-4 text-blue-400" />
+                    <span className="font-medium text-text-primary">Direct Network</span>
+                  </div>
+                  <p className="text-xs text-text-tertiary font-mono">{networkIp}</p>
+                  {merged && device.networkDevice?.availability === 'available' && (
+                    <p className="text-xs text-status-success mt-1">SSH Available</p>
+                  )}
+                </button>
+
+                {/* Tailscale path option */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPath('tailscale')}
+                  disabled={isFormDisabled}
+                  className={`relative rounded-lg border p-3 text-left transition-colors ${
+                    selectedPath === 'tailscale'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-border-default bg-bg-secondary hover:border-border-hover'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {selectedPath === 'tailscale' && (
+                    <div className="absolute top-2 right-2">
+                      <Check className="h-4 w-4 text-purple-400" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Globe className="h-4 w-4 text-purple-400" />
+                    <span className="font-medium text-text-primary">Tailscale</span>
+                    {merged && (device as MergedDevice).recommendedPath === 'tailscale' && (
+                      <span className="text-xs text-status-info">(Recommended)</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-tertiary font-mono">{tailscaleIp}</p>
+                  {merged && (device as MergedDevice).tailscaleDevice?.availability === 'available' && (
+                    <p className="text-xs text-status-success mt-1">SSH Available</p>
+                  )}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-text-tertiary">
+                {selectedPath === 'tailscale'
+                  ? 'Tailscale works remotely and across networks'
+                  : 'Direct network connection for local access'}
+              </p>
+            </div>
+          )}
+
           {/* Read-only fields */}
           <div className="mb-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary">
-                {isTailscale ? 'Tailscale Hostname' : 'IP Address'}
+                {isTailscalePath ? 'Tailscale Hostname' : 'IP Address'}
               </label>
               <div className="mt-1 rounded-md bg-bg-tertiary px-3 py-2 font-mono text-sm text-text-primary">
-                {isTailscale ? device.tailscaleHostname : device.ip}
+                {isTailscalePath ? tailscaleHostname : (networkIp || device.ip)}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-text-secondary">
-                  {isTailscale ? 'Tailscale IP' : 'Hostname'}
+                  {isTailscalePath ? 'Tailscale IP' : 'Hostname'}
                 </label>
                 <div className="mt-1 rounded-md bg-bg-tertiary px-3 py-2 font-mono text-sm text-text-primary">
-                  {isTailscale ? device.ip : (device.hostname || '--')}
+                  {isTailscalePath ? (tailscaleIp || device.ip) : (device.hostname || '--')}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary">OS</label>
                 <div className="mt-1 rounded-md bg-bg-tertiary px-3 py-2 text-sm text-text-primary capitalize">
-                  {device.os}
+                  {effectiveDevice.os}
                 </div>
               </div>
             </div>
@@ -439,6 +586,7 @@ export function UnifiedImportModal({
               <input
                 type="text"
                 id="displayName"
+                data-testid="import-server-name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 disabled={isFormDisabled}
@@ -534,7 +682,7 @@ export function UnifiedImportModal({
                   </label>
                   {agentInstallRequired && sshConfigured && (
                     <p className="mt-1 text-xs text-text-tertiary">
-                      Required for network devices
+                      Required for {isTailscalePath ? 'this path' : 'network devices'}
                     </p>
                   )}
                   {!sshConfigured && (
@@ -598,6 +746,7 @@ export function UnifiedImportModal({
             {phase !== 'success' && phase !== 'partial_success' && (
               <button
                 type="submit"
+                data-testid="import-confirm-button"
                 disabled={loading || !!duplicate || checkingDuplicate || phase === 'installing'}
                 className="flex items-center gap-2 rounded-md bg-status-info px-4 py-2 text-sm font-medium text-white hover:bg-status-info/80 disabled:opacity-50"
               >

@@ -51,15 +51,18 @@ def client() -> Generator[TestClient, None, None]:
         agent_register,
         agents,
         alerts,
+        audit,
         commands,
         config,
         config_apply,
         config_check,
         config_packs,
         connectivity_settings,
+        containers,
         costs,
         discovery,
         metrics,
+        packages,
         preferences,
         scan,
         servers,
@@ -135,6 +138,8 @@ homelab infrastructure. Features include:
         app.include_router(actions.router, prefix="/api/v1")
         # EP0013: Synchronous Command Execution
         app.include_router(commands.router, prefix="/api/v1")
+        # US0155: Command Execution Audit Trail
+        app.include_router(audit.router, prefix="/api/v1")
         app.include_router(costs.router, prefix="/api/v1")
         app.include_router(scan.router, prefix="/api/v1")
         app.include_router(discovery.router, prefix="/api/v1")
@@ -147,6 +152,10 @@ homelab infrastructure. Features include:
         app.include_router(preferences.router, prefix="/api/v1")
         # US0173: Widget Layout Persistence
         app.include_router(widget_layout.router, prefix="/api/v1")
+        # US0158: Docker Container Listing (EP0014)
+        app.include_router(containers.router, prefix="/api/v1")
+        # US0198: Package Held Back Status Indicator
+        app.include_router(packages.router, prefix="/api/v1")
         return app
 
     test_app = create_test_app()
@@ -158,6 +167,22 @@ homelab infrastructure. Features include:
 def auth_headers(api_key: str) -> dict[str, str]:
     """Return headers with valid API key."""
     return {"X-API-Key": api_key}
+
+
+@pytest.fixture
+def mock_ssh_action_executor():
+    """Mock the SSH action executor to prevent background SSH execution.
+
+    Use this fixture in tests that create actions but don't want the
+    background SSH execution to change the action status.
+
+    Example:
+        def test_action_stays_approved(client, auth_headers, mock_ssh_action_executor):
+            # action will stay in 'approved' status, not become 'failed'
+            ...
+    """
+    with patch("homelab_cmd.api.routes.actions._execute_action_via_ssh"):
+        yield
 
 
 @pytest_asyncio.fixture

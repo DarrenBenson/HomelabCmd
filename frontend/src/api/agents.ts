@@ -13,6 +13,8 @@ import type {
   AgentRemoveRequest,
   AgentRemoveResponse,
   ServerActivateResponse,
+  AgentModeSwitchRequest,
+  AgentModeSwitchResponse,
 } from '../types/agent';
 
 /**
@@ -68,4 +70,20 @@ export async function removeAgent(
  */
 export async function activateServer(serverId: string): Promise<ServerActivateResponse> {
   return api.put<ServerActivateResponse>(`/api/v1/agents/${serverId}/activate`, {});
+}
+
+/**
+ * Switch agent mode remotely via SSH.
+ *
+ * US0188: Remote Agent Mode Switch
+ *
+ * @param serverId - Server identifier
+ * @param request - Mode switch request (mode and optional sudo password)
+ * @returns Mode switch result
+ */
+export async function switchAgentMode(
+  serverId: string,
+  request: AgentModeSwitchRequest
+): Promise<AgentModeSwitchResponse> {
+  return api.post<AgentModeSwitchResponse>(`/api/v1/agents/${serverId}/mode`, request);
 }

@@ -1,7 +1,7 @@
 """Expected Services API endpoints."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import and_, desc, select
@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES, CONFLICT_RESPONSE, NOT_FOUND_RESPONSE
+from homelab_cmd.api.routes.config import get_config_value
+from homelab_cmd.api.schemas.config import NotificationsConfig
 from homelab_cmd.api.schemas.service import (
     DuplicateActionError,
     ExpectedServiceCreate,
@@ -27,6 +29,34 @@ from homelab_cmd.services.agent_config_sync import sync_services_to_agent
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/servers", tags=["Services"])
+
+
+def _calculate_grace_period_remaining(
+    last_restart_at: datetime | None, grace_period_seconds: int
+) -> int | None:
+    """Calculate seconds remaining in grace period.
+
+    Args:
+        last_restart_at: When the service was last restarted.
+        grace_period_seconds: Total grace period in seconds.
+
+    Returns:
+        Seconds remaining if in grace period, None otherwise.
+    """
+    if last_restart_at is None or grace_period_seconds <= 0:
+        return None
+
+    # Handle timezone-naive datetimes (SQLite)
+    if last_restart_at.tzinfo is None:
+        last_restart_at = last_restart_at.replace(tzinfo=UTC)
+
+    elapsed = datetime.now(UTC) - last_restart_at
+    remaining = timedelta(seconds=grace_period_seconds) - elapsed
+
+    if remaining.total_seconds() > 0:
+        return int(remaining.total_seconds())
+
+    return None
 
 
 @router.get(
@@ -53,6 +83,15 @@ async def list_server_services(
             detail={"code": "NOT_FOUND", "message": f"Server '{server_id}' not found"},
         )
 
+    # US0185: Get grace period from notifications config
+    notifications_data = await get_config_value(session, "notifications")
+    notifications = (
+        NotificationsConfig(**notifications_data)
+        if notifications_data
+        else NotificationsConfig()
+    )
+    grace_period_seconds = notifications.service_restart_grace_seconds
+
     # Query all expected services for this server
     result = await session.execute(
         select(ExpectedService).where(ExpectedService.server_id == server_id)
@@ -62,12 +101,19 @@ async def list_server_services(
     # Build response with current status for each service
     service_responses = []
     for svc in services:
+        # US0185: Calculate grace period remaining
+        grace_remaining = _calculate_grace_period_remaining(
+            svc.last_restart_at, grace_period_seconds
+        )
+
         response = ExpectedServiceResponse(
             service_name=svc.service_name,
             display_name=svc.display_name,
             is_critical=svc.is_critical,
             enabled=svc.enabled,
             current_status=None,
+            last_restart_at=svc.last_restart_at,
+            grace_period_remaining=grace_remaining,
         )
 
         # Query latest ServiceStatus for this service
@@ -370,6 +416,19 @@ async def restart_service(
                 "existing_action_id": existing_action.id,
             },
         )
+
+    # US0185: Set last_restart_at on the expected service for grace period
+    expected_svc_result = await session.execute(
+        select(ExpectedService).where(
+            and_(
+                ExpectedService.server_id == server_id,
+                ExpectedService.service_name == service_name,
+            )
+        )
+    )
+    expected_service = expected_svc_result.scalar_one_or_none()
+    if expected_service:
+        expected_service.last_restart_at = datetime.now(UTC)
 
     # Create the remediation action
     action = RemediationAction(

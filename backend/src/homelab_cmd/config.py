@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     # Configuration Packs (EP0010: Configuration Management)
     config_packs_dir: str = "/app/data/config-packs"
 
+    # Agent Auto-Update (US0184)
+    # Current agent version available for download
+    # Set to the version string of the agent package being served
+    agent_version: str | None = None
+    # Directory containing agent packages for download
+    agent_package_dir: str = "/app/agent"
+
     # Credential Encryption (EP0008: Tailscale Integration)
     # Must be set in production; validated at startup in main.py lifespan
     encryption_key: str | None = None

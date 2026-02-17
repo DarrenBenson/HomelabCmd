@@ -1,6 +1,6 @@
 # US0186: Command Timeout Configuration
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0004: Remediation Engine](../epics/EP0004-remediation.md)
 > **Owner:** Darren
 > **Created:** 2026-01-29

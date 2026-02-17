@@ -154,7 +154,7 @@ test.describe('Typography (AC6)', () => {
     );
   });
 
-  test('server count uses monospace font', async ({ page }) => {
+  test('machine count in FleetStatus uses sans-serif font', async ({ page }) => {
     await page.route('**/api/v1/servers', (route) => {
       route.fulfill({
         status: 200,
@@ -177,15 +177,15 @@ test.describe('Typography (AC6)', () => {
     await page.goto('/');
     await page.waitForSelector('[data-testid="server-card"]', { timeout: 10000 });
 
-    // Find the server count element (contains "1 server")
-    const serverCount = page.locator('text=/\\d+ servers?/');
-    const fontFamily = await serverCount.evaluate((el) => {
+    // Find the machine count element in FleetStatus
+    const machineCount = page.locator('[data-testid="stat-machines"]');
+    const fontFamily = await machineCount.evaluate((el) => {
       return window.getComputedStyle(el).fontFamily;
     });
 
-    // Should use monospace font
+    // FleetStatus uses default sans-serif font
     expect(fontFamily.toLowerCase()).toMatch(
-      /(fira code|jetbrains mono|ui-monospace|sfmono-regular|menlo|monaco|consolas|liberation mono|courier new|monospace)/
+      /(inter|ui-sans-serif|system-ui|-apple-system|blinkmacsystemfont|segoe ui|roboto|helvetica neue|arial|sans-serif)/
     );
   });
 

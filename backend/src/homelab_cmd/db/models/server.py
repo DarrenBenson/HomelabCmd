@@ -15,6 +15,7 @@ from homelab_cmd.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from homelab_cmd.db.models.alert import Alert
     from homelab_cmd.db.models.alert_state import AlertState
+    from homelab_cmd.db.models.command_audit import CommandAuditLog
     from homelab_cmd.db.models.config_check import ConfigCheck
     from homelab_cmd.db.models.credential import Credential
     from homelab_cmd.db.models.metrics import Metrics
@@ -114,9 +115,12 @@ class Server(TimestampMixin, Base):
     )  # "auto" or "user"
     idle_watts: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Package updates (from agent heartbeat)
+    # Package updates (from agent heartbeat, updated by package status API)
+    # updates_available: packages that will actually install (excludes held-back)
     updates_available: Mapped[int | None] = mapped_column(Integer, nullable=True)
     security_updates: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # US0198: held-back package count (set by package status API)
+    held_back_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # US0178: Per-filesystem metrics snapshot (latest heartbeat data)
     # Stored as JSON array of filesystem metric objects
@@ -209,6 +213,14 @@ class Server(TimestampMixin, Base):
         lazy="dynamic",
     )
 
+    # US0155: Relationship to command audit logs (one-to-many)
+    command_audit_logs: Mapped[list["CommandAuditLog"]] = relationship(
+        "CommandAuditLog",
+        back_populates="server",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+
     # US0121: Configuration pack assignment
     # JSON array of assigned pack names (e.g., ["base", "developer-lite"])
     # Default is ["base"] for servers, ["base", "developer-lite"] for workstations
@@ -217,6 +229,22 @@ class Server(TimestampMixin, Base):
     # US0122: Configuration drift detection enabled flag
     # When True, scheduled drift detection will check this server
     drift_detection_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # US0184: Agent Auto-Update fields
+    # Auto-update enabled for this server (opt-in, default False)
+    auto_update_agent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Update status: "pending" (waiting for agent), "downloading", "failed", None (idle)
+    agent_update_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Error message if update failed
+    agent_update_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # US0157: Docker detection (EP0014)
+    # True if Docker is installed on this host, detected via agent heartbeat
+    has_docker: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    # US0163: Docker container status (EP0014)
+    # Stored as JSON object with running_containers, stopped_containers, total_containers
+    docker_status: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     def __repr__(self) -> str:
         """Return string representation of the server."""

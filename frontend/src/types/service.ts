@@ -22,6 +22,10 @@ export interface ExpectedService {
   is_critical: boolean;
   enabled: boolean;
   current_status: ServiceCurrentStatus | null;
+  /** US0185: Timestamp of last restart (for grace period calculation) */
+  last_restart_at: string | null;
+  /** US0185: Seconds remaining in grace period (null if not in grace period) */
+  grace_period_remaining: number | null;
 }
 
 /** Response from GET /servers/{server_id}/services */

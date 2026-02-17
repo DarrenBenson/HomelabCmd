@@ -37,6 +37,11 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
     throw new ApiError(response.status, message);
   }
 
+  // Handle 204 No Content responses (common for DELETE operations)
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
@@ -47,10 +52,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  post: <T>(endpoint: string, data: unknown) =>
+  post: <T>(endpoint: string, data?: unknown) =>
     fetchApi<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data !== undefined ? JSON.stringify(data) : undefined,
     }),
   delete: <T>(endpoint: string, options?: { data?: unknown }): Promise<T> =>
     fetchApi<T>(endpoint, {

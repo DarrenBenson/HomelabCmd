@@ -124,31 +124,48 @@ export function ServerInfoWidget({
           </span>
         </div>
 
+        {/* US0157: Docker detection status (EP0014) */}
+        {machine.has_docker !== null && machine.has_docker !== undefined && (
+          <div className="flex justify-between">
+            <span className="text-text-secondary">Docker</span>
+            <span
+              className={cn(
+                'font-mono text-sm',
+                machine.has_docker ? 'text-blue-500 dark:text-blue-400' : 'text-text-tertiary'
+              )}
+              data-testid="docker-status"
+            >
+              {machine.has_docker ? 'Installed' : 'Not detected'}
+            </span>
+          </div>
+        )}
+
         {/* Maintenance Mode */}
         {onToggleMaintenance && (
           <div className="flex items-center justify-between">
             <span className="text-text-secondary">Maintenance Mode</span>
-            <div className="flex items-center gap-3">
-              <span
-                className={machine.is_paused ? 'text-status-warning' : 'text-text-primary'}
-                data-testid="maintenance-status"
-              >
-                {machine.is_paused ? 'Enabled' : 'Disabled'}
-              </span>
+            <div className="flex items-center justify-end gap-2 w-[72px]">
               <button
                 onClick={onToggleMaintenance}
                 disabled={pauseLoading}
                 className={cn(
-                  'px-3 py-1 text-xs font-medium rounded transition-colors',
-                  machine.is_paused
-                    ? 'bg-status-success/20 text-status-success hover:bg-status-success/30'
-                    : 'bg-status-warning/20 text-status-warning hover:bg-status-warning/30',
+                  'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors',
+                  machine.is_paused ? 'bg-status-warning' : 'bg-text-tertiary',
                   pauseLoading && 'opacity-50 cursor-not-allowed'
                 )}
                 data-testid="maintenance-toggle"
+                aria-label={machine.is_paused ? 'Disable maintenance mode' : 'Enable maintenance mode'}
               >
-                {pauseLoading ? '...' : machine.is_paused ? 'Disable' : 'Enable'}
+                <span
+                  className={cn(
+                    'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                    machine.is_paused ? 'translate-x-5' : 'translate-x-1'
+                  )}
+                />
               </button>
+              <span className="text-xs text-text-tertiary w-6">
+                {machine.is_paused ? 'On' : 'Off'}
+              </span>
             </div>
           </div>
         )}

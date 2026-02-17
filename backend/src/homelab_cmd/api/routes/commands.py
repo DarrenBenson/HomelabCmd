@@ -1,29 +1,39 @@
 """Synchronous Command Execution API.
 
 Part of EP0013: Synchronous Command Execution - US0153.
+Extended by US0156: Real-Time Command Output Streaming.
 
-Provides a synchronous API endpoint for executing whitelisted commands
-on servers via SSH and receiving immediate results.
+Provides synchronous and streaming API endpoints for executing whitelisted
+commands on servers via SSH.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 from collections import defaultdict
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 
 from homelab_cmd.api.deps import verify_api_key
 from homelab_cmd.api.responses import AUTH_RESPONSES, NOT_FOUND_RESPONSE
 from homelab_cmd.api.schemas.commands import CommandExecuteRequest, CommandExecuteResponse
+from homelab_cmd.config import get_settings
+from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.server import Server
-from homelab_cmd.db.session import get_async_session
+from homelab_cmd.db.models.service import ExpectedService
+from homelab_cmd.db.session import get_async_session, get_session_factory
+from homelab_cmd.services.audit_service import create_audit_log
 from homelab_cmd.services.command_whitelist import is_whitelisted
 from homelab_cmd.services.credential_service import CredentialService
 from homelab_cmd.services.host_key_service import HostKeyService
+from homelab_cmd.services.progress_parser import is_progress_relevant, parse_apt_progress
 from homelab_cmd.services.ssh_executor import (
     CommandTimeoutError,
     SSHAuthenticationError,
@@ -199,6 +209,14 @@ async def execute_command(
             detail=f"Command not in whitelist for action type '{request.action_type}'",
         )
 
+    # Get default SSH username from config (stored with SSH key)
+    settings = get_settings()
+    default_username = settings.ssh_default_username
+    ssh_config_result = await session.execute(select(Config).where(Config.key == "ssh"))
+    ssh_config = ssh_config_result.scalar_one_or_none()
+    if ssh_config and ssh_config.value:
+        default_username = ssh_config.value.get("default_username", default_username)
+
     # Execute command via SSH (US0151)
     try:
         executor = await get_ssh_executor()
@@ -206,7 +224,50 @@ async def execute_command(
             server=server,
             command=request.command,
             timeout=30,
+            username=default_username,
         )
+
+        # US0185: Set last_restart_at for service restart commands
+        if request.action_type == "restart_service" and cmd_result.exit_code == 0:
+            # Extract service name from command (e.g., "systemctl restart nginx")
+            match = re.search(r"systemctl\s+restart\s+(\S+)", request.command)
+            if match:
+                service_name = match.group(1)
+                expected_svc_result = await session.execute(
+                    select(ExpectedService).where(
+                        ExpectedService.server_id == server_id,
+                        ExpectedService.service_name == service_name,
+                    )
+                )
+                expected_service = expected_svc_result.scalar_one_or_none()
+                if expected_service:
+                    expected_service.last_restart_at = datetime.now(UTC)
+                    logger.info(
+                        "Set last_restart_at for service %s on %s (grace period started)",
+                        service_name,
+                        server_id,
+                    )
+
+        # US0155: Create audit log entry (fire-and-forget - don't fail command on audit error)
+        try:
+            await create_audit_log(
+                db=session,
+                server_id=server_id,
+                command=request.command,
+                action_type=request.action_type,
+                exit_code=cmd_result.exit_code,
+                stdout=cmd_result.stdout,
+                stderr=cmd_result.stderr,
+                duration_ms=cmd_result.duration_ms,
+                executed_by="dashboard",
+            )
+        except Exception as audit_error:
+            logger.error(
+                "Failed to create audit log for server=%s command=%s: %s",
+                server_id,
+                request.command,
+                audit_error,
+            )
 
         return CommandExecuteResponse(
             exit_code=cmd_result.exit_code,
@@ -272,3 +333,226 @@ async def execute_command(
             status_code=500,
             detail=f"Command execution failed: {e}",
         ) from e
+
+
+@router.get(
+    "/{server_id}/commands/stream",
+    response_class=EventSourceResponse,
+    operation_id="stream_command",
+    summary="Stream command output via Server-Sent Events (US0156)",
+    description="""
+Stream command output in real-time via Server-Sent Events.
+
+Commands must be whitelisted. Rate limited to 10 requests per minute per API key.
+Connection remains open until command completes or times out.
+
+**Event Types:**
+- `stdout`: Standard output line(s) from command
+- `stderr`: Standard error line(s) from command
+- `progress`: Progress percentage and stage (for apt commands)
+- `exit`: Final event with exit code and duration
+
+**Example Events:**
+```
+event: stdout
+data: {"text": "Reading package lists...", "ts": "2026-01-31T12:00:00Z"}
+
+event: progress
+data: {"percent": 45, "stage": "Downloading packages"}
+
+event: exit
+data: {"code": 0, "duration_ms": 5432}
+```
+""",
+    responses={
+        **AUTH_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+        400: {
+            "description": "Command not whitelisted",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Command not in whitelist for action type 'unknown'"}
+                }
+            },
+        },
+        429: {
+            "description": "Rate limit exceeded",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Rate limit exceeded. Try again in 60 seconds."}
+                }
+            },
+        },
+    },
+)
+async def stream_command(
+    server_id: str,
+    command: str = Query(..., min_length=1, description="Shell command to execute"),
+    action_type: str = Query(..., min_length=1, description="Action type for whitelist validation"),
+    timeout: int = Query(300, ge=10, le=600, description="Maximum execution time in seconds"),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+) -> EventSourceResponse:
+    """Stream command output via Server-Sent Events (US0156).
+
+    Args:
+        server_id: The server ID to execute the command on.
+        command: Shell command to execute.
+        action_type: Action type for whitelist validation.
+        timeout: Maximum execution time in seconds (default 300).
+        request: FastAPI request object.
+        api_key: Authenticated API key.
+
+    Returns:
+        EventSourceResponse streaming stdout/stderr/progress/exit events.
+    """
+    # Check rate limit
+    allowed, retry_after = _check_rate_limit(api_key)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # Validate command against whitelist
+    if not is_whitelisted(command, action_type):
+        logger.warning(
+            "Blocked non-whitelisted streaming command for server=%s, action_type=%s",
+            server_id,
+            action_type,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Command not in whitelist for action type '{action_type}'",
+        )
+
+    # Get server from database and SSH username from config
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        result = await session.execute(
+            select(Server).where(Server.id == server_id)
+        )
+        server = result.scalar_one_or_none()
+
+        if not server:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Server '{server_id}' not found",
+            )
+
+        # Get default SSH username from config (stored with SSH key)
+        settings = get_settings()
+        default_username = settings.ssh_default_username
+        ssh_config_result = await session.execute(select(Config).where(Config.key == "ssh"))
+        ssh_config = ssh_config_result.scalar_one_or_none()
+        if ssh_config and ssh_config.value:
+            default_username = ssh_config.value.get("default_username", default_username)
+
+    logger.info(
+        "Starting streaming command execution for server=%s, action_type=%s",
+        server_id,
+        action_type,
+    )
+
+    async def event_generator():
+        """Generate SSE events from command output."""
+        executor = await get_ssh_executor()
+        parse_progress = is_progress_relevant(action_type)
+        last_progress_percent = -1
+
+        try:
+            async for chunk in executor.execute_streaming(
+                server=server,
+                command=command,
+                timeout=timeout,
+                username=default_username,
+            ):
+                # Check if client disconnected
+                if request and await request.is_disconnected():
+                    logger.info("Client disconnected during streaming for server=%s", server_id)
+                    break
+
+                timestamp = chunk.timestamp.isoformat() + "Z"
+
+                if chunk.type == "stdout":
+                    # Yield stdout event
+                    yield {
+                        "event": "stdout",
+                        "data": json.dumps({"text": chunk.data, "ts": timestamp}),
+                    }
+
+                    # Parse progress for apt commands
+                    if parse_progress:
+                        for line in chunk.data.split("\n"):
+                            progress = parse_apt_progress(line)
+                            if progress and progress.percent > last_progress_percent:
+                                last_progress_percent = progress.percent
+                                yield {
+                                    "event": "progress",
+                                    "data": json.dumps({
+                                        "percent": progress.percent,
+                                        "stage": progress.stage,
+                                    }),
+                                }
+
+                elif chunk.type == "stderr":
+                    yield {
+                        "event": "stderr",
+                        "data": json.dumps({"text": chunk.data, "ts": timestamp}),
+                    }
+
+                elif chunk.type == "exit":
+                    # Parse exit data (already JSON formatted)
+                    yield {
+                        "event": "exit",
+                        "data": chunk.data,
+                    }
+
+                elif chunk.type == "error":
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({"message": chunk.data, "ts": timestamp}),
+                    }
+
+        except SSHKeyNotConfiguredError:
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "message": "SSH key not configured. Upload a key in Settings > Connectivity.",
+                    "ts": datetime.now(UTC).isoformat() + "Z",
+                }),
+            }
+
+        except SSHAuthenticationError as e:
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"SSH authentication failed: {e}",
+                    "ts": datetime.now(UTC).isoformat() + "Z",
+                }),
+            }
+
+        except SSHConnectionError as e:
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"SSH connection failed: {e}",
+                    "ts": datetime.now(UTC).isoformat() + "Z",
+                }),
+            }
+
+        except Exception as e:
+            logger.exception(
+                "Unexpected error in streaming command for server=%s",
+                server_id,
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"Command execution failed: {e}",
+                    "ts": datetime.now(UTC).isoformat() + "Z",
+                }),
+            }
+
+    return EventSourceResponse(event_generator())

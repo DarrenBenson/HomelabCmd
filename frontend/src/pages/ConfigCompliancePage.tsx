@@ -141,7 +141,7 @@ export function ConfigCompliancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary p-6">
+    <div className="min-h-screen bg-bg-primary p-6" data-testid="compliance-page">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -163,6 +163,7 @@ export function ConfigCompliancePage() {
           <button
             onClick={handleCheckAll}
             disabled={checkingAll || !data?.machines.some(m => m.pack !== null)}
+            data-testid="check-all-button"
             className={cn(
               'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium',
               'bg-status-info text-white hover:bg-status-info/90',
@@ -176,7 +177,7 @@ export function ConfigCompliancePage() {
 
         {/* Progress bar */}
         {checkProgress && (
-          <div className="mb-6 rounded-lg border border-border-default bg-bg-secondary p-4">
+          <div className="mb-6 rounded-lg border border-border-default bg-bg-secondary p-4" data-testid="check-all-progress">
             <div className="mb-2 flex justify-between text-sm text-text-secondary">
               <span>Checking compliance...</span>
               <span>{checkProgress.current}/{checkProgress.total}</span>
@@ -219,7 +220,7 @@ export function ConfigCompliancePage() {
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-8 w-8 text-status-success" />
                   <div>
-                    <div className="text-3xl font-bold text-status-success">
+                    <div className="text-3xl font-bold text-status-success" data-testid="compliant-count">
                       {data.summary.compliant}
                     </div>
                     <div className="text-sm text-text-secondary">Compliant</div>
@@ -230,7 +231,7 @@ export function ConfigCompliancePage() {
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-8 w-8 text-status-warning" />
                   <div>
-                    <div className="text-3xl font-bold text-status-warning">
+                    <div className="text-3xl font-bold text-status-warning" data-testid="non-compliant-count">
                       {data.summary.non_compliant}
                     </div>
                     <div className="text-sm text-text-secondary">Non-compliant</div>
@@ -241,7 +242,7 @@ export function ConfigCompliancePage() {
                 <div className="flex items-center gap-3">
                   <HelpCircle className="h-8 w-8 text-text-muted" />
                   <div>
-                    <div className="text-3xl font-bold text-text-muted">
+                    <div className="text-3xl font-bold text-text-muted" data-testid="never-checked-count">
                       {data.summary.never_checked}
                     </div>
                     <div className="text-sm text-text-secondary">Never checked</div>
@@ -276,6 +277,7 @@ export function ConfigCompliancePage() {
                     <button
                       key={filter}
                       onClick={() => setStatusFilter(filter)}
+                      data-testid={`compliance-status-filter-${filter}`}
                       className={cn(
                         'rounded-md px-3 py-1 text-sm',
                         statusFilter === filter
@@ -306,6 +308,7 @@ export function ConfigCompliancePage() {
                     <div
                       key={machine.id}
                       className="flex items-center gap-4 px-4 py-3 hover:bg-bg-tertiary"
+                      data-testid={`machine-row-${machine.id}`}
                     >
                       <StatusIcon status={machine.status} />
                       <div className="flex-1 min-w-0">
@@ -343,6 +346,7 @@ export function ConfigCompliancePage() {
                             disabled={checkingMachine === machine.id || checkingAll}
                             className="rounded p-1 text-text-tertiary hover:bg-bg-primary hover:text-text-primary disabled:opacity-50"
                             title="Check compliance"
+                            data-testid={`check-machine-${machine.id}`}
                           >
                             <RefreshCw className={cn('h-4 w-4', checkingMachine === machine.id && 'animate-spin')} />
                           </button>
@@ -350,6 +354,7 @@ export function ConfigCompliancePage() {
                         <button
                           onClick={() => handleMachineClick(machine.id)}
                           className="flex items-center gap-1 rounded px-2 py-1 text-text-secondary hover:bg-bg-primary hover:text-text-primary"
+                          data-testid={`view-machine-${machine.id}`}
                         >
                           View
                           <ChevronRight className="h-4 w-4" />

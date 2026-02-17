@@ -5,6 +5,8 @@ actions created against them. These tests verify the API guard in the
 actions endpoint rejects action creation with 409 Conflict.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,8 +45,12 @@ class TestBG0017ReadonlyAgentActionsGuard:
             service_name="test-service",
         )
 
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
         assert "readonly" in exc_info.value.detail["message"].lower()
@@ -72,8 +78,12 @@ class TestBG0017ReadonlyAgentActionsGuard:
             action_type=ActionType.CLEAR_LOGS,
         )
 
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
         # Verify message mentions how to enable management
@@ -102,8 +112,12 @@ class TestBG0017ReadonlyAgentActionsGuard:
             action_type=ActionType.APT_UPDATE,
         )
 
+        mock_bg_tasks = MagicMock()
+
         with pytest.raises(HTTPException) as exc_info:
-            await create_action(action_data, db_session, "test-key")
+            await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert exc_info.value.status_code == 409
 
@@ -128,8 +142,14 @@ class TestBG0017ReadonlyAgentActionsGuard:
             service_name="test-service",
         )
 
-        # Should not raise - action creation succeeds
-        result = await create_action(action_data, db_session, "test-key")
+        mock_bg_tasks = MagicMock()
+
+        # Mock SSH execution to prevent background task failure
+        with patch("homelab_cmd.api.routes.actions._execute_action_via_ssh"):
+            # Should not raise - action creation succeeds
+            result = await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert result.server_id == "bg0017-readwrite-test"
         assert result.status == "approved"  # Auto-approved for non-paused server
@@ -155,8 +175,14 @@ class TestBG0017ReadonlyAgentActionsGuard:
             service_name="test-service",
         )
 
-        # Should not raise - action creation succeeds for legacy servers
-        result = await create_action(action_data, db_session, "test-key")
+        mock_bg_tasks = MagicMock()
+
+        # Mock SSH execution to prevent background task failure
+        with patch("homelab_cmd.api.routes.actions._execute_action_via_ssh"):
+            # Should not raise - action creation succeeds for legacy servers
+            result = await create_action(
+                action_data, background_tasks=mock_bg_tasks, session=db_session, _="test-key"
+            )
 
         assert result.server_id == "bg0017-legacy-test"
         assert result.status == "approved"

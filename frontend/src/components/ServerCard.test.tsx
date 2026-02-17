@@ -28,6 +28,8 @@ const mockServer: Server = {
   // US0090: Default to server type with no last_seen
   machine_type: 'server',
   last_seen: null,
+  // US0110: Alert count required field
+  active_alert_count: 0,
   latest_metrics: {
     cpu_percent: 45.5,
     memory_percent: 67.2,
@@ -1220,6 +1222,133 @@ describe('ServerCard', () => {
 
       const statusLed = screen.getByRole('status');
       expect(statusLed).toHaveAttribute('title', 'Warning - 1 active alert');
+    });
+  });
+
+  // ===========================================================================
+  // US0157: Docker detection badge (EP0014)
+  // ===========================================================================
+
+  describe('Docker badge (US0157)', () => {
+    it('shows Docker badge when has_docker is true', () => {
+      const dockerServer: Server = {
+        ...mockServer,
+        has_docker: true,
+      };
+      render(<ServerCard server={dockerServer} />);
+
+      const dockerBadge = screen.getByTestId('docker-badge');
+      expect(dockerBadge).toBeInTheDocument();
+      expect(dockerBadge).toHaveAttribute('title', 'Docker installed');
+    });
+
+    it('does not show Docker badge when has_docker is false', () => {
+      const noDockerServer: Server = {
+        ...mockServer,
+        has_docker: false,
+      };
+      render(<ServerCard server={noDockerServer} />);
+
+      expect(screen.queryByTestId('docker-badge')).not.toBeInTheDocument();
+    });
+
+    it('does not show Docker badge when has_docker is null', () => {
+      const unknownDockerServer: Server = {
+        ...mockServer,
+        has_docker: null,
+      };
+      render(<ServerCard server={unknownDockerServer} />);
+
+      expect(screen.queryByTestId('docker-badge')).not.toBeInTheDocument();
+    });
+
+    it('does not show Docker badge when has_docker is undefined', () => {
+      const undefinedDockerServer: Server = {
+        ...mockServer,
+        // has_docker not set (undefined)
+      };
+      render(<ServerCard server={undefinedDockerServer} />);
+
+      expect(screen.queryByTestId('docker-badge')).not.toBeInTheDocument();
+    });
+  });
+
+  // ===========================================================================
+  // Docker Container Count Badge (US0163)
+  // ===========================================================================
+
+  describe('Docker container count badge (US0163)', () => {
+    it('shows container count when docker_status is provided', () => {
+      const dockerServer: Server = {
+        ...mockServer,
+        has_docker: true,
+        docker_status: {
+          running_containers: 8,
+          stopped_containers: 2,
+          total_containers: 10,
+        },
+      };
+      render(<ServerCard server={dockerServer} />);
+
+      const countElement = screen.getByTestId('docker-container-count');
+      expect(countElement).toBeInTheDocument();
+      expect(countElement).toHaveTextContent('8/10');
+
+      const dockerBadge = screen.getByTestId('docker-badge');
+      expect(dockerBadge).toHaveAttribute(
+        'title',
+        '8 running / 10 total containers'
+      );
+    });
+
+    it('does not show container count when docker_status is null', () => {
+      const dockerServer: Server = {
+        ...mockServer,
+        has_docker: true,
+        docker_status: null,
+      };
+      render(<ServerCard server={dockerServer} />);
+
+      expect(screen.queryByTestId('docker-container-count')).not.toBeInTheDocument();
+      const dockerBadge = screen.getByTestId('docker-badge');
+      expect(dockerBadge).toHaveAttribute('title', 'Docker installed');
+    });
+
+    it('does not show container count when total_containers is 0', () => {
+      const dockerServer: Server = {
+        ...mockServer,
+        has_docker: true,
+        docker_status: {
+          running_containers: 0,
+          stopped_containers: 0,
+          total_containers: 0,
+        },
+      };
+      render(<ServerCard server={dockerServer} />);
+
+      expect(screen.queryByTestId('docker-container-count')).not.toBeInTheDocument();
+    });
+
+    it('shows all containers running in tooltip', () => {
+      const dockerServer: Server = {
+        ...mockServer,
+        has_docker: true,
+        docker_status: {
+          running_containers: 5,
+          stopped_containers: 0,
+          total_containers: 5,
+        },
+      };
+      render(<ServerCard server={dockerServer} />);
+
+      const countElement = screen.getByTestId('docker-container-count');
+      expect(countElement).toHaveTextContent('5/5');
+
+      const dockerBadge = screen.getByTestId('docker-badge');
+      expect(dockerBadge).toHaveAttribute(
+        'title',
+        '5 running / 5 total containers'
+      );
     });
   });
 });

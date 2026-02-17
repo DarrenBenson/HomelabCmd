@@ -1,5 +1,6 @@
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Timer } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { formatGracePeriod } from '../lib/serviceUtils';
 import { ServiceStatusLED } from './ServiceStatusLED';
 import type { ExpectedService, ServiceStatus } from '../types/service';
 
@@ -10,15 +11,29 @@ interface ServiceCardProps {
   isQueued?: boolean;
   /** When true, restart button is hidden (agent in readonly mode - BG0017) */
   isReadonly?: boolean;
+  /** US0185: Current grace period remaining (from hook for live countdown) */
+  gracePeriodRemaining?: number | null;
 }
 
 /**
  * Card displaying an expected service with its status and resource usage.
  */
-export function ServiceCard({ service, onRestart, isRestarting = false, isQueued = false, isReadonly = false }: ServiceCardProps) {
+export function ServiceCard({
+  service,
+  onRestart,
+  isRestarting = false,
+  isQueued = false,
+  isReadonly = false,
+  gracePeriodRemaining,
+}: ServiceCardProps) {
+  // US0185: Use passed countdown or fall back to service data
+  const effectiveGracePeriod = gracePeriodRemaining ?? service.grace_period_remaining;
+  const inGracePeriod = effectiveGracePeriod !== null && effectiveGracePeriod > 0;
+
   const status: ServiceStatus = service.current_status?.status ?? 'unknown';
   const isRunning = status === 'running';
-  const isStopped = status === 'stopped' || status === 'failed';
+  // US0185: Don't show as stopped during grace period
+  const isStopped = (status === 'stopped' || status === 'failed') && !inGracePeriod;
   const displayName = service.display_name || service.service_name;
 
   return (
@@ -47,6 +62,17 @@ export function ServiceCard({ service, onRestart, isRestarting = false, isQueued
             {service.is_critical ? 'Core' : 'Standard'}
           </span>
         </div>
+
+        {/* US0185: Restarting badge with countdown during grace period */}
+        {inGracePeriod && (
+          <span
+            className="flex items-center gap-1 rounded border border-status-warning/50 bg-status-warning/10 px-2 py-1 text-sm text-status-warning"
+            data-testid="restarting-badge"
+          >
+            <Timer className="h-3.5 w-3.5 animate-pulse" />
+            Restarting ({formatGracePeriod(effectiveGracePeriod)})
+          </span>
+        )}
 
         {/* Restart button - only for stopped/failed services, hidden in readonly mode (BG0017) */}
         {isStopped && !isReadonly && (
@@ -80,8 +106,9 @@ export function ServiceCard({ service, onRestart, isRestarting = false, isQueued
         <span data-testid="service-status">
           Status:{' '}
           <span className="text-text-primary capitalize">
-            {status}
-            {status === 'unknown' && service.current_status?.status_reason && (
+            {/* US0185: Show 'restarting' during grace period */}
+            {inGracePeriod ? 'restarting' : status}
+            {status === 'unknown' && !inGracePeriod && service.current_status?.status_reason && (
               <span className="text-text-muted"> ({service.current_status.status_reason})</span>
             )}
           </span>

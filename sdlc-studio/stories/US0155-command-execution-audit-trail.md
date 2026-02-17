@@ -1,10 +1,11 @@
 # US0155: Command Execution Audit Trail
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Owner:** Darren
 > **Reviewer:** TBD
 > **Created:** 2026-01-29
+> **Completed:** 2026-01-30
 > **Story Points:** 3
 
 ## User Story
@@ -211,16 +212,16 @@ async def list_command_audit(
 
 ## Test Scenarios
 
-- [ ] Audit entry created for successful command
-- [ ] Audit entry created for failed command
-- [ ] stdout/stderr truncated at 10KB
-- [ ] Filter by machine_id returns correct entries
-- [ ] Filter by action_type returns correct entries
-- [ ] Filter by date range returns correct entries
-- [ ] Filter by success/failure works
-- [ ] Pagination returns correct page
-- [ ] CSV export includes all filtered entries
-- [ ] Audit entries are immutable (no update/delete)
+- [x] Audit entry created for successful command
+- [x] Audit entry created for failed command
+- [x] stdout/stderr truncated at 10KB
+- [x] Filter by machine_id returns correct entries
+- [x] Filter by action_type returns correct entries
+- [x] Filter by date range returns correct entries
+- [x] Filter by success/failure works
+- [x] Pagination returns correct page
+- [x] CSV export includes all filtered entries
+- [x] Audit entries are immutable (no update/delete)
 
 ---
 
@@ -258,3 +259,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-29 | Claude | Initial story creation from EP0013 |
+| 2026-01-30 | Claude | Implementation complete - all ACs verified |

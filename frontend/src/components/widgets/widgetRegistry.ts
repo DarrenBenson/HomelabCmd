@@ -82,7 +82,7 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
     minH: 2,
     defaultW: 4,
     defaultH: 3,
-    applicableTo: ['server'], // Servers only
+    applicableTo: ['server', 'workstation'],
   },
   {
     id: 'disk_usage',
@@ -112,7 +112,7 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
     minH: 4,
     defaultW: 8,
     defaultH: 4,
-    applicableTo: ['server'], // Servers only
+    applicableTo: ['server', 'workstation'],
     requiresFeature: 'systemd',
   },
   {

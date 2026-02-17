@@ -1,12 +1,13 @@
 # BG0020: N+1 Query in list_servers Endpoint
 
-> **Status:** Fixed
+> **Status:** Closed
 > **Severity:** Critical
 > **Priority:** P1
 > **Reporter:** Claude (Code Review)
 > **Assignee:** Claude
 > **Created:** 2026-01-27
-> **Updated:** 2026-01-27
+> **Updated:** 2026-02-17
+> **Close Reason:** Verified
 
 ## Summary
 
@@ -90,12 +91,12 @@ The fix reduces query count from O(N) to O(1), providing linear scalability.
 > *Filled when verifying*
 
 - [x] Fix verified in development
-- [x] Regression tests pass (1492 tests passing)
+- [x] Regression tests pass (8/8 list_servers tests passing)
 - [x] No side effects observed
-- [ ] Documentation updated (if applicable)
+- [x] Documentation updated (N/A - internal performance fix)
 
-**Verified by:** -
-**Verification date:** -
+**Verified by:** Claude
+**Verification date:** 2026-02-17
 
 ## Related Items
 
@@ -118,3 +119,4 @@ Added 2 regression tests to prevent future N+1 regressions:
 | 2026-01-27 | Claude | Bug reported from code review |
 | 2026-01-27 | Claude | Status → In Progress, began investigation |
 | 2026-01-27 | Claude | Status → Fixed, implemented window function solution |
+| 2026-02-17 | Claude | Status → Closed (Verified), 8/8 regression tests pass |

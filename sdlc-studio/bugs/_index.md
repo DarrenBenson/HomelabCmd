@@ -16,9 +16,7 @@
 
 | ID | Title | Severity | Priority | Epic | Assignee |
 |----|-------|----------|----------|------|----------|
-| [BG0022](BG0022-sql-like-pattern-vulnerability.md) | SQL LIKE Pattern Vulnerability in Alert Search | Critical | P1 | - | Claude |
-| [BG0021](BG0021-broad-exception-handling.md) | Broad Exception Handling in Connectivity Service | Critical | P1 | EP0008 | Claude |
-| [BG0020](BG0020-n1-query-list-servers.md) | N+1 Query in list_servers Endpoint | Critical | P1 | - | Claude |
+| - | - | - | - | - | - |
 
 ## Verified (Ready to Close)
 
@@ -30,6 +28,9 @@
 
 | ID | Title | Severity | Resolution | Closed Date |
 |----|-------|----------|------------|-------------|
+| [BG0022](BG0022-sql-like-pattern-vulnerability.md) | SQL LIKE Pattern Vulnerability in Alert Search | Critical | Verified | 2026-02-17 |
+| [BG0021](BG0021-broad-exception-handling.md) | Broad Exception Handling in Connectivity Service | Critical | Verified | 2026-02-17 |
+| [BG0020](BG0020-n1-query-list-servers.md) | N+1 Query in list_servers Endpoint | Critical | Verified | 2026-02-17 |
 | [BG0019](BG0019-service-discovery-fail-agent-install.md) | Cannot use service discovery on agent install | High | Configuration | 2026-01-24 |
 | [BG0018](BG0018-agent-install-504-nginx-timeout.md) | API 504 Gateway Timeout When Installing Agent via SSH | High | Fixed | 2026-01-24 |
 | [BG0017](BG0017-agent-architecture-permissions-modes.md) | Agent Architecture - Permissions and Execution Modes | Critical | Fixed | 2026-01-22 |
@@ -55,7 +56,7 @@
 **Statistics:**
 - Open: 0
 - In Progress: 0
-- Fixed: 3
+- Fixed: 0
 - Verified: 0
-- Closed: 19
+- Closed: 22
 - **Total:** 22

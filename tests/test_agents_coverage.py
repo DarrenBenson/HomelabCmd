@@ -22,7 +22,7 @@ class TestCommandResultsBackwardCompatibility:
     """Tests for v1.0 agent backward compatibility (US0152)."""
 
     def test_command_results_accepted_but_ignored(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """V1.0 heartbeat with command_results is accepted but ignored (US0152)."""
         # Create server
@@ -32,7 +32,7 @@ class TestCommandResultsBackwardCompatibility:
             headers=auth_headers,
         )
 
-        # Create and approve action
+        # Create and approve action (SSH execution is mocked to prevent status change)
         action = client.post(
             "/api/v1/actions",
             json={
@@ -159,7 +159,7 @@ class TestApprovedActionNotDelivered:
         assert len(pending) == 0
 
     def test_action_not_marked_executing_on_heartbeat(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """Action is NOT marked as EXECUTING when heartbeat received (US0152)."""
         # Create server and pause it
@@ -170,7 +170,7 @@ class TestApprovedActionNotDelivered:
         )
         client.put("/api/v1/servers/executing-test-server/pause", headers=auth_headers)
 
-        # Create and approve action
+        # Create and approve action (SSH execution is mocked to prevent status change)
         action = client.post(
             "/api/v1/actions",
             json={

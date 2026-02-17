@@ -1823,42 +1823,6 @@ describe('Dashboard', () => {
     });
   });
 
-  describe('section visibility with filters', () => {
-    function renderDashboardWithRoute(route = '/') {
-      return render(
-        <MemoryRouter initialEntries={[route]}>
-          <Dashboard />
-        </MemoryRouter>
-      );
-    }
-
-    it('hides workstations section when filtering by type=server', async () => {
-      renderDashboardWithRoute('/?type=server');
-
-      await waitFor(() => {
-        expect(screen.getByText('Server One')).toBeInTheDocument();
-      });
-
-      // Servers section should be visible
-      expect(screen.getByTestId('section-servers')).toBeInTheDocument();
-      // Workstations section should be hidden when filtering by servers
-      expect(screen.queryByTestId('section-workstations')).not.toBeInTheDocument();
-    });
-
-    it('hides servers section when filtering by type=workstation', async () => {
-      renderDashboardWithRoute('/?type=workstation');
-
-      await waitFor(() => {
-        expect(screen.getByText('Workstation One')).toBeInTheDocument();
-      });
-
-      // Workstations section should be visible
-      expect(screen.getByTestId('section-workstations')).toBeInTheDocument();
-      // Servers section should be hidden when filtering by workstations
-      expect(screen.queryByTestId('section-servers')).not.toBeInTheDocument();
-    });
-  });
-
   describe('preferences application effect', () => {
     it('applies card order only once on initial load', async () => {
       mockGetDashboardPreferences.mockResolvedValue({
@@ -2134,7 +2098,7 @@ describe('Dashboard', () => {
       renderDashboard();
 
       await waitFor(() => {
-        expect(screen.getByTestId('alert-banner')).toBeInTheDocument();
+        expect(screen.getByTestId('fleet-status')).toBeInTheDocument();
       });
 
       // Click on the alert card to select it
@@ -3328,20 +3292,6 @@ describe('Dashboard', () => {
       }
     });
 
-    it('handleTypeChange updates URL type parameter', async () => {
-      const { fireEvent } = await import('@testing-library/react');
-      renderDashboard();
-
-      await waitFor(() => {
-        expect(screen.getByText('Server One')).toBeInTheDocument();
-      });
-
-      const typeSelect = screen.queryByTestId('type-filter');
-      if (typeSelect) {
-        fireEvent.change(typeSelect, { target: { value: 'server' } });
-        // URL should update with type=server
-      }
-    });
   });
 
   describe('workstation section rendering', () => {

@@ -4,6 +4,7 @@ import { getServerServices, restartService } from '../api/services';
 import { getActions } from '../api/actions';
 import { ServiceCard } from './ServiceCard';
 import { ServiceManagementModal } from './ServiceManagementModal';
+import { useServicesGracePeriod } from '../hooks/useGracePeriodCountdown';
 import { ApiError } from '../api/client';
 import type { ExpectedService } from '../types/service';
 import type { ServerDetail } from '../types/server';
@@ -70,6 +71,12 @@ export function ServicesPanel({ serverId, isInactive = false, agentMode, server 
       }
     }
   }, [serverId]);
+
+  // US0185: Grace period countdown hook - refreshes when any grace period expires
+  const refetchServices = useCallback(() => {
+    fetchServices(false, false);
+  }, [fetchServices]);
+  const gracePeriodCountdowns = useServicesGracePeriod(services, refetchServices);
 
   useEffect(() => {
     let ignore = false;
@@ -209,6 +216,7 @@ export function ServicesPanel({ serverId, isInactive = false, agentMode, server 
               isRestarting={restartingServices.has(service.service_name)}
               isQueued={queuedServices.has(service.service_name)}
               isReadonly={isReadonly}
+              gracePeriodRemaining={gracePeriodCountdowns.get(service.service_name)}
             />
           ))}
         </div>

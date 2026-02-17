@@ -13,7 +13,7 @@ Key features:
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,9 @@ from homelab_cmd.api.schemas.config import (
 )
 from homelab_cmd.db.models.alert import Alert, AlertStatus
 from homelab_cmd.db.models.alert_state import AlertSeverity, AlertState, MetricType
+
+if TYPE_CHECKING:
+    from homelab_cmd.db.models.service import ExpectedService
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +271,8 @@ class AlertingService:
                 status=status,
                 is_critical=expected_svc.is_critical,
                 cooldowns=notifications.cooldowns,
+                expected_service=expected_svc,
+                grace_period_seconds=notifications.service_restart_grace_seconds,
             )
             if event:
                 events.append(event)
@@ -282,6 +287,8 @@ class AlertingService:
         status: str,
         is_critical: bool,
         cooldowns: CooldownConfig,
+        expected_service: "ExpectedService | None" = None,
+        grace_period_seconds: int = 60,
     ) -> AlertEvent | None:
         """Evaluate a single service and return alert event if needed.
 
@@ -292,10 +299,13 @@ class AlertingService:
             status: Current service status (running/stopped/failed/unknown)
             is_critical: Whether this is a critical service
             cooldowns: Notification cooldown settings
+            expected_service: ExpectedService model instance (US0185)
+            grace_period_seconds: Grace period after restart (US0185)
 
         Returns:
             AlertEvent if notification should be sent, None otherwise
         """
+
         # Use service:{name} as metric_type for deduplication
         metric_type = f"service:{service_name}"
         now = datetime.now(UTC)
@@ -304,6 +314,14 @@ class AlertingService:
         state = await self._get_or_create_service_state(server_id, metric_type)
 
         if status in ["stopped", "failed"]:
+            # US0185: Check if in grace period after restart
+            if self._is_in_grace_period(expected_service, grace_period_seconds):
+                logger.debug(
+                    "Service %s on %s: in restart grace period, suppressing alert",
+                    service_name,
+                    server_id,
+                )
+                return None
             # Determine severity based on criticality
             severity = AlertSeverity.HIGH if is_critical else AlertSeverity.MEDIUM
 
@@ -338,6 +356,12 @@ class AlertingService:
                     severity.value,
                 )
 
+                # US0185: Check if this is a post-grace-period failure
+                failed_after_restart = (
+                    expected_service is not None
+                    and expected_service.last_restart_at is not None
+                )
+
                 # Create persistent Alert record
                 await self._create_service_alert_record(
                     server_id=server_id,
@@ -345,7 +369,12 @@ class AlertingService:
                     service_name=service_name,
                     status=status,
                     severity=severity.value,
+                    failed_after_restart=failed_after_restart,
                 )
+
+                # US0185: Clear last_restart_at after creating alert
+                if failed_after_restart and expected_service is not None:
+                    expected_service.last_restart_at = None
 
                 return AlertEvent(
                     server_id=server_id,
@@ -373,6 +402,15 @@ class AlertingService:
                 )
 
         elif status == "running":
+            # US0185: Clear last_restart_at when service starts successfully
+            if expected_service is not None and expected_service.last_restart_at is not None:
+                expected_service.last_restart_at = None
+                logger.debug(
+                    "Service %s on %s is running, clearing restart grace period",
+                    service_name,
+                    server_id,
+                )
+
             # Check if there's an active alert to resolve
             if state.current_severity is not None:
                 duration = state.duration_minutes
@@ -467,6 +505,7 @@ class AlertingService:
         service_name: str,
         status: str,
         severity: str,
+        failed_after_restart: bool = False,
     ) -> Alert:
         """Create a persistent Alert record for a service alert.
 
@@ -476,12 +515,20 @@ class AlertingService:
             service_name: Name of the service
             status: Service status (stopped/failed)
             severity: Alert severity (high/medium)
+            failed_after_restart: True if service failed after restart grace period (US0185)
 
         Returns:
             The created Alert record
         """
         title = f"Service {service_name} is {status} on {server_name}"
-        message = f"Expected service {service_name} on {server_name} is {status}."
+        if failed_after_restart:
+            # US0185: Service failed to start after restart
+            message = (
+                f"Expected service {service_name} on {server_name} failed to start "
+                f"after restart (grace period expired)."
+            )
+        else:
+            message = f"Expected service {service_name} on {server_name} is {status}."
 
         alert = Alert(
             server_id=server_id,
@@ -905,6 +952,40 @@ class AlertingService:
             await self.session.flush()  # Ensure state is visible in subsequent queries
 
         return state
+
+    def _is_in_grace_period(
+        self,
+        expected_service: "ExpectedService | None",
+        grace_period_seconds: int,
+    ) -> bool:
+        """Check if a service is still in its restart grace period.
+
+        US0185: After a service restart, we suppress alerts for a configurable
+        grace period to allow the service time to fully start.
+
+        Args:
+            expected_service: ExpectedService model instance (may be None)
+            grace_period_seconds: Grace period duration (0 = disabled)
+
+        Returns:
+            True if the service is within the grace period
+        """
+        if expected_service is None:
+            return False
+
+        if grace_period_seconds <= 0:
+            return False
+
+        last_restart = expected_service.last_restart_at
+        if last_restart is None:
+            return False
+
+        # Handle timezone-naive datetimes from SQLite
+        if last_restart.tzinfo is None:
+            last_restart = last_restart.replace(tzinfo=UTC)
+
+        elapsed = datetime.now(UTC) - last_restart
+        return elapsed < timedelta(seconds=grace_period_seconds)
 
     def _should_notify(self, state: AlertState, cooldowns: CooldownConfig) -> bool:
         """Check if cooldown has expired and re-notification is needed.

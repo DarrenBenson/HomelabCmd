@@ -1,22 +1,22 @@
 # Technical Requirements Document
 
 **Project:** HomelabCmd
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Status:** Active
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-02-17
 **PRD Reference:** [PRD](prd.md)
 
 ---
 
 ## v2.0 Implementation Status
 
-> **Note:** This TRD documents the target v2.0 architecture. Not all features are implemented.
-> See status markers below: ✅ Complete, 🚧 Partial, 📋 Planned
+> **Note:** All v2.0 features are now implemented.
+> Status markers: ✅ Complete
 
 **Architecture:**
 - ✅ Hybrid model: Agent push (metrics) + SSH execution (commands)
 - ✅ Tailscale mesh network connectivity with dual-mode support
-- 🚧 Synchronous command execution - SSH executor done, API endpoints planned
+- ✅ Synchronous command execution - SSH executor, API endpoints, audit trail complete
 
 **v2.0 Feature Status:**
 
@@ -27,15 +27,16 @@
 | Unified Discovery | ✅ Complete | EP0016 | Combined network/Tailscale discovery |
 | Workstation Management | ✅ Complete | EP0009 | Machine types, intermittent availability |
 | SSH Executor Service | ✅ Complete | EP0013 | Connection pooling, TOFU, retry logic |
-| Synchronous Command API | 📋 Planned | EP0013 | Endpoints not implemented |
-| Command Audit Trail | 📋 Planned | EP0013 | Model and endpoints not implemented |
-| Configuration Management | 🚧 In Progress | EP0010 | Config packs ✅, compliance checking ✅, diff view ✅, apply pack ✅, dashboard widget 📋 |
-| Widget-Based Detail View | 📋 Planned | EP0012 | react-grid-layout not installed |
-| Dashboard Card Reordering | 📋 Planned | EP0011 | Persistence model not implemented |
-| Docker Container Monitoring | 📋 Planned | EP0014 | Endpoints not implemented |
-| Desktop UX Improvements | 🚧 Partial | EP0017 | Basic indicators done, search/sparklines planned |
+| Synchronous Command API | ✅ Complete | EP0013 | Execute, whitelist validation endpoints |
+| Command Audit Trail | ✅ Complete | EP0013 | Model, service, and API endpoints |
+| Configuration Management | ✅ Complete | EP0010 | Config packs, compliance, diff, apply, dashboard widget |
+| Widget-Based Detail View | ✅ Complete | EP0012 | react-grid-layout v2.2.2 installed, widget system functional |
+| Dashboard Card Reordering | ✅ Complete | EP0011 | Preference persistence implemented |
+| Docker Container Monitoring | ✅ Complete | EP0014 | Detection, listing, start/stop/restart, heartbeat status |
+| Desktop UX Improvements | ✅ Complete | EP0017 | Maintenance indicators, badges, search, sparklines |
+| Dashboard UX Simplification | ✅ Complete | EP0018 | FleetStatus component, type filters removed |
 
-**Dependency Note:** react-grid-layout (required for EP0011/EP0012) is not yet installed.
+**All v2.0 epics complete.** 19 epics, 158 stories, 582 story points delivered.
 
 ---
 
@@ -277,9 +278,9 @@ HomelabCmd v2.0 monitors a fleet of Linux servers, workstations, and Raspberry P
 │  │  │  Every 60 seconds:                               │  │  │
 │  │  │  1. Collect metrics (psutil)                     │  │  │
 │  │  │  2. Check service states (systemctl)             │  │  │
-│  │  │  3. POST to hub API /api/v1/agents/heartbeat     │  │  │
-│  │  │  4. Receive pending commands in response         │  │  │
-│  │  │  5. Execute commands, report results             │  │  │
+│  │  │  3. Detect Docker status (if installed)          │  │  │
+│  │  │  4. POST to hub API /api/v1/agents/heartbeat     │  │  │
+│  │  │  5. Check for auto-update (if enabled)           │  │  │
 │  │  │                                                  │  │  │
 │  │  └─────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────┘  │
@@ -303,12 +304,15 @@ HomelabCmd v2.0 monitors a fleet of Linux servers, workstations, and Raspberry P
 | Language (Backend) | Python | 3.11+ | Type hints, asyncio, ecosystem, familiarity |
 | Language (Frontend) | TypeScript | 5.0+ | Type safety, tooling |
 | Backend Framework | FastAPI | >=0.109.0 | Async, Pydantic v2, OpenAPI 3.1 |
-| Frontend Framework | React | 18+ | Component model, ecosystem |
-| Build Tool | Vite | 5.0+ | Fast builds, ESM native |
-| UI Components | Tailwind CSS | 3.4+ | Utility-first, rapid styling |
-| Charts | Recharts | 2.10+ | React-native charts, simple API |
-| **Widget Layout (v2.0)** | **react-grid-layout** | **>=1.4.0** | **Drag-and-drop widget customisation** |
-| **Date Formatting (v2.0)** | **date-fns** | **>=3.0.0** | **Relative time for workstation "Last seen"** |
+| Frontend Framework | React | 19+ | Component model, ecosystem |
+| Build Tool | Vite | 6.0+ | Fast builds, ESM native |
+| UI Components | Tailwind CSS | 4.0+ | Utility-first, rapid styling |
+| Charts | Recharts | 3.0+ | React-native charts, simple API |
+| **Widget Layout (v2.0)** | **react-grid-layout** | **>=2.2.0** | **Drag-and-drop widget customisation** |
+| **Date Formatting (v2.0)** | **date-fns** | **>=4.0.0** | **Relative time for workstation "Last seen"** |
+| **Drag-and-Drop (v2.0)** | **@dnd-kit/core + sortable** | **>=6.0.0** | **Dashboard card reordering** |
+| **SSE Streaming (v2.0)** | **sse-starlette** | **>=1.6.0** | **Server-Sent Events for real-time command output** |
+| **Version Comparison (v2.0)** | **packaging** | **>=23.0** | **Agent auto-update version comparison** |
 | Validation | Pydantic | >=2.0.0 | Runtime validation, serialisation |
 | Settings | Pydantic Settings | >=2.0.0 | Environment variable loading |
 | ASGI Server | Uvicorn | >=0.27.0 | High performance, asyncio (with standard extras) |
@@ -633,17 +637,17 @@ OpenAPI compliance MUST be validated by automated tests:
 | PUT | `/api/v1/settings/connectivity` | Update connectivity mode, tokens, SSH keys | Yes | ✅ |
 | POST | `/api/v1/settings/test-ssh` | Test SSH connection to machine | Yes | ✅ |
 
-#### Synchronous Command Execution (v2.0) - 📋 Planned (EP0013)
+#### Synchronous Command Execution (v2.0) - ✅ Complete (EP0013)
 
 | Method | Path | Description | Auth | Status |
 |--------|------|-------------|------|--------|
-| POST | `/api/v1/machines/{machine_id}/commands/execute` | Execute command via SSH (synchronous, <5s) | Yes | 📋 |
-| GET | `/api/v1/machines/{machine_id}/commands/history` | Get command execution audit log | Yes | 📋 |
-| POST | `/api/v1/machines/{machine_id}/commands/validate` | Validate command against whitelist (dry-run) | Yes | 📋 |
+| POST | `/api/v1/servers/{server_id}/commands/execute` | Execute command via SSH (synchronous, <5s) | Yes | ✅ |
+| GET | `/api/v1/servers/{server_id}/commands/audit` | Get command execution audit log | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/commands/validate` | Validate command against whitelist (dry-run) | Yes | ✅ |
 
-**Note:** SSH executor service is complete; API endpoints are planned. Agent command polling endpoints (`/agents/command-result`) deprecated in v2.0.
+**Note:** Implemented using `/servers/` path (not `/machines/`). Agent command polling endpoints (`/agents/command-result`) deprecated in v2.0.
 
-#### Configuration Management (v2.0) - 🚧 In Progress (EP0010)
+#### Configuration Management (v2.0) - ✅ Complete (EP0010)
 
 | Method | Path | Description | Auth | Status |
 |--------|------|-------------|------|--------|
@@ -653,42 +657,68 @@ OpenAPI compliance MUST be validated by automated tests:
 | GET | `/api/v1/servers/{server_id}/config/diff` | Get configuration diff (expected vs actual) | Yes | ✅ |
 | POST | `/api/v1/servers/{server_id}/config/apply` | Apply configuration pack (with dry-run) | Yes | ✅ |
 | GET | `/api/v1/servers/{server_id}/config/apply/{apply_id}` | Get apply operation status | Yes | ✅ |
-| GET | `/api/v1/config/compliance` | Get compliance summary for all machines | Yes | 📋 |
+| GET | `/api/v1/config/compliance` | Get compliance summary for all machines | Yes | ✅ |
 
 **Implementation Notes:**
 - Config packs stored in `data/config-packs/*.yaml` (US0116)
 - Compliance checking via SSH with SSHPooledExecutor (US0117)
 - Diff view returns structured mismatch data (US0118)
 - Apply pack supports dry-run preview, background execution, progress tracking (US0119)
-- Dashboard compliance widget pending (US0120)
+- Dashboard compliance widget implemented as ComplianceWidget (US0120)
+- Pack assignment per machine (US0121), drift detection (US0122), remove pack (US0123) complete
 
-#### Dashboard Preferences (v2.0) - 📋 Planned (EP0011)
-
-| Method | Path | Description | Auth | Status |
-|--------|------|-------------|------|--------|
-| GET | `/api/v1/preferences/card-order` | Get dashboard card order | Yes | 📋 |
-| PUT | `/api/v1/preferences/card-order` | Update dashboard card order | Yes | 📋 |
-
-#### Widget Layouts (v2.0) - 📋 Planned (EP0012)
+#### Dashboard Preferences (v2.0) - ✅ Complete (EP0011)
 
 | Method | Path | Description | Auth | Status |
 |--------|------|-------------|------|--------|
-| GET | `/api/v1/machines/{machine_id}/layout` | Get widget layout for machine detail view | Yes | 📋 |
-| PUT | `/api/v1/machines/{machine_id}/layout` | Update widget layout | Yes | 📋 |
-| DELETE | `/api/v1/machines/{machine_id}/layout` | Reset to default layout | Yes | 📋 |
+| GET | `/api/v1/preferences/card-order` | Get dashboard card order | Yes | ✅ |
+| PUT | `/api/v1/preferences/card-order` | Update dashboard card order | Yes | ✅ |
 
-**Dependency:** Requires react-grid-layout (not yet installed).
-
-#### Docker Monitoring (v2.0) - 📋 Planned (EP0014)
+#### Widget Layouts (v2.0) - ✅ Complete (EP0012)
 
 | Method | Path | Description | Auth | Status |
 |--------|------|-------------|------|--------|
-| GET | `/api/v1/machines/{machine_id}/containers` | List Docker containers | Yes | 📋 |
-| POST | `/api/v1/machines/{machine_id}/containers/{container_id}/start` | Start container | Yes | 📋 |
-| POST | `/api/v1/machines/{machine_id}/containers/{container_id}/stop` | Stop container | Yes | 📋 |
-| POST | `/api/v1/machines/{machine_id}/containers/{container_id}/restart` | Restart container | Yes | 📋 |
+| GET | `/api/v1/servers/{server_id}/layout` | Get widget layout for machine detail view | Yes | ✅ |
+| PUT | `/api/v1/servers/{server_id}/layout` | Update widget layout | Yes | ✅ |
+| DELETE | `/api/v1/servers/{server_id}/layout` | Reset to default layout | Yes | ✅ |
 
-**Note:** Current implementation uses `/api/v1/servers/*` paths. Migration to `/machines/*` planned.
+**Note:** react-grid-layout v2.2.2 installed. Uses `/servers/` path (not `/machines/`).
+
+#### Docker Monitoring (v2.0) - ✅ Complete (EP0014)
+
+| Method | Path | Description | Auth | Status |
+|--------|------|-------------|------|--------|
+| GET | `/api/v1/servers/{server_id}/containers` | List Docker containers (cached 60s, `refresh=true` to bypass) | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/containers/{container_id}/start` | Start container | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/containers/{container_id}/stop` | Stop container (`timeout` query param, 1-300s, default 10) | Yes | ✅ |
+| POST | `/api/v1/servers/{server_id}/containers/{container_id}/restart` | Restart container | Yes | ✅ |
+
+**Implementation:** Uses `ContainerService` with `SSHPooledExecutor`. Runs `sudo docker ps -a --no-trunc --format '{{json .}}'` via SSH. Container IDs sanitised (`[a-zA-Z0-9_-]` only). All actions create audit log entries.
+
+#### Audit Trail (v2.0) - ✅ Complete (EP0013 US0155)
+
+| Method | Path | Description | Auth | Status |
+|--------|------|-------------|------|--------|
+| GET | `/api/v1/audit/commands` | Paginated command audit log (filterable by server, action_type, date range) | Yes | ✅ |
+| GET | `/api/v1/audit/commands/export` | Streaming CSV export of audit log | Yes | ✅ |
+
+**Implementation:** Immutable log - no update/delete endpoints. Entries auto-pruned after 90 days (03:00 UTC daily job).
+
+#### Package Status (v2.0) - ✅ Complete (US0198)
+
+| Method | Path | Description | Auth | Status |
+|--------|------|-------------|------|--------|
+| GET | `/api/v1/servers/{server_id}/packages/status` | Real-time package status via SSH (upgradable, held-back, security) | Yes | ✅ |
+
+**Implementation:** Runs `apt list --upgradable`, `apt-mark showhold`, `apt-get dist-upgrade --simulate` via SSH. Distinguishes manually held, phased rollback, and security packages.
+
+#### Agent Download (v2.0) - ✅ Complete (US0184)
+
+| Method | Path | Description | Auth | Status |
+|--------|------|-------------|------|--------|
+| GET | `/api/v1/agents/download` | Download agent tar.gz archive for self-update | Yes | ✅ |
+
+**Implementation:** Returns `application/gzip` with `X-Checksum-SHA256` header. Bundles all agent files.
 
 ---
 
@@ -734,16 +764,15 @@ OpenAPI compliance MUST be validated by automated tests:
   },
   "updates_available": "integer",
   "security_updates": "integer",
-  "command_results": [
-    {
-      "action_id": "integer",
-      "exit_code": "integer",
-      "stdout": "string",
-      "stderr": "string",
-      "executed_at": "ISO8601 datetime",
-      "completed_at": "ISO8601 datetime"
-    }
-  ]
+  "held_back_count": "integer (v2.0 - US0198)",
+  "agent_version": "string (v2.0 - version from VERSION file)",
+  "docker_status": {
+    "running_containers": "integer",
+    "stopped_containers": "integer",
+    "total_containers": "integer"
+  },
+  "filesystems": "array of filesystem metrics (v2.0)",
+  "network_interfaces": "array of interface metrics (v2.0)"
 }
 ```
 
@@ -753,16 +782,7 @@ OpenAPI compliance MUST be validated by automated tests:
   "received": true,
   "server_time": "ISO8601 datetime",
   "server_registered": true,
-  "pending_commands": [
-    {
-      "action_id": "integer",
-      "action_type": "restart_service | clear_logs | custom",
-      "command": "string (full command to execute)",
-      "parameters": {},
-      "timeout_seconds": "integer"
-    }
-  ],
-  "results_acknowledged": ["integer - action_ids confirmed"]
+  "update_available": "string or null (v2.0 - new agent version if auto-update enabled)"
 }
 ```
 
@@ -896,9 +916,24 @@ OpenAPI compliance MUST be validated by automated tests:
 | idle_watts | integer | Nullable | Estimated idle power draw |
 | updates_available | integer | Default: 0 | Pending package updates |
 | security_updates | integer | Default: 0 | Pending security updates |
+| **held_back_count** | **integer** | **Nullable** | **US0198: Packages held back from upgrade** |
 | is_paused | boolean | Default: false | Maintenance mode flag |
 | paused_at | datetime | Nullable | When maintenance mode enabled |
+| **is_inactive** | **boolean** | **Default: false** | **Server decommissioned but tracked** |
+| **inactive_since** | **datetime** | **Nullable** | **When server went inactive** |
 | **last_boot_time** | **datetime** | **Nullable** | **v2.0: For workstation uptime tracking** |
+| **agent_version** | **string(20)** | **Nullable** | **Installed agent version** |
+| **agent_mode** | **string(20)** | **Nullable** | **US0188: 'readonly' or 'readwrite'** |
+| **auto_update_agent** | **boolean** | **Default: false** | **US0184: Opt-in agent auto-update** |
+| **agent_update_status** | **string(20)** | **Nullable** | **US0184: 'pending', 'downloading', 'failed', or null** |
+| **agent_update_error** | **string(500)** | **Nullable** | **US0184: Error message if update failed** |
+| **has_docker** | **boolean** | **Nullable** | **US0157: null=unknown, false=no, true=yes** |
+| **docker_status** | **json** | **Nullable** | **US0163: {running, stopped, total} container counts** |
+| **config_user** | **string(255)** | **Nullable** | **EP0010: User home dir for compliance checks** |
+| **assigned_packs** | **json** | **Nullable** | **US0121: Config pack assignment list** |
+| **drift_detection_enabled** | **boolean** | **Default: true** | **US0122: Scheduled drift detection** |
+| **filesystems** | **json** | **Nullable** | **Per-filesystem metrics snapshot** |
+| **network_interfaces** | **json** | **Nullable** | **Per-interface network metrics** |
 | last_seen | datetime | Nullable | Last heartbeat |
 | created_at | datetime | Auto | First seen |
 | updated_at | datetime | Auto | Last modified |
@@ -911,10 +946,21 @@ OpenAPI compliance MUST be validated by automated tests:
 - Added `ssh_username` for command execution (nullable, per-server override)
 - Added `last_boot_time` for workstation uptime tracking
 
+**EP0014 Changes (Docker):**
+- Added `has_docker` (three-state: null/false/true, detected in heartbeat)
+- Added `docker_status` JSON (running/stopped/total container counts from heartbeat)
+
 **EP0015 Changes:**
 - Added `sudo_mode` field ('passwordless' or 'password')
 - `ssh_username` is per-server override (NULL = use global default)
 - Added relationship to `credentials` table (per-server credentials)
+
+**US0184 Changes (Agent Auto-Update):**
+- Added `auto_update_agent`, `agent_update_status`, `agent_update_error`
+- Hub signals update availability in heartbeat response
+
+**US0198 Changes (Package Status):**
+- Added `held_back_count` for packages held back from upgrade
 
 #### ExpectedService
 
@@ -926,6 +972,7 @@ OpenAPI compliance MUST be validated by automated tests:
 | display_name | string | Nullable | Human-friendly name |
 | is_critical | boolean | Default: true | Alert when down |
 | enabled | boolean | Default: true | Whether monitoring is active |
+| **last_restart_at** | **datetime(tz)** | **Nullable** | **US0185: Set on successful restart, used for grace period countdown** |
 | created_at | datetime | Auto | When added |
 
 **Unique Constraint:** `(server_id, service_name)`
@@ -1143,25 +1190,26 @@ async def get_effective_credential(type: str, server_id: str) -> str | None:
     """
 ```
 
-#### CommandAuditLog (v2.0)
+#### CommandAuditLog (v2.0) ✅ Implemented
 
-Complete audit trail for all SSH command executions.
+Complete audit trail for all SSH command executions. Immutable - no update/delete operations.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | id | integer | PK, auto | Unique identifier |
-| machine_id | string | FK → Machine | Target machine |
+| server_id | string(100) | FK → Server, CASCADE | Target server (indexed) |
 | command | text | Required | Full command executed |
-| exit_code | integer | Nullable | Command exit code |
-| stdout | text | Nullable | Command stdout |
-| stderr | text | Nullable | Command stderr |
+| action_type | string(50) | Required | e.g. restart_service, apply_updates, container_start |
+| exit_code | integer | Nullable | Command exit code (0 = success) |
+| stdout | text | Nullable | Truncated to 10KB |
+| stderr | text | Nullable | Truncated to 10KB |
 | duration_ms | integer | Nullable | Execution duration in milliseconds |
-| executed_by | string | Default: dashboard | Who initiated (dashboard/api/automation) |
-| executed_at | datetime | Auto | When executed |
-| success | boolean | Nullable | Whether command succeeded |
-| error | text | Nullable | Error message if failed |
+| executed_by | string(255) | Default: dashboard | Who initiated |
+| executed_at | datetime(tz) | Auto (UTC) | When executed |
 
-**Indices:** `(machine_id, executed_at)`, `executed_at`
+**Indices:** `(server_id, executed_at)`, `(action_type, executed_at)`, `(executed_at)`
+
+**Retention:** Auto-pruned after 90 days by scheduled job (03:00 UTC daily).
 
 #### ConfigCheck (v2.0)
 
@@ -1693,18 +1741,20 @@ Agents will only execute these predefined commands:
 
 ### ADR-002: Hybrid Agent Communication
 
-**Status:** Accepted
+**Status:** Superseded by v2.0 architecture
 
 **Context:** Need agents to report metrics and receive commands. Options: push-only, pull-only, hybrid, WebSocket.
 
-**Decision:** Hybrid approach - agents push metrics via HTTP POST, receive pending commands in response.
+**Decision (v1.0):** ~~Hybrid approach - agents push metrics via HTTP POST, receive pending commands in response.~~
+
+**Decision (v2.0):** Agents push metrics only. Hub executes commands via SSH directly (EP0013, US0152). Agent heartbeat response now only signals auto-update availability.
 
 **Consequences:**
 - Positive: Simple HTTP, no persistent connections
 - Positive: Works through NAT, firewalls
-- Positive: Commands delivered with minimal latency (within heartbeat interval)
-- Negative: Command latency up to heartbeat interval (60s default)
-- Neutral: Single endpoint handles both directions
+- Positive: Command execution is immediate (<5s) via SSH, not delayed by heartbeat interval
+- Positive: Agents are simpler (metrics collection only)
+- Neutral: Requires SSH connectivity from hub to agents (via Tailscale or direct)
 
 ---
 
@@ -1782,21 +1832,18 @@ Agents will only execute these predefined commands:
   **Context:** Raw per-minute metrics grow quickly (~50MB/month)
   **Options:** Keep raw 30 days + aggregated forever, or just prune
 
-- [ ] **Q2:** Agent auto-update mechanism?
-  **Context:** Updating agents across fleet manually is tedious
-  **Options:** Self-update via hub API, Ansible, manual
+- [x] **Q2:** Agent auto-update mechanism? **RESOLVED (US0184)**
+  **Decision:** Self-update via hub API. Agent downloads tar.gz from `/api/v1/agents/download`, verifies SHA256 checksum, extracts and restarts. Opt-in per server via `auto_update_agent` flag.
 
 - [ ] **Q3:** Multi-disk monitoring approach?
   **Context:** OMV servers have MergerFS pools with multiple drives
   **Options:** Monitor root only, monitor all mounts, configurable list
 
-- [ ] **Q4:** Docker container monitoring on agents?
-  **Context:** Many services run in Docker, not systemd
-  **Options:** Include docker stats in agent, separate integration, defer
+- [x] **Q4:** Docker container monitoring on agents? **RESOLVED (EP0014)**
+  **Decision:** Hybrid approach. Agent detects Docker at startup and reports running/stopped/total counts in heartbeat (`docker_status` JSON). Hub queries containers on-demand via SSH (`sudo docker ps -a`). Full container management (start/stop/restart) via SSH from hub.
 
-- [ ] **Q5:** Agent version compatibility?
-  **Context:** Hub and agent may evolve at different rates
-  **Options:** Version in heartbeat with compatibility check, warn on mismatch
+- [x] **Q5:** Agent version compatibility? **RESOLVED (US0184)**
+  **Decision:** Agent sends `agent_version` in heartbeat. Hub compares versions and signals update availability in response. Per-server opt-in auto-update with status tracking (`agent_update_status`).
 
 ---
 
@@ -1823,7 +1870,7 @@ Agents will only execute these predefined commands:
 - Windows/macOS agents
 - pfSense monitoring
 - Mobile native app
-- Real-time WebSocket updates
+- ~~Real-time WebSocket updates~~ (SSE streaming implemented for command output - US0156)
 - Historical trend analysis/ML
 
 ---
@@ -1922,3 +1969,5 @@ Agents will only execute these predefined commands:
 | 2026-01-28 | 2.0.3 | **TRD Review:** Added v2.0 Implementation Status section showing feature completion. Updated v2.0 API endpoints with status markers (✅ Implemented / 📋 Planned). Clarified: Tailscale/Connectivity endpoints complete; Command execution, Config management, Dashboard preferences, Widget layouts, Docker monitoring endpoints are PLANNED (not implemented). Added dependency note: react-grid-layout not installed. 17 planned v2.0 endpoints documented. 4 planned data models (CommandAuditLog, ConfigCheck, DashboardPreference, WidgetLayout) not yet created. |
 | 2026-01-28 | 2.1.0 | **SDLC-Studio v2 Upgrade:** Added §2 Project Classification section (project type, rationale, architecture implications). Re-numbered all subsequent sections (3-15). Schema upgraded to v2 modular format. Created .version file for version tracking. |
 | 2026-01-29 | 2.1.1 | **TRD Review (EP0010):** Configuration Management now 62% complete. Updated status from 📋 Planned to 🚧 In Progress. Implemented: Config packs API (US0116), compliance checking API (US0117), diff view API (US0118), apply pack API with dry-run and progress tracking (US0119). Added ConfigApply data model with status/progress/results tracking. Updated API endpoint status markers. Remaining: dashboard compliance widget (US0120-US0123). |
+| 2026-01-30 | 2.1.2 | **TRD Review (EP0010, EP0013, EP0018 Complete):** Major status update. EP0013 Synchronous Command Execution now ✅ Complete - command execute/validate/audit endpoints implemented with CommandAuditLog model. EP0010 Configuration Management now ✅ Complete - all 8 stories done including ComplianceWidget. EP0018 Dashboard UX Simplification ✅ Complete - FleetStatus component replaces AlertBanner+SummaryBar. react-grid-layout v2.2.2 now installed (EP0011/EP0012 dependency resolved). Widget layouts and dashboard preferences endpoints implemented. Updated all API status markers. Only EP0014 (Docker Container Monitoring) remains 📋 Planned. |
+| 2026-02-17 | 2.2.0 | **TRD Review (All v2.0 Complete):** EP0014 Docker Container Monitoring now ✅ Complete - 4 container API endpoints (list/start/stop/restart) at `/servers/` paths with ContainerService, audit logging, 60s cache. Added new API sections: Audit Trail (2 endpoints), Package Status (1 endpoint), Agent Download (1 endpoint). Updated agent architecture diagram - commands removed (US0152), Docker detection and auto-update added. Updated Machine model with 15 new fields (docker, agent auto-update, config, package status). Added `last_restart_at` to ExpectedService (US0185). Updated CommandAuditLog model to match implementation (action_type field, 10KB truncation, 3 indices). Updated heartbeat schema - removed command_results/pending_commands, added docker_status/held_back_count/agent_version. Technology stack: React 19, Vite 6, Tailwind 4, Recharts 3, added sse-starlette, packaging, @dnd-kit. Resolved open questions Q2 (agent auto-update), Q4 (Docker monitoring), Q5 (agent versioning). Updated ADR-002 to reflect v2.0 push-only agent model. Noted SSE streaming replaces WebSocket in Won't Have. |

@@ -89,8 +89,12 @@ class TestOperationIds:
         # set added for default key setting (US0093)
         # apply added for configuration pack application (US0119)
         # execute added for synchronous command execution (EP0013)
+        # stream added for SSE streaming command output (US0156)
+        # trigger added for agent trigger-update endpoint (US0184)
+        # switch added for agent mode switching (US0188)
+        # start/stop/restart added for container actions (EP0014)
         valid_pattern = re.compile(
-            r"^(list|get|create|update|delete|acknowledge|resolve|test|pause|unpause|approve|reject|export|cancel|discover|save|remove|import|check|store|set|apply|execute)_[a-z_]+$"
+            r"^(list|get|create|update|delete|acknowledge|resolve|test|pause|unpause|approve|reject|export|cancel|discover|save|remove|import|check|store|set|apply|execute|stream|trigger|switch|start|stop|restart)_[a-z_]+$"
         )
 
         invalid_operation_ids = []

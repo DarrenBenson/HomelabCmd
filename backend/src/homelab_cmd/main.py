@@ -18,18 +18,22 @@ from homelab_cmd import __version__
 from homelab_cmd.api.routes import (
     actions,
     agent_deploy,
+    agent_download,
     agent_register,
     agents,
     alerts,
+    audit,
     commands,
     config,
     config_apply,
     config_check,
     config_packs,
     connectivity_settings,
+    containers,
     costs,
     discovery,
     metrics,
+    packages,
     preferences,
     scan,
     servers,
@@ -45,6 +49,7 @@ from homelab_cmd.services.scheduler import (
     capture_daily_costs,
     check_config_drift,
     check_stale_servers,
+    cleanup_audit_logs,
     prune_old_metrics,
     rollup_cost_snapshots,
     run_metrics_rollup,
@@ -158,8 +163,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             id="rollup_cost_snapshots",
         )
 
+        # Audit log cleanup (daily at 03:00 UTC) - US0155
+        await scheduler.add_schedule(
+            cleanup_audit_logs,
+            CronTrigger(hour=3, minute=0),
+            id="cleanup_audit_logs",
+        )
+
         await scheduler.start_in_background()
-        logger.info("Background scheduler started with 6 jobs")
+        logger.info("Background scheduler started with 7 jobs")
 
         yield
 
@@ -210,6 +222,10 @@ OPENAPI_TAGS = [
         "description": "Remediation action queue and lifecycle management.",
     },
     {
+        "name": "Audit",
+        "description": "Immutable command execution audit trail (US0155).",
+    },
+    {
         "name": "Commands",
         "description": "Synchronous command execution via SSH (EP0013).",
     },
@@ -232,6 +248,10 @@ OPENAPI_TAGS = [
     {
         "name": "Preferences",
         "description": "Dashboard preferences and personalisation settings.",
+    },
+    {
+        "name": "Packages",
+        "description": "Package status with held-back detection (US0198).",
     },
 ]
 
@@ -295,6 +315,9 @@ homelab infrastructure. Features include:
     # Mount agent registration routes (mixed auth) - Secure Agent Architecture
     app.include_router(agent_register.router, prefix="/api/v1")
 
+    # Mount agent download route for auto-update (US0184)
+    app.include_router(agent_download.router, prefix="/api/v1")
+
     # Mount metrics routes (auth required)
     app.include_router(metrics.router, prefix="/api/v1")
 
@@ -334,6 +357,9 @@ homelab infrastructure. Features include:
     # Mount commands routes (auth required) - EP0013: Synchronous Command Execution
     app.include_router(commands.router, prefix="/api/v1")
 
+    # Mount audit routes (auth required) - US0155: Command Execution Audit Trail
+    app.include_router(audit.router, prefix="/api/v1")
+
     # Mount costs routes (auth required)
     app.include_router(costs.router, prefix="/api/v1")
 
@@ -349,6 +375,12 @@ homelab infrastructure. Features include:
 
     # Mount widget layout routes (auth required) - US0173: Widget Layout Persistence
     app.include_router(widget_layout.router, prefix="/api/v1")
+
+    # Mount packages routes (auth required) - US0198: Package Held Back Status Indicator
+    app.include_router(packages.router, prefix="/api/v1")
+
+    # Mount containers routes (auth required) - US0158: Container Listing (EP0014)
+    app.include_router(containers.router, prefix="/api/v1")
 
     return app
 

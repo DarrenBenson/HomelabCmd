@@ -30,8 +30,8 @@ class TailscaleInfo(BaseModel):
 class SSHInfo(BaseModel):
     """SSH configuration information."""
 
-    username: str = Field("homelabcmd", description="Default SSH username")
-    key_configured: bool = Field(False, description="Whether SSH private key is uploaded")
+    username: str | None = Field(None, description="Default SSH username from SSH key config")
+    key_configured: bool = Field(False, description="Whether SSH keys are available")
     key_uploaded_at: datetime | None = Field(None, description="When SSH key was uploaded")
 
 

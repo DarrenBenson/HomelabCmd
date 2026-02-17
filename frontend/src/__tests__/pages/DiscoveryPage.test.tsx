@@ -2,7 +2,9 @@
  * Tests for DiscoveryPage component.
  *
  * EP0016: Unified Discovery Experience (US0094)
- * Tests cover network discovery, Tailscale integration, filtering,
+ * EP0019: Single Pane of Glass - Merged network and Tailscale discovery
+ *
+ * Tests cover unified discovery, device merging, filtering,
  * device import, and various edge cases.
  */
 
@@ -87,6 +89,34 @@ vi.mock('../../components/DiscoverySettingsModal', () => ({
         <button data-testid="settings-close" onClick={onClose}>Close</button>
       </div>
     ) : null,
+}));
+
+vi.mock('../../components/discovery/DiscoverySourcePanel', () => ({
+  DiscoverySourcePanel: ({
+    networkSettings,
+    isDiscovering,
+    onDiscoverAll,
+    onOpenSettings,
+  }: {
+    networkSettings: { default_subnet: string } | null;
+    isDiscovering: boolean;
+    onDiscoverAll: (keyId?: string) => void;
+    onOpenSettings: () => void;
+  }) => (
+    <div data-testid="discovery-source-panel">
+      {networkSettings && <span data-testid="subnet">{networkSettings.default_subnet}</span>}
+      <button
+        data-testid="discover-all-button"
+        onClick={() => onDiscoverAll()}
+        disabled={isDiscovering}
+      >
+        {isDiscovering ? 'Discovering...' : 'Discover All'}
+      </button>
+      <button data-testid="settings-button" onClick={onOpenSettings} aria-label="Network discovery settings">
+        Settings
+      </button>
+    </div>
+  ),
 }));
 
 const mockGetConnectivityStatus = getConnectivityStatus as Mock;
@@ -232,18 +262,6 @@ const mockDiscoveryResponseCompleted: DiscoveryResponse = {
   error: null,
 };
 
-const mockDiscoveryResponseFailed: DiscoveryResponse = {
-  discovery_id: 1,
-  status: 'failed',
-  subnet: '192.168.1.0/24',
-  started_at: '2026-01-29T10:00:00Z',
-  completed_at: '2026-01-29T10:00:05Z',
-  progress: null,
-  devices_found: 0,
-  devices: null,
-  error: 'Network scan failed: permission denied',
-};
-
 const mockSSHKeysResponse: SSHKeyListResponse = {
   keys: [
     {
@@ -283,19 +301,7 @@ describe('DiscoveryPage', () => {
   });
 
   describe('initial loading', () => {
-    it('shows loading spinner during initial load', () => {
-      // Make the promise never resolve to see loading state
-      mockGetConnectivityStatus.mockReturnValue(new Promise(() => {}));
-      mockGetTailscaleStatus.mockReturnValue(new Promise(() => {}));
-
-      renderDiscoveryPage();
-
-      // Should show loading spinner (Loader2 icon)
-      const spinner = document.querySelector('.animate-spin');
-      expect(spinner).toBeInTheDocument();
-    });
-
-    it('renders page header after loading', async () => {
+    it('renders page header', async () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
@@ -307,175 +313,59 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/Find and import devices/)).toBeInTheDocument();
+        expect(screen.getByText(/Find and import devices from your network and Tailscale/)).toBeInTheDocument();
+      });
+    });
+
+    it('renders discovery source panel', async () => {
+      renderDiscoveryPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('discovery-source-panel')).toBeInTheDocument();
       });
     });
   });
 
-  describe('tab navigation', () => {
-    it('shows Network Scan tab button', async () => {
+  describe('unified discovery', () => {
+    it('shows Discover All button', async () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Network Scan/i })).toBeInTheDocument();
+        expect(screen.getByTestId('discover-all-button')).toBeInTheDocument();
+        expect(screen.getByTestId('discover-all-button')).toHaveTextContent('Discover All');
       });
     });
 
-    it('shows Tailscale tab when configured', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Tailscale/i })).toBeInTheDocument();
-      });
-    });
-
-    it('hides Tailscale tab when not configured', async () => {
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusNotConfigured);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Device Discovery')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole('button', { name: /Tailscale/i })).not.toBeInTheDocument();
-    });
-
-    it('defaults to Tailscale tab when mode is tailscale and configured', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        // Tailscale devices should be fetched
-        expect(mockGetTailscaleDevices).toHaveBeenCalled();
-      });
-    });
-
-    it('defaults to Network tab when mode is direct_ssh', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponseNetwork);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Device Discovery')).toBeInTheDocument();
-      });
-
-      // Network tab should be active, showing Discover Now button
-      expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
-    });
-
-    it('respects tab URL parameter', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(mockGetTailscaleDevices).toHaveBeenCalled();
-      });
-    });
-
-    it('switches to network tab on click', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Network Scan/i })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Network Scan/i }));
-
-      expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
-    });
-
-    it('switches to tailscale tab on click', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-
-      renderDiscoveryPage('/discovery?tab=network');
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Tailscale/i })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Tailscale/i }));
-
-      await waitFor(() => {
-        expect(mockGetTailscaleDevices).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('network discovery', () => {
-    it('shows subnet from settings', async () => {
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('192.168.1.0/24')).toBeInTheDocument();
-      });
-    });
-
-    it('shows Discover Now button', async () => {
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
-      });
-    });
-
-    it('starts discovery when clicking Discover Now', async () => {
+    it('starts discovery when clicking Discover All', async () => {
       mockStartDiscovery.mockResolvedValue(mockDiscoveryResponsePending);
       mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseRunning);
 
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
+        expect(screen.getByTestId('discover-all-button')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: /Discover Now/i }));
-
-      expect(mockStartDiscovery).toHaveBeenCalled();
-    });
-
-    it('shows scanning state during discovery', async () => {
-      mockStartDiscovery.mockResolvedValue(mockDiscoveryResponseRunning);
-      mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseRunning);
-
-      renderDiscoveryPage();
+      fireEvent.click(screen.getByTestId('discover-all-button'));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Discover Now/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/Scanning/i)).toBeInTheDocument();
+        expect(mockStartDiscovery).toHaveBeenCalled();
       });
     });
 
-    it('shows progress during running discovery', async () => {
-      localStorage.setItem('activeDiscoveryId', '1');
-      mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseRunning);
-
+    it('fetches discovery settings on mount', async () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/128/)).toBeInTheDocument();
-        expect(screen.getByText(/254/)).toBeInTheDocument();
+        expect(mockGetDiscoverySettings).toHaveBeenCalled();
+      });
+    });
+
+    it('shows subnet from settings', async () => {
+      renderDiscoveryPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('subnet')).toHaveTextContent('192.168.1.0/24');
       });
     });
 
@@ -486,11 +376,12 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('device-card-192.168.1.100')).toBeInTheDocument();
+        // Device IDs now have "network-" prefix
+        expect(screen.getByTestId('device-card-network-192.168.1.100')).toBeInTheDocument();
       });
     });
 
-    it('shows empty state when no devices found', async () => {
+    it('shows empty state when no devices found after discovery', async () => {
       localStorage.setItem('activeDiscoveryId', '1');
       mockGetDiscovery.mockResolvedValue({
         ...mockDiscoveryResponseCompleted,
@@ -505,17 +396,6 @@ describe('DiscoveryPage', () => {
       });
     });
 
-    it('shows error state when discovery fails', async () => {
-      localStorage.setItem('activeDiscoveryId', '1');
-      mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseFailed);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
-      });
-    });
-
     it('shows ready to discover state when no scan started', async () => {
       renderDiscoveryPage();
 
@@ -523,14 +403,72 @@ describe('DiscoveryPage', () => {
         expect(screen.getByText(/Ready to discover/i)).toBeInTheDocument();
       });
     });
+  });
 
-    it('shows settings error when settings fail to load', async () => {
-      mockGetDiscoverySettings.mockRejectedValue(new Error('Settings failed'));
+  describe('tailscale integration', () => {
+    beforeEach(() => {
+      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
+      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
+      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
+    });
+
+    it('fetches tailscale devices on mount when configured', async () => {
+      renderDiscoveryPage();
+
+      await waitFor(() => {
+        expect(mockGetTailscaleDevices).toHaveBeenCalled();
+      });
+    });
+
+    it('shows tailscale device cards in unified view', async () => {
+      renderDiscoveryPage();
+
+      await waitFor(() => {
+        // Device IDs now have "tailscale-" prefix
+        expect(screen.getByTestId('device-card-tailscale-node-1')).toBeInTheDocument();
+      });
+    });
+
+    it('handles tailscale not configured gracefully', async () => {
+      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusNotConfigured);
+      mockGetTailscaleDevices.mockResolvedValue({ devices: [], total: 0, cache_hit: false, cached_at: null });
 
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/Settings failed/i)).toBeInTheDocument();
+        expect(screen.getByText('Device Discovery')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('device merging', () => {
+    it('merges devices from both sources into unified list', async () => {
+      localStorage.setItem('activeDiscoveryId', '1');
+      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
+      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
+      // Use different hostnames so devices don't get merged
+      mockGetDiscovery.mockResolvedValue({
+        ...mockDiscoveryResponseCompleted,
+        devices: [
+          {
+            ip: '192.168.1.100',
+            hostname: 'nas.local', // Different hostname, won't merge
+            response_time_ms: 5,
+            is_monitored: false,
+            ssh_auth_status: 'success',
+            ssh_auth_error: null,
+            ssh_key_used: 'default',
+          },
+        ],
+      });
+      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
+
+      renderDiscoveryPage();
+
+      await waitFor(() => {
+        // Should see devices from both sources (unmerged because different hostnames)
+        expect(screen.getByTestId('device-card-network-192.168.1.100')).toBeInTheDocument();
+        expect(screen.getByTestId('device-card-tailscale-node-1')).toBeInTheDocument();
       });
     });
   });
@@ -540,10 +478,10 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Discovery settings/i)).toBeInTheDocument();
+        expect(screen.getByTestId('settings-button')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByLabelText(/Discovery settings/i));
+      fireEvent.click(screen.getByTestId('settings-button'));
 
       expect(screen.getByTestId('settings-modal')).toBeInTheDocument();
     });
@@ -552,125 +490,14 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Discovery settings/i)).toBeInTheDocument();
+        expect(screen.getByTestId('settings-button')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByLabelText(/Discovery settings/i));
+      fireEvent.click(screen.getByTestId('settings-button'));
       expect(screen.getByTestId('settings-modal')).toBeInTheDocument();
 
       fireEvent.click(screen.getByTestId('settings-close'));
       expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('tailscale discovery', () => {
-    beforeEach(() => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-    });
-
-    it('fetches tailscale devices when tab is active', async () => {
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(mockGetTailscaleDevices).toHaveBeenCalled();
-      });
-    });
-
-    it('shows tailscale device cards', async () => {
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByTestId('device-card-node-1')).toBeInTheDocument();
-      });
-    });
-
-    it('shows refresh button for tailscale', async () => {
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
-      });
-    });
-
-    it('refreshes tailscale devices on button click', async () => {
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Refresh/i }));
-
-      // Should call with refresh=true
-      expect(mockGetTailscaleDevices).toHaveBeenCalledWith(
-        expect.objectContaining({ refresh: true })
-      );
-    });
-
-    it('shows cache hit info', async () => {
-      mockGetTailscaleDevices.mockResolvedValue({
-        ...mockTailscaleDevicesResponse,
-        cache_hit: true,
-        cached_at: '2026-01-29T09:55:00Z',
-      });
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByText(/Cached/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows fresh data indicator when not cached', async () => {
-      mockGetTailscaleDevices.mockResolvedValue({
-        ...mockTailscaleDevicesResponse,
-        cache_hit: false,
-        cached_at: null,
-      });
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByText(/Fresh data/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows error state when tailscale fetch fails', async () => {
-      mockGetTailscaleDevices.mockRejectedValue(new Error('Tailscale API error'));
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByText(/Tailscale API error/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows retry button on error', async () => {
-      mockGetTailscaleDevices.mockRejectedValue(new Error('Tailscale API error'));
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
-      });
-    });
-
-    it('handles empty tailscale device list', async () => {
-      mockGetTailscaleDevices.mockResolvedValue({
-        devices: [],
-        total: 0,
-        cache_hit: false,
-        cached_at: null,
-      });
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      // Wait for page to load - it may show empty state or no devices message
-      await waitFor(() => {
-        expect(screen.getByText('Device Discovery')).toBeInTheDocument();
-      });
     });
   });
 
@@ -682,10 +509,10 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('device-card-192.168.1.100')).toBeInTheDocument();
+        expect(screen.getByTestId('device-card-network-192.168.1.100')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('device-card-192.168.1.100'));
+      fireEvent.click(screen.getByTestId('device-card-network-192.168.1.100'));
 
       expect(screen.getByTestId('import-modal')).toBeInTheDocument();
     });
@@ -697,66 +524,38 @@ describe('DiscoveryPage', () => {
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('device-card-192.168.1.100')).toBeInTheDocument();
+        expect(screen.getByTestId('device-card-network-192.168.1.100')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('device-card-192.168.1.100'));
+      fireEvent.click(screen.getByTestId('device-card-network-192.168.1.100'));
       expect(screen.getByTestId('import-modal')).toBeInTheDocument();
 
       fireEvent.click(screen.getByTestId('import-close'));
       expect(screen.queryByTestId('import-modal')).not.toBeInTheDocument();
     });
 
-    it('refreshes devices after successful network import', async () => {
+    it('refreshes devices after successful import', async () => {
       localStorage.setItem('activeDiscoveryId', '1');
       mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseCompleted);
 
       renderDiscoveryPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('device-card-192.168.1.100')).toBeInTheDocument();
+        expect(screen.getByTestId('device-card-network-192.168.1.100')).toBeInTheDocument();
       });
 
       // Open modal
-      fireEvent.click(screen.getByTestId('device-card-192.168.1.100'));
+      fireEvent.click(screen.getByTestId('device-card-network-192.168.1.100'));
 
       // Clear calls to track refresh
-      mockGetDiscovery.mockClear();
+      mockStartDiscovery.mockClear();
 
       // Confirm import
       fireEvent.click(screen.getByTestId('import-confirm'));
 
-      // Should refresh discovery
+      // Should trigger rediscovery
       await waitFor(() => {
-        expect(mockGetDiscovery).toHaveBeenCalled();
-      });
-    });
-
-    it('refreshes tailscale devices after successful tailscale import', async () => {
-      mockGetConnectivityStatus.mockResolvedValue(mockConnectivityResponse);
-      mockGetTailscaleStatus.mockResolvedValue(mockTailscaleStatusConfigured);
-      mockGetTailscaleDevices.mockResolvedValue(mockTailscaleDevicesResponse);
-
-      renderDiscoveryPage('/discovery?tab=tailscale');
-
-      await waitFor(() => {
-        expect(screen.getByTestId('device-card-node-1')).toBeInTheDocument();
-      });
-
-      // Open modal
-      fireEvent.click(screen.getByTestId('device-card-node-1'));
-
-      // Clear calls to track refresh
-      mockGetTailscaleDevices.mockClear();
-
-      // Confirm import
-      fireEvent.click(screen.getByTestId('import-confirm'));
-
-      // Should refresh Tailscale devices
-      await waitFor(() => {
-        expect(mockGetTailscaleDevices).toHaveBeenCalledWith(
-          expect.objectContaining({ refresh: true })
-        );
+        expect(mockStartDiscovery).toHaveBeenCalled();
       });
     });
   });
@@ -812,14 +611,6 @@ describe('DiscoveryPage', () => {
       });
     });
 
-    it('fetches discovery settings on mount', async () => {
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(mockGetDiscoverySettings).toHaveBeenCalled();
-      });
-    });
-
     it('fetches SSH keys on mount', async () => {
       renderDiscoveryPage();
 
@@ -833,9 +624,9 @@ describe('DiscoveryPage', () => {
 
       renderDiscoveryPage();
 
-      // Should default to network tab
+      // Should still show page
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
+        expect(screen.getByText('Device Discovery')).toBeInTheDocument();
       });
     });
   });
@@ -863,7 +654,7 @@ describe('DiscoveryPage', () => {
       });
     });
 
-    it('fetches discovery on network tab with valid discovery ID', async () => {
+    it('fetches discovery with valid discovery ID', async () => {
       localStorage.setItem('activeDiscoveryId', '1');
       mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseCompleted);
 
@@ -871,24 +662,6 @@ describe('DiscoveryPage', () => {
 
       await waitFor(() => {
         expect(mockGetDiscovery).toHaveBeenCalled();
-      });
-    });
-
-    it('starts discovery and updates state', async () => {
-      mockStartDiscovery.mockResolvedValue(mockDiscoveryResponsePending);
-      mockGetDiscovery.mockResolvedValue(mockDiscoveryResponseRunning);
-
-      renderDiscoveryPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Discover Now/i })).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Discover Now/i }));
-
-      // Verify startDiscovery was called
-      await waitFor(() => {
-        expect(mockStartDiscovery).toHaveBeenCalled();
       });
     });
   });

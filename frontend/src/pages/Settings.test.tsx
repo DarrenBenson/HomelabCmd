@@ -6,6 +6,7 @@ import * as configApi from '../api/config';
 import * as costsApi from '../api/costs';
 import type { ConfigResponse } from '../types/config';
 import type { CostConfig } from '../types/cost';
+import type { ActionTimeoutConfig } from '../types/action';
 
 /**
  * Settings page tests covering TSP0005 test specification.
@@ -21,6 +22,14 @@ const mockCostConfig: CostConfig = {
   electricity_rate: 0.24,
   currency_symbol: '£',
   updated_at: '2026-01-20T10:00:00Z',
+};
+
+// US0186: Mock action timeout config
+const mockActionTimeoutConfig: ActionTimeoutConfig = {
+  default_timeout: 300,
+  service_restart_timeout: 60,
+  package_update_timeout: 600,
+  updated_at: '2026-01-31T10:00:00Z',
 };
 
 const mockConfig: ConfigResponse = {
@@ -53,6 +62,8 @@ function renderWithRouter() {
 describe('Settings Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // US0186: Default mock for action timeouts
+    vi.mocked(configApi.getActionTimeouts).mockResolvedValue(mockActionTimeoutConfig);
   });
 
   afterEach(() => {
@@ -63,6 +74,7 @@ describe('Settings Page', () => {
     it('displays loading spinner initially', () => {
       vi.mocked(configApi.getConfig).mockImplementation(() => new Promise(() => {}));
       vi.mocked(costsApi.getCostConfig).mockImplementation(() => new Promise(() => {}));
+      vi.mocked(configApi.getActionTimeouts).mockImplementation(() => new Promise(() => {}));
 
       renderWithRouter();
 

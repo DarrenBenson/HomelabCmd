@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getServer, getMetricsHistory, pauseServer, unpauseServer, updateServer } from '../api/servers';
+import { getServer, getMetricsHistory, pauseServer, unpauseServer, updateServer, setAutoUpdateAgent } from '../api/servers';
 import { getCostConfig } from '../api/costs';
-import { getAgentVersion, activateServer } from '../api/agents';
+import { getAgentVersion, activateServer, upgradeAgent } from '../api/agents';
 import { testSSHConnection } from '../api/ssh';
 import type { SSHTestResponse } from '../types/ssh';
 import { StatusLED } from '../components/StatusLED';
@@ -15,6 +15,7 @@ import { AgentUpgradeModal } from '../components/AgentUpgradeModal';
 import { AgentRemoveModal } from '../components/AgentRemoveModal';
 import { AgentInstallModal } from '../components/AgentInstallModal';
 import { AgentCredentialCard } from '../components/AgentCredentialCard';
+import { AgentModeToggle } from '../components/AgentModeToggle';
 import { ServerCredentials } from '../components/ServerCredentials';
 import { PackAssignment } from '../components/PackAssignment';
 import { ServerDetailWidgetView } from '../components/widgets';
@@ -82,11 +83,19 @@ export function ServerDetail() {
   const [sshTesting, setSshTesting] = useState(false);
   const [sshTestResult, setSshTestResult] = useState<SSHTestResponse | null>(null);
 
+  // US0188: Mode switch state
+  const [modeSwitchError, setModeSwitchError] = useState<string | null>(null);
+  const [modeSwitchSuccess, setModeSwitchSuccess] = useState(false);
+
+  // US0184: Agent auto-update state
+  const [autoUpdateSaving, setAutoUpdateSaving] = useState(false);
+  const [triggeringUpdate, setTriggeringUpdate] = useState(false);
+
   // Advanced section collapsed state
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
   // View mode state (EP0012: Widget-based detail view)
-  const [viewMode, setViewMode] = useState<'classic' | 'widget'>('classic');
+  const [viewMode, setViewMode] = useState<'classic' | 'widget'>('widget');
 
   // Edit layout mode state (US0175: Edit Layout Mode)
   const [isEditMode, setIsEditMode] = useState(false);
@@ -267,6 +276,38 @@ export function ServerDetail() {
     }
   };
 
+  // US0184: Toggle auto-update setting
+  const handleToggleAutoUpdate = async () => {
+    if (!serverId || !server) return;
+
+    setAutoUpdateSaving(true);
+    try {
+      const updated = await setAutoUpdateAgent(serverId, !server.auto_update_agent);
+      setServer(updated);
+    } catch (err) {
+      console.error('Failed to toggle auto-update:', err);
+    } finally {
+      setAutoUpdateSaving(false);
+    }
+  };
+
+  // US0184: Trigger manual agent update via SSH
+  const handleTriggerUpdate = async () => {
+    if (!serverId) return;
+
+    setTriggeringUpdate(true);
+    try {
+      // Use SSH-based upgrade - works for all agent versions
+      await upgradeAgent(serverId);
+      // Refresh to show new version
+      await fetchServerData(false, false);
+    } catch (err) {
+      console.error('Failed to upgrade agent:', err);
+    } finally {
+      setTriggeringUpdate(false);
+    }
+  };
+
   // Power configuration handlers (US0033, US0056)
   const handlePowerEdit = () => {
     setPowerModalOpen(true);
@@ -302,6 +343,16 @@ export function ServerDetail() {
   const upgradeAvailable = latestAgentVersion &&
     server?.agent_version &&
     server?.agent_version !== latestAgentVersion;
+
+  // Check if agent supports self-update (requires updater.py added in 2.1.0)
+  const supportsSelfUpdate = (() => {
+    const version = server?.agent_version;
+    if (!version) return false;
+    const parts = version.split('.');
+    const major = parseInt(parts[0] || '0', 10);
+    const minor = parseInt(parts[1] || '0', 10);
+    return (major > 2) || (major === 2 && minor >= 1);
+  })();
 
   // Calculate estimated power based on CPU usage
   // Formula: Power = idle + (max - idle) × (cpu% / 100)
@@ -442,6 +493,19 @@ export function ServerDetail() {
             {/* View Mode Toggle (EP0012) */}
             <div className="flex rounded-md border border-border-default">
               <button
+                onClick={() => setViewMode('widget')}
+                className={cn(
+                  'px-3 py-2 text-sm transition-colors',
+                  viewMode === 'widget'
+                    ? 'bg-bg-tertiary text-text-primary'
+                    : 'text-text-secondary hover:text-text-primary'
+                )}
+                data-testid="view-mode-widget"
+                aria-label="Widget view"
+              >
+                Widget
+              </button>
+              <button
                 onClick={() => {
                   setViewMode('classic');
                   setIsEditMode(false); // Exit edit mode when switching views
@@ -456,19 +520,6 @@ export function ServerDetail() {
                 aria-label="Classic view"
               >
                 Classic
-              </button>
-              <button
-                onClick={() => setViewMode('widget')}
-                className={cn(
-                  'px-3 py-2 text-sm transition-colors',
-                  viewMode === 'widget'
-                    ? 'bg-bg-tertiary text-text-primary'
-                    : 'text-text-secondary hover:text-text-primary'
-                )}
-                data-testid="view-mode-widget"
-                aria-label="Widget view"
-              >
-                Widget
               </button>
             </div>
             {/* Edit Layout Button (US0175) - only visible in widget view on non-mobile (US0177) */}
@@ -635,27 +686,28 @@ export function ServerDetail() {
               {/* Maintenance Mode (US0029 AC5) */}
               <div className="flex items-center justify-between">
                 <span className="text-text-secondary">Maintenance Mode</span>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={server.is_paused ? 'text-status-warning' : 'text-text-primary'}
-                    data-testid="maintenance-status"
-                  >
-                    {server.is_paused ? 'Enabled' : 'Disabled'}
-                  </span>
+                <div className="flex items-center justify-end gap-2 w-[72px]">
                   <button
                     onClick={handleToggleMaintenance}
                     disabled={pauseLoading}
                     className={cn(
-                      'px-3 py-1 text-xs font-medium rounded transition-colors',
-                      server.is_paused
-                        ? 'bg-status-success/20 text-status-success hover:bg-status-success/30'
-                        : 'bg-status-warning/20 text-status-warning hover:bg-status-warning/30',
+                      'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors',
+                      server.is_paused ? 'bg-status-warning' : 'bg-text-tertiary',
                       pauseLoading && 'opacity-50 cursor-not-allowed'
                     )}
                     data-testid="maintenance-toggle"
+                    aria-label={server.is_paused ? 'Disable maintenance mode' : 'Enable maintenance mode'}
                   >
-                    {pauseLoading ? '...' : server.is_paused ? 'Disable' : 'Enable'}
+                    <span
+                      className={cn(
+                        'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                        server.is_paused ? 'translate-x-5' : 'translate-x-1'
+                      )}
+                    />
                   </button>
+                  <span className="text-xs text-text-tertiary w-6">
+                    {server.is_paused ? 'On' : 'Off'}
+                  </span>
                 </div>
               </div>
               {/* Paused timestamp */}
@@ -668,11 +720,15 @@ export function ServerDetail() {
                 </div>
               )}
 
-              {/* Agent Management Section (EP0007, BG0017) */}
-              <div className="border-t border-border-default pt-3 mt-3">
+              {/* Agent Section (EP0007, BG0017) */}
+              <div className="border-t border-border-default pt-4 mt-4">
+                <h3 className="text-xs font-medium text-text-tertiary uppercase tracking-wider mb-3">
+                  Agent
+                </h3>
                 <div className="space-y-3">
+                  {/* Version row with inline Update button */}
                   <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Agent Version</span>
+                    <span className="text-text-secondary">Version</span>
                     <div className="flex items-center gap-2">
                       <span
                         className="font-mono text-text-primary"
@@ -680,34 +736,117 @@ export function ServerDetail() {
                       >
                         {server.agent_version || 'Unknown'}
                       </span>
-                      {upgradeAvailable && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-status-info/20 text-status-info">
-                            Update available
-                          </span>
-                        )}
+                      {upgradeAvailable && supportsSelfUpdate && !server.agent_update_status && (
+                        <button
+                          onClick={handleTriggerUpdate}
+                          disabled={triggeringUpdate}
+                          className="px-2 py-0.5 text-xs font-medium rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          data-testid="trigger-update-button"
+                        >
+                          {triggeringUpdate ? 'Updating...' : 'Update'}
+                        </button>
+                      )}
+                      {upgradeAvailable && !supportsSelfUpdate && (
+                        <button
+                          onClick={() => setUpgradeModalOpen(true)}
+                          className="px-2 py-0.5 text-xs font-medium rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
+                          data-testid="upgrade-agent-button"
+                        >
+                          Update
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {/* Agent Mode (BG0017) */}
-                  {server.agent_mode && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-secondary">Agent Mode</span>
-                      <span
-                        className={cn(
-                          'px-2 py-0.5 text-xs font-medium rounded',
-                          server.agent_mode === 'readonly'
-                            ? 'bg-text-tertiary/20 text-text-tertiary'
-                            : 'bg-status-success/20 text-status-success'
-                        )}
-                        data-testid="agent-mode"
-                      >
-                        {server.agent_mode === 'readonly' ? 'Read Only' : 'Read/Write'}
-                      </span>
+                  {/* Update status display */}
+                  {server.agent_update_status && (
+                    <div
+                      className={cn(
+                        'rounded-md p-2 text-xs',
+                        server.agent_update_status === 'failed'
+                          ? 'bg-status-error/10 text-status-error'
+                          : 'bg-status-info/10 text-status-info'
+                      )}
+                      data-testid="agent-update-status"
+                    >
+                      {server.agent_update_status === 'pending' && 'Update queued, waiting for next heartbeat...'}
+                      {server.agent_update_status === 'downloading' && 'Downloading update...'}
+                      {server.agent_update_status === 'failed' && (
+                        <>Update failed: {server.agent_update_error || 'Unknown error'}</>
+                      )}
                     </div>
                   )}
-                  {server.agent_mode === 'readonly' && (
-                    <div className="text-xs text-text-tertiary" data-testid="readonly-notice">
-                      Actions disabled. Reinstall agent with --mode readwrite to enable.
+
+                  {/* Agent Mode Toggle (BG0017, US0188) */}
+                  {server.agent_mode && !server.is_inactive && (
+                    <div className="space-y-2">
+                      <AgentModeToggle
+                        serverId={server.id}
+                        currentMode={server.agent_mode as 'readonly' | 'readwrite'}
+                        onSuccess={() => {
+                          setModeSwitchSuccess(true);
+                          setModeSwitchError(null);
+                          fetchServerData(false);
+                          setTimeout(() => setModeSwitchSuccess(false), 5000);
+                        }}
+                        onError={(error) => {
+                          setModeSwitchError(error);
+                          setModeSwitchSuccess(false);
+                        }}
+                      />
+                      {/* Mode switch feedback */}
+                      {modeSwitchSuccess && (
+                        <div
+                          className="rounded-md bg-status-success/10 p-2 text-xs text-status-success"
+                          data-testid="mode-switch-success"
+                        >
+                          Mode switched successfully. Agent will reconnect shortly.
+                        </div>
+                      )}
+                      {modeSwitchError && (
+                        <div
+                          className="rounded-md bg-status-error/10 p-2 text-xs text-status-error"
+                          data-testid="mode-switch-error"
+                        >
+                          {modeSwitchError}
+                          <button
+                            onClick={() => setModeSwitchError(null)}
+                            className="ml-2 underline hover:no-underline"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* US0184: Agent Auto-Update Settings */}
+                  {server.agent_version && !server.is_inactive && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-secondary">Auto-Update</span>
+                      <div className="flex items-center justify-end gap-2 w-[72px]">
+                        <button
+                          onClick={handleToggleAutoUpdate}
+                          disabled={autoUpdateSaving}
+                          className={cn(
+                            'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors',
+                            server.auto_update_agent ? 'bg-status-success' : 'bg-text-tertiary',
+                            autoUpdateSaving && 'opacity-50 cursor-not-allowed'
+                          )}
+                          data-testid="auto-update-toggle"
+                          aria-label={server.auto_update_agent ? 'Disable auto-update' : 'Enable auto-update'}
+                        >
+                          <span
+                            className={cn(
+                              'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                              server.auto_update_agent ? 'translate-x-5' : 'translate-x-1'
+                            )}
+                          />
+                        </button>
+                        <span className="text-xs text-text-tertiary w-6">
+                          {server.auto_update_agent ? 'On' : 'Off'}
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -762,30 +901,21 @@ export function ServerDetail() {
                       </button>
                     </div>
                   )}
-
-                  {/* Agent actions - only show when agent is installed */}
-                  {!server.is_inactive && server.agent_version && (
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      {upgradeAvailable && (
-                          <button
-                            onClick={() => setUpgradeModalOpen(true)}
-                            className="px-3 py-1 text-xs font-medium rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
-                            data-testid="upgrade-agent-button"
-                          >
-                            Upgrade Agent
-                          </button>
-                        )}
-                      <button
-                        onClick={() => setRemoveModalOpen(true)}
-                        className="px-3 py-1 text-xs font-medium rounded bg-status-error/20 text-status-error hover:bg-status-error/30 transition-colors"
-                        data-testid="remove-agent-button"
-                      >
-                        Remove Agent
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Agent Actions - separated at bottom */}
+              {!server.is_inactive && server.agent_version && (
+                <div className="border-t border-border-default pt-4 mt-4 flex justify-end">
+                  <button
+                    onClick={() => setRemoveModalOpen(true)}
+                    className="px-3 py-1.5 text-xs font-medium rounded bg-status-error/10 text-status-error hover:bg-status-error/20 transition-colors"
+                    data-testid="remove-agent-button"
+                  >
+                    Remove Agent
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

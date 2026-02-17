@@ -1,6 +1,6 @@
 # WF0185: Compliance Dashboard Widget - Workflow State
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0120: Compliance Dashboard Widget](../stories/US0120-compliance-dashboard-widget.md)
 > **Plan:** [PL0185: Compliance Dashboard Widget](../plans/PL0185-compliance-dashboard-widget.md)
 > **Test Spec:** [TS0185: Compliance Dashboard Widget](../test-specs/TS0185-compliance-dashboard-widget.md)

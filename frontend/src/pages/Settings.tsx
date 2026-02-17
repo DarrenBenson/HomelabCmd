@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap } from 'lucide-react';
-import { getConfig, updateThresholds, updateNotifications, testWebhook } from '../api/config';
+import { Zap, Timer } from 'lucide-react';
+import { getConfig, updateThresholds, updateNotifications, testWebhook, getActionTimeouts, updateActionTimeouts } from '../api/config';
 import { getCostConfig, updateCostConfig } from '../api/costs';
 import { CostSettingsDialog } from '../components/CostSettingsDialog';
 import { ConnectivitySettings } from '../components/ConnectivitySettings';
@@ -17,6 +17,7 @@ import type {
   MetricThreshold,
 } from '../types/config';
 import type { CostConfig, CostConfigUpdate } from '../types/cost';
+import type { ActionTimeoutConfig } from '../types/action';
 import { DURATION_OPTIONS, DEFAULT_THRESHOLDS, DEFAULT_NOTIFICATIONS } from '../types/config';
 
 /**
@@ -172,6 +173,14 @@ export function Settings() {
     updated_at: null,
   });
 
+  // Action timeout config state (US0186)
+  const [actionTimeouts, setActionTimeouts] = useState<ActionTimeoutConfig>({
+    default_timeout: 300,
+    service_restart_timeout: 60,
+    package_update_timeout: 600,
+    updated_at: null,
+  });
+
   // Webhook test state
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -185,13 +194,15 @@ export function Settings() {
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const [config, costConfigData] = await Promise.all([
+        const [config, costConfigData, actionTimeoutsData] = await Promise.all([
           getConfig(),
           getCostConfig(),
+          getActionTimeouts(),
         ]);
         setThresholds(config.thresholds);
         setNotifications(config.notifications);
         setCostConfig(costConfigData);
+        setActionTimeouts(actionTimeoutsData);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load configuration');
@@ -304,6 +315,27 @@ export function Settings() {
       });
     } finally {
       setTesting(false);
+    }
+  };
+
+  // US0186: Save action timeout settings
+  const handleSaveActionTimeouts = async () => {
+    setSaving(true);
+    setSaveSuccess(null);
+    setError(null);
+
+    try {
+      const response = await updateActionTimeouts({
+        default_timeout: actionTimeouts.default_timeout,
+        service_restart_timeout: actionTimeouts.service_restart_timeout,
+        package_update_timeout: actionTimeouts.package_update_timeout,
+      });
+      setActionTimeouts(response);
+      setSaveSuccess('Action timeout settings saved successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save action timeout settings');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -823,6 +855,114 @@ export function Settings() {
               Edit
             </button>
           </div>
+        </section>
+
+        {/* Action Timeouts Section - US0186: Command Timeout Configuration */}
+        <section
+          className="mt-6 rounded-lg border border-border-default bg-bg-secondary p-6"
+          data-testid="action-timeouts-card"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-status-info/20 text-status-info">
+              <Timer className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">
+                Action Timeouts
+              </h2>
+              <p className="text-sm text-text-secondary">
+                Configure how long remediation commands can run before timing out.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Default Timeout */}
+            <div className="flex items-center gap-3">
+              <label className="w-40 text-sm text-text-primary">Default:</label>
+              <input
+                type="number"
+                min="30"
+                max="3600"
+                value={actionTimeouts.default_timeout}
+                onChange={(e) =>
+                  setActionTimeouts((prev) => ({
+                    ...prev,
+                    default_timeout: Number(e.target.value),
+                  }))
+                }
+                disabled={saving}
+                className="w-24 rounded-md border border-border-default bg-bg-tertiary px-2 py-1 font-mono text-sm text-text-primary focus:border-status-info focus:outline-none"
+                data-testid="default-timeout-input"
+              />
+              <span className="text-sm text-text-secondary">seconds</span>
+              <span className="text-xs text-text-tertiary">
+                ({Math.floor(actionTimeouts.default_timeout / 60)}m {actionTimeouts.default_timeout % 60}s)
+              </span>
+            </div>
+
+            {/* Service Restart Timeout */}
+            <div className="flex items-center gap-3">
+              <label className="w-40 text-sm text-text-primary">Service restart:</label>
+              <input
+                type="number"
+                min="10"
+                max="600"
+                value={actionTimeouts.service_restart_timeout}
+                onChange={(e) =>
+                  setActionTimeouts((prev) => ({
+                    ...prev,
+                    service_restart_timeout: Number(e.target.value),
+                  }))
+                }
+                disabled={saving}
+                className="w-24 rounded-md border border-border-default bg-bg-tertiary px-2 py-1 font-mono text-sm text-text-primary focus:border-status-info focus:outline-none"
+                data-testid="service-restart-timeout-input"
+              />
+              <span className="text-sm text-text-secondary">seconds</span>
+              <span className="text-xs text-text-tertiary">
+                ({Math.floor(actionTimeouts.service_restart_timeout / 60)}m {actionTimeouts.service_restart_timeout % 60}s)
+              </span>
+            </div>
+
+            {/* Package Update Timeout */}
+            <div className="flex items-center gap-3">
+              <label className="w-40 text-sm text-text-primary">Package update:</label>
+              <input
+                type="number"
+                min="60"
+                max="3600"
+                value={actionTimeouts.package_update_timeout}
+                onChange={(e) =>
+                  setActionTimeouts((prev) => ({
+                    ...prev,
+                    package_update_timeout: Number(e.target.value),
+                  }))
+                }
+                disabled={saving}
+                className="w-24 rounded-md border border-border-default bg-bg-tertiary px-2 py-1 font-mono text-sm text-text-primary focus:border-status-info focus:outline-none"
+                data-testid="package-update-timeout-input"
+              />
+              <span className="text-sm text-text-secondary">seconds</span>
+              <span className="text-xs text-text-tertiary">
+                ({Math.floor(actionTimeouts.package_update_timeout / 60)}m {actionTimeouts.package_update_timeout % 60}s)
+              </span>
+            </div>
+
+            <p className="text-xs text-text-tertiary pt-2">
+              Commands running longer than the timeout will be automatically cancelled.
+              You can override the timeout for individual actions when creating them.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSaveActionTimeouts}
+            disabled={saving}
+            className="mt-6 rounded-md bg-status-info px-4 py-2 font-medium text-white hover:bg-status-info/80 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="save-action-timeouts-button"
+          >
+            {saving ? 'Saving...' : 'Save Timeout Settings'}
+          </button>
         </section>
 
         {/* Connectivity Mode Section - US0080: Connectivity Mode Management */}

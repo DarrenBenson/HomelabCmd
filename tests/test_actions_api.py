@@ -869,7 +869,7 @@ class TestAptActions:
             headers=auth_headers,
         )
         assert response.status_code == 201
-        assert response.json()["command"] == 'DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -o APT::Sandbox::User=root'
+        assert response.json()["command"] == 'DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -o APT::Get::Always-Include-Phased-Updates=true -o APT::Sandbox::User=root'
 
     def test_apt_upgrade_security_no_packages(
         self, client: TestClient, auth_headers: dict[str, str], create_server
@@ -916,9 +916,14 @@ class TestAptActions:
             headers=auth_headers,
         )
         assert response.status_code == 201
-        assert "apt-get install -q -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" -o APT::Sandbox::User=root" in response.json()["command"]
-        assert "openssl" in response.json()["command"]
-        assert "libssl" in response.json()["command"]
+        command = response.json()["command"]
+        # US0198: Command includes phased updates option to avoid held-back packages
+        assert "apt-get install -q -y" in command
+        assert 'Dpkg::Options::="--force-confdef"' in command
+        assert 'Dpkg::Options::="--force-confold"' in command
+        assert "APT::Get::Always-Include-Phased-Updates=true" in command
+        assert "openssl" in command
+        assert "libssl" in command
 
     def test_duplicate_apt_action_returns_409(
         self, client: TestClient, auth_headers: dict[str, str], create_server

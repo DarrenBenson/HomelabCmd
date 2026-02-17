@@ -1,9 +1,10 @@
 # US0184: Agent Auto-Update Mechanism
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0001: Core Monitoring](../epics/EP0001-core-monitoring.md)
 > **Owner:** Darren
 > **Created:** 2026-01-29
+> **Completed:** 2026-01-31
 > **Story Points:** 8
 
 ## User Story
@@ -193,8 +194,18 @@ None.
 
 ---
 
+## Artefacts
+
+| Type | ID | Title |
+|------|----|-------|
+| Plan | [PL0201](../plans/PL0201-agent-auto-update.md) | Agent Auto-Update Implementation Plan |
+| Test Spec | [TS0201](../test-specs/TS0201-agent-auto-update.md) | Agent Auto-Update Tests (29 test cases) |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-29 | Claude | Initial story creation from resolved EP0001 open question |
+| 2026-01-31 | Claude | Status: Draft → Planned. Added PL0201, TS0201 |

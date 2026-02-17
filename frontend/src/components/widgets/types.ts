@@ -115,6 +115,8 @@ export interface MachineData {
   filesystems?: FilesystemMetric[] | null;
   /** Per-interface network metrics (US0179) */
   network_interfaces?: NetworkInterfaceMetric[] | null;
+  /** Whether Docker is installed (US0157 - EP0014) */
+  has_docker?: boolean | null;
 }
 
 /**

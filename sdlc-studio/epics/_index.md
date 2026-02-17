@@ -2,19 +2,19 @@
 
 This document provides an overview of all Epics in the project.
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-02-01
 **PRD Reference:** [Product Requirements Document](../prd.md)
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| Draft | 6 |
+| Draft | 0 |
 | Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 11 |
-| **Total** | **17** |
+| Done | 19 |
+| **Total** | **19** |
 
 ## Epics
 
@@ -28,7 +28,7 @@ This document provides an overview of all Epics in the project.
 | [EP0004](EP0004-remediation.md) | Remediation Engine | Done | Darren | 9 | Phase 4 |
 | [EP0005](EP0005-cost-tracking.md) | Cost Tracking | Done | Darren | 8 | Phase 5 |
 | [EP0006](EP0006-adhoc-scanning.md) | Ad-hoc Scanning | Done | Darren | 6 | Phase 6 |
-| [EP0007](EP0007-analytics-reporting.md) | Analytics & Reporting | Draft | Darren | 3 | Deferred |
+| [EP0007](EP0007-analytics-reporting.md) | Analytics & Reporting | Done | Darren | 3 | Phase 2 |
 
 ### v2.0 Epics (New)
 
@@ -36,14 +36,16 @@ This document provides an overview of all Epics in the project.
 |----|-------|--------|-------|---------|--------|--------|
 | [EP0008](EP0008-tailscale-integration.md) | Tailscale Integration | Done | Darren | 7 | 34 | Phase 1 (Alpha) |
 | [EP0009](EP0009-workstation-management.md) | Workstation Management | Done | Darren | 7 | 27 | Phase 1 (Alpha) |
-| [EP0010](EP0010-configuration-management.md) | Configuration Management | Draft | Darren | 8 | 42 | Phase 3 (GA) |
-| [EP0011](EP0011-advanced-dashboard-ui.md) | Advanced Dashboard UI | Draft | Darren | 7 | 32 | Phase 2 (Beta) |
-| [EP0012](EP0012-widget-based-detail-view.md) | Widget-Based Detail View | Draft | Darren | 14 | 48 | Phase 2 (Beta) |
-| [EP0013](EP0013-synchronous-command-execution.md) | Synchronous Command Execution | Draft | Darren | 5 | 23 | Phase 1 (Alpha) |
-| [EP0014](EP0014-docker-container-monitoring.md) | Docker Container Monitoring | Draft | Darren | 7 | 24 | Phase 2 (Beta) |
+| [EP0010](EP0010-configuration-management.md) | Configuration Management | Done | Darren | 8 | 42 | Phase 3 (GA) |
+| [EP0011](EP0011-advanced-dashboard-ui.md) | Advanced Dashboard UI | Done | Darren | 7 | 37 | Phase 2 (Beta) |
+| [EP0012](EP0012-widget-based-detail-view.md) | Widget-Based Detail View | Done | Darren | 14 | 53 | Phase 2 (Beta) |
+| [EP0013](EP0013-synchronous-command-execution.md) | Synchronous Command Execution | Done | Darren | 7 | 31 | Phase 1 (Alpha) |
+| [EP0014](EP0014-docker-container-monitoring.md) | Docker Container Monitoring | Done | Darren | 7 | 24 | Phase 2 (Beta) |
 | [EP0015](EP0015-per-host-credential-management.md) | Per-Host Credential Management | Done | Darren | 6 | 24 | Phase 1 (Alpha) |
 | [EP0016](EP0016-unified-discovery.md) | Unified Discovery Experience | Done | Darren | 9 | 32 | Phase 2 (Beta) |
 | [EP0017](EP0017-desktop-ux-improvements.md) | Desktop UX Improvements | Done | Darren | 7 | 23 | Phase 2 (Beta) |
+| [EP0018](EP0018-dashboard-ux-simplification.md) | Dashboard UX Simplification | Done | Darren | 4 | 13 | Phase 2 (Beta) |
+| [EP0019](EP0019-unified-device-discovery.md) | Unified Device Discovery | Done | Darren | 5 | 22 | Phase 2 (Beta) |
 
 ## By Status
 
@@ -60,9 +62,17 @@ This document provides an overview of all Epics in the project.
 
 - **EP0008: Tailscale Integration** - Tailscale API, device discovery, SSH via Tailscale, credential encryption (7/7 stories)
 - **EP0009: Workstation Management** - Machine types, workstation-aware alerting, last seen UI, workstation cost tracking (7/7 stories)
+- **EP0010: Configuration Management** - Config packs, compliance checking, diff view, apply packs, drift detection (8/8 stories)
+- **EP0013: Synchronous Command Execution** - SSH executor, command API, whitelist enforcement, audit trail, remote agent mode switch (6/6 stories)
 - **EP0015: Per-Host Credential Management** - Per-server SSH credentials, credential service, agent upgrade/removal sudo support (6/6 stories)
 - **EP0016: Unified Discovery Experience** - Consolidated discovery page, unified device cards, SSH testing, unified import (9/9 stories)
 - **EP0017: Desktop UX Improvements** - Maintenance mode indicator, warning state visual, Tailscale/SSH badges, search/filter, sparklines, accessibility, quick actions (7/7 stories)
+- **EP0018: Dashboard UX Simplification** - FleetStatus component, header streamlining, type filter removal, cleanup (4/4 stories)
+- **EP0019: Unified Device Discovery** - Single pane of glass for Network and Tailscale discovery with device merging (5/5 stories)
+- **EP0014: Docker Container Monitoring** - Docker detection, container listing, container widget, start/stop/restart, heartbeat status (7/7 stories)
+- **EP0007: Analytics & Reporting** - Tiered data retention, 12-month trends, data export (3/3 stories)
+- **EP0011: Advanced Dashboard UI** - Drag-and-drop cards, card order persistence, server/workstation grouping (7/7 stories)
+- **EP0012: Widget-Based Detail View** - Widget grid, 8 widget types, layout customisation, layout persistence (14/14 stories)
 
 ### Ready (v2.0)
 
@@ -70,12 +80,7 @@ None
 
 ### Draft (v2.0)
 
-- **EP0007: Analytics & Reporting** - Tiered data retention, 12-month trends, data export (deferred)
-- **EP0010: Configuration Management** - Config packs, compliance checking, diff view, apply packs, drift detection
-- **EP0011: Advanced Dashboard UI** - Drag-and-drop cards, card order persistence, server/workstation grouping
-- **EP0012: Widget-Based Detail View** - Widget grid, 8 widget types, layout customisation, layout persistence
-- **EP0013: Synchronous Command Execution** - SSH executor, command whitelist, execution audit trail (0/5 stories)
-- **EP0014: Docker Container Monitoring** - Docker detection, container listing, container widget, start/stop/restart actions
+None - all epics complete
 
 ## Dependency Graph
 
@@ -95,9 +100,9 @@ EP0001 (Core Monitoring) ◄── Foundation
   ├─► EP0008 (Tailscale Integration) ◄── Phase 1 Alpha
   │     ├─► EP0015 (Per-Host Credentials) ◄── Phase 1 Alpha [DONE]
   │     │
-  │     ├─► EP0013 (Synchronous Command Execution)
-  │     │     ├─► EP0010 (Configuration Management) ◄── Phase 3 GA
-  │     │     └─► EP0014 (Docker Container Monitoring) ◄── Phase 2 Beta
+  │     ├─► EP0013 (Synchronous Command Execution) ◄── Phase 1 Alpha [DONE]
+  │     │     ├─► EP0010 (Configuration Management) ◄── Phase 3 GA [DONE]
+  │     │     └─► EP0014 (Docker Container Monitoring) ◄── Phase 2 Beta [DONE]
   │     │
   │     ├─► EP0016 (Unified Discovery) ◄── Phase 2 Beta [DONE]
   │     │
@@ -117,14 +122,14 @@ EP0001 (Core Monitoring) ◄── Foundation
 
 | Epic | Stories | Done | Story Points |
 |------|---------|------|--------------|
-| EP0001 | 16 | 16 | 64 |
+| EP0001 | 18 | 18 | 75 |
 | EP0002 | 7 | 7 | 28 |
-| EP0003 | 6 | 6 | 19 |
-| EP0004 | 9 | 9 | 27 |
+| EP0003 | 7 | 7 | 22 |
+| EP0004 | 10 | 10 | 30 |
 | EP0005 | 8 | 8 | 21 |
 | EP0006 | 6 | 6 | 22 |
-| EP0007 | 3 | 0 | 10 |
-| **v1.0 Total** | **55** | **52** | **191** |
+| EP0007 | 3 | 3 | 10 |
+| **v1.0 Total** | **59** | **59** | **208** |
 
 ### v2.0 Stories
 
@@ -132,32 +137,34 @@ EP0001 (Core Monitoring) ◄── Foundation
 |------|---------|------|--------------|
 | EP0008 | 7 | 7 | 34 |
 | EP0009 | 7 | 7 | 26 |
-| EP0010 | 8 | 0 | 42 |
-| EP0011 | 7 | 0 | 32 |
-| EP0012 | 14 | 0 | 48 |
-| EP0013 | 5 | 0 | 23 |
-| EP0014 | 7 | 0 | 24 |
+| EP0010 | 8 | 8 | 42 |
+| EP0011 | 7 | 7 | 37 |
+| EP0012 | 14 | 14 | 53 |
+| EP0013 | 7 | 7 | 31 |
+| EP0014 | 7 | 7 | 24 |
 | EP0015 | 6 | 6 | 24 |
 | EP0016 | 9 | 9 | 32 |
 | EP0017 | 7 | 7 | 23 |
-| **v2.0 Total** | **77** | **36** | **308** |
+| EP0018 | 4 | 4 | 13 |
+| EP0019 | 5 | 5 | 22 |
+| **v2.0 Total** | **88** | **88** | **361** |
 
 ### Combined Totals
 
 | Version | Stories | Done | Story Points |
 |---------|---------|------|--------------|
-| v1.0 | 55 | 52 | 191 |
-| v2.0 | 77 | 36 | 308 |
-| **Grand Total** | **132** | **88** | **499** |
+| v1.0 | 59 | 59 | 208 |
+| v2.0 | 88 | 88 | 361 |
+| **Grand Total** | **147** | **147** | **569** |
 
 ## v2.0 Phase Breakdown
 
 | Phase | Epics | Story Points | Status | Focus |
 |-------|-------|--------------|--------|-------|
-| Phase 1 (Alpha) | EP0008, EP0009, EP0013, EP0015 | 107 | 🔶 In Progress (EP0013 Draft) | Foundation, Connectivity, Commands, Credentials |
-| Phase 2 (Beta) | EP0011, EP0012, EP0014, EP0016, EP0017 | 159 | 🔶 In Progress (EP0016, EP0017 Done) | UI Revolution, Widgets, Docker, Discovery, UX |
-| Phase 3 (GA) | EP0010 | 42 | ⬜ Not Started | Configuration Management |
-| **v2.0 Total** | **10 epics** | **308** | | |
+| Phase 1 (Alpha) | EP0008, EP0009, EP0013, EP0015 | 115 | ✅ Complete | Foundation, Connectivity, Commands, Credentials |
+| Phase 2 (Beta) | EP0011, EP0012, EP0014, EP0016, EP0017, EP0018, EP0019 | 204 | ✅ Complete | UI Revolution, Widgets, Docker, Discovery, UX |
+| Phase 3 (GA) | EP0010 | 42 | ✅ Complete | Configuration Management |
+| **v2.0 Total** | **12 epics** | **361** | | |
 
 ## Notes
 
@@ -176,3 +183,9 @@ EP0001 (Core Monitoring) ◄── Foundation
   - EP0013: Renumbered US0089-US0094 to US0151-US0156
   - EP0014: Renumbered US0123-US0129 to US0157-US0163
 - 2026-01-29: EP0013 status corrected from Done to Draft - SSH executor exists (EP0008) but synchronous command execution, whitelist, and audit trail not implemented
+- 2026-01-30: EP0018 (Dashboard UX Simplification) added - FleetStatus component replaces AlertBanner+SummaryBar, type filters removed
+- 2026-01-30: EP0010 (Configuration Management) completed - all 8 stories done
+- 2026-01-30: EP0013 (Synchronous Command Execution) completed - all 5 stories done, Phase 1 Alpha complete
+- 2026-01-31: EP0019 (Unified Device Discovery) added and completed - Single pane of glass for Network+Tailscale discovery (retrofitted from existing implementation)
+- 2026-01-31: Additional stories completed: US0184 (EP0001), US0185 (EP0003), US0186 (EP0004), US0188 (EP0013)
+- 2026-02-01: EP0014 (Docker Container Monitoring) completed - all 7 stories done, Phase 2 Beta complete

@@ -22,7 +22,9 @@ from homelab_cmd.api.schemas.actions import (
     ActionType,
     RejectActionRequest,
 )
+from homelab_cmd.api.schemas.config import ActionTimeoutConfig
 from homelab_cmd.config import get_settings
+from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.remediation import ActionStatus, RemediationAction
 from homelab_cmd.db.models.server import Server
 from homelab_cmd.db.session import get_async_session
@@ -44,7 +46,7 @@ APT_ACTION_TYPES = {
 # Command whitelist - only these action types are allowed
 # Note: apt_upgrade_security requires async for database query
 # DEBIAN_FRONTEND=noninteractive and Dpkg options ensure non-interactive execution (US0074)
-APT_OPTIONS = '-q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"'
+APT_OPTIONS = '-q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -o APT::Get::Always-Include-Phased-Updates=true'
 DEBIAN_FRONTEND = "DEBIAN_FRONTEND=noninteractive"
 
 ALLOWED_ACTION_TYPES: dict[str, Callable[[ActionCreate], str]] = {
@@ -69,6 +71,42 @@ def _build_command(action_data: ActionCreate) -> str | None:
     if not builder:
         return None
     return builder(action_data)
+
+
+async def _get_timeout_for_action(
+    action: RemediationAction, session: AsyncSession
+) -> int:
+    """Get the appropriate timeout for an action.
+
+    US0186: Command Timeout Configuration
+
+    Args:
+        action: The remediation action
+        session: Database session for config lookup
+
+    Returns:
+        Timeout in seconds (action override > type-specific > default)
+    """
+    # If action has explicit timeout override, use it
+    if action.timeout_seconds:
+        return action.timeout_seconds
+
+    # Load timeout config from database
+    result = await session.execute(select(Config).where(Config.key == "action_timeouts"))
+    config = result.scalar_one_or_none()
+
+    if config and config.value:
+        timeout_config = ActionTimeoutConfig(**config.value)
+    else:
+        timeout_config = ActionTimeoutConfig()  # Use defaults
+
+    # Determine timeout based on action type
+    if action.action_type == ActionType.RESTART_SERVICE.value:
+        return timeout_config.service_restart_timeout
+    elif action.action_type in APT_ACTION_TYPES:
+        return timeout_config.package_update_timeout
+    else:
+        return timeout_config.default_timeout
 
 
 async def _build_security_upgrade_command(server_id: str, session: AsyncSession) -> str:
@@ -147,6 +185,17 @@ async def _execute_action_via_ssh(action_id: int) -> None:
         host_key_service = HostKeyService(session)
         ssh_executor = SSHPooledExecutor(credential_service, host_key_service)
 
+        # Get default SSH username from config (stored with SSH key)
+        default_username = settings.ssh_default_username
+        ssh_config_result = await session.execute(select(Config).where(Config.key == "ssh"))
+        ssh_config = ssh_config_result.scalar_one_or_none()
+        if ssh_config and ssh_config.value:
+            default_username = ssh_config.value.get("default_username", default_username)
+
+        # US0186: Get configured timeout for this action
+        timeout = await _get_timeout_for_action(action, session)
+        logger.debug("Action %d using timeout: %ds", action_id, timeout)
+
         try:
             # Execute the command (with sudo for apt commands)
             command = action.command
@@ -156,7 +205,8 @@ async def _execute_action_via_ssh(action_id: int) -> None:
             result = await ssh_executor.execute(
                 server=server,
                 command=command,
-                timeout=300,  # 5 minutes for apt operations
+                timeout=timeout,  # US0186: Use configured timeout
+                username=default_username,
             )
 
             # Update action with result
@@ -177,11 +227,21 @@ async def _execute_action_via_ssh(action_id: int) -> None:
             )
 
         except Exception as e:
+            error_str = str(e)
             logger.exception("Failed to execute action %d: %s", action_id, e)
-            action.status = ActionStatus.FAILED.value
+
+            # US0186: Check if this was a timeout error
+            if "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                action.status = ActionStatus.TIMED_OUT.value
+                action.timed_out_at = datetime.now(UTC)
+                action.stderr = f"Command timed out after {timeout}s"
+                logger.warning("Action %d timed out after %ds", action_id, timeout)
+            else:
+                action.status = ActionStatus.FAILED.value
+                action.stderr = error_str
+
             action.completed_at = datetime.now(UTC)
             action.exit_code = -1
-            action.stderr = str(e)
 
         await session.commit()
 
@@ -405,6 +465,7 @@ async def create_action(
         command=command,
         alert_id=action_data.alert_id,
         created_by="dashboard",
+        timeout_seconds=action_data.timeout_seconds,  # US0186: Optional timeout override
     )
 
     # Set status based on server maintenance mode

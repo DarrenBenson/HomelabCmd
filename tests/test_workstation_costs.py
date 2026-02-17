@@ -66,14 +66,16 @@ async def test_uptime_accumulates_on_same_day(db_session: AsyncSession) -> None:
     db_session.add(server)
     await db_session.commit()
 
-    current_time = datetime.now(UTC)
+    # Use a fixed time early in the day to avoid crossing midnight
+    # when adding 1 hour for the second heartbeat
+    base_time = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 
     # First heartbeat: 1 hour uptime
     await update_server_uptime(
         session=db_session,
         server_id="test-workstation",
         uptime_seconds=3600,
-        current_time=current_time,
+        current_time=base_time,
     )
 
     # Second heartbeat: 2 hours uptime (system has been running longer)
@@ -81,7 +83,7 @@ async def test_uptime_accumulates_on_same_day(db_session: AsyncSession) -> None:
         session=db_session,
         server_id="test-workstation",
         uptime_seconds=7200,
-        current_time=current_time + timedelta(hours=1),
+        current_time=base_time + timedelta(hours=1),
     )
 
     result = await db_session.execute(

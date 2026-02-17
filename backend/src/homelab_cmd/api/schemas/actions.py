@@ -27,6 +27,7 @@ class ActionCreate(BaseModel):
                     "action_type": "restart_service",
                     "service_name": "plex",
                     "alert_id": 15,
+                    "timeout_seconds": 60,
                 }
             ]
         }
@@ -56,6 +57,14 @@ class ActionCreate(BaseModel):
         description="Optional ID of triggering alert",
         examples=[15],
     )
+    # US0186: Command timeout configuration
+    timeout_seconds: int | None = Field(
+        None,
+        ge=5,
+        le=3600,
+        description="Override timeout in seconds (uses configured default if not specified)",
+        examples=[60, 300],
+    )
 
 
 class ActionResponse(BaseModel):
@@ -82,6 +91,9 @@ class ActionResponse(BaseModel):
     exit_code: int | None = Field(None, description="Command exit code")
     stdout: str | None = Field(None, description="Command standard output")
     stderr: str | None = Field(None, description="Command standard error")
+    # US0186: Command timeout configuration
+    timeout_seconds: int | None = Field(None, description="Timeout override in seconds")
+    timed_out_at: datetime | None = Field(None, description="When the command timed out")
 
 
 class ActionListResponse(BaseModel):

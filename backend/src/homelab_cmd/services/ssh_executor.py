@@ -19,9 +19,10 @@ import hashlib
 import io
 import logging
 import time
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import paramiko
 from paramiko import AuthenticationException, SSHException
@@ -104,6 +105,21 @@ class CommandTimeoutError(Exception):
             if len(command) > 50
             else f"Command timed out after {timeout}s on {hostname}: {command}"
         )
+
+
+@dataclass
+class OutputChunk:
+    """Single chunk of streaming command output (US0156).
+
+    Attributes:
+        type: Chunk type - stdout, stderr, exit, or error.
+        data: Output text or exit code (as string for exit type).
+        timestamp: When this chunk was received.
+    """
+
+    type: Literal["stdout", "stderr", "exit", "error"]
+    data: str
+    timestamp: datetime
 
 
 @dataclass
@@ -437,12 +453,21 @@ class SSHPooledExecutor:
         attempts = 0
 
         try:
-            # Get SSH private key
+            # Get SSH private key from credential service or fall back to file-based keys
             private_key = await self._credential_service.get_credential("ssh_private_key")
-            if not private_key:
+            pkey: paramiko.PKey | None = None
+
+            if private_key:
+                # Load from credential service
+                pkey = await asyncio.to_thread(self._load_private_key, private_key)
+            else:
+                # Fall back to file-based keys in /app/ssh/
+                logger.debug("test_connection: Falling back to file-based SSH keys")
+                pkey = await asyncio.to_thread(self._load_file_based_key)
+
+            if not pkey:
                 raise SSHKeyNotConfiguredError()
 
-            pkey = await asyncio.to_thread(self._load_private_key, private_key)
             stored_host_key = await self._host_key_service.get_host_key(machine_id)
 
             last_error: Exception | None = None
@@ -540,6 +565,7 @@ class SSHPooledExecutor:
         server: Server,
         command: str,
         timeout: int = 30,
+        username: str | None = None,
     ) -> CommandResult:
         """Execute a command on a server via SSH (US0151 AC1).
 
@@ -573,9 +599,20 @@ class SSHPooledExecutor:
                 f"Server {server.id} has no hostname, IP, or tailscale_hostname configured"
             )
 
-        # Get SSH username - per-server override or global default
-        ssh_username = await self._credential_service.get_credential("ssh_username")
-        username = server.ssh_username or ssh_username or "homelabcmd"
+        # Get SSH username - per-server override takes precedence, then caller-provided
+        # Callers must provide username from Config (key="ssh", field="default_username")
+        if username is None:
+            # No username provided - check per-server override
+            if server.ssh_username:
+                username = server.ssh_username
+            else:
+                raise ValueError(
+                    f"No SSH username configured for server {server.id}. "
+                    "Configure a username in Settings > Connectivity."
+                )
+        else:
+            # Use per-server override if set, otherwise use provided username
+            username = server.ssh_username or username
 
         logger.info(
             "Executing command on %s (%s): %s",
@@ -716,3 +753,263 @@ class SSHPooledExecutor:
     async def close(self) -> None:
         """Close all connections and clean up."""
         await self.clear_pool()
+
+    async def execute_streaming(
+        self,
+        server: Server,
+        command: str,
+        timeout: int = 300,
+        username: str | None = None,
+    ) -> AsyncGenerator[OutputChunk, None]:
+        """Execute a command with streaming output via non-blocking channel reads (US0156).
+
+        Uses asyncio.Queue to bridge sync Paramiko channel reads to async generator.
+        Yields chunks as they arrive, with final chunk having type="exit".
+
+        Args:
+            server: Server model with tailscale_hostname and id.
+            command: Shell command to execute.
+            timeout: Maximum execution time in seconds (default 300 for long operations).
+
+        Yields:
+            OutputChunk objects with stdout, stderr, exit, or error type.
+
+        Raises:
+            ValueError: If command is empty or server has no hostname.
+            SSHKeyNotConfiguredError: If no SSH key is configured.
+            SSHConnectionError: If connection fails after retries.
+            SSHAuthenticationError: If authentication fails.
+            HostKeyChangedError: If host key has changed.
+        """
+        # Input validation
+        if not command or not command.strip():
+            raise ValueError("Command cannot be empty")
+
+        hostname = server.tailscale_hostname or server.ip_address or server.hostname
+        if not hostname:
+            raise ValueError(
+                f"Server {server.id} has no hostname, IP, or tailscale_hostname configured"
+            )
+
+        # Get SSH username - per-server override takes precedence, then caller-provided
+        # Callers must provide username from Config (key="ssh", field="default_username")
+        if username is None:
+            # No username provided - check per-server override
+            if server.ssh_username:
+                username = server.ssh_username
+            else:
+                raise ValueError(
+                    f"No SSH username configured for server {server.id}. "
+                    "Configure a username in Settings > Connectivity."
+                )
+        else:
+            # Use per-server override if set, otherwise use provided username
+            username = server.ssh_username or username
+
+        logger.info(
+            "Starting streaming command on %s (%s): %s",
+            server.id,
+            hostname,
+            command[:100] + "..." if len(command) > 100 else command,
+        )
+
+        start_time = time.monotonic()
+
+        # Get pooled connection
+        client = await self.get_connection(hostname, username, server.id)
+
+        # Queue for passing chunks from sync thread to async generator
+        queue: asyncio.Queue[OutputChunk | None] = asyncio.Queue()
+
+        async def read_output() -> None:
+            """Read output in background thread and push to queue."""
+            try:
+                await asyncio.to_thread(
+                    self._read_streaming_output_sync,
+                    client,
+                    command,
+                    queue,
+                    timeout,
+                    start_time,
+                )
+            except Exception as e:
+                # Push error to queue
+                await queue.put(
+                    OutputChunk(
+                        type="error",
+                        data=str(e),
+                        timestamp=datetime.now(UTC),
+                    )
+                )
+            finally:
+                # Signal end of stream
+                await queue.put(None)
+
+        # Start background task
+        task = asyncio.create_task(read_output())
+
+        try:
+            # Yield chunks from queue
+            while True:
+                chunk = await queue.get()
+                if chunk is None:
+                    break
+                yield chunk
+        finally:
+            # Ensure task is cleaned up
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+    def _read_streaming_output_sync(
+        self,
+        client: paramiko.SSHClient,
+        command: str,
+        queue: asyncio.Queue[OutputChunk | None],
+        timeout: int,
+        start_time: float,
+    ) -> None:
+        """Read streaming output synchronously (runs in thread pool).
+
+        Uses non-blocking channel reads with small buffer for responsive streaming.
+
+        Args:
+            client: Active SSH client.
+            command: Command to execute.
+            queue: Queue to push chunks to (accessed via run_coroutine_threadsafe).
+            timeout: Maximum execution time in seconds.
+            start_time: Monotonic start time for duration calculation.
+        """
+        import asyncio as _asyncio
+
+        # Get the event loop for queue operations
+        try:
+            loop = _asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop in thread - need to use different approach
+            loop = None
+
+        def put_chunk(chunk: OutputChunk) -> None:
+            """Put chunk into queue from sync context."""
+            if loop:
+                _asyncio.run_coroutine_threadsafe(queue.put(chunk), loop)
+            else:
+                # Fallback for testing - direct put (blocking)
+
+                if hasattr(queue, "_queue"):
+                    queue._queue.append(chunk)
+
+        transport = client.get_transport()
+        if not transport:
+            put_chunk(
+                OutputChunk(
+                    type="error",
+                    data="No transport available",
+                    timestamp=datetime.now(UTC),
+                )
+            )
+            return
+
+        channel = transport.open_session()
+        channel.exec_command(command)
+        channel.setblocking(0)  # Non-blocking mode
+
+        # Read buffer size - small for responsive streaming
+        buffer_size = 1024
+        max_output = 50 * 1024  # 50KB max total output per stream
+        total_stdout = 0
+        total_stderr = 0
+
+        try:
+            while True:
+                # Check timeout
+                elapsed = time.monotonic() - start_time
+                if elapsed > timeout:
+                    put_chunk(
+                        OutputChunk(
+                            type="error",
+                            data=f"Command timed out after {timeout}s",
+                            timestamp=datetime.now(UTC),
+                        )
+                    )
+                    channel.close()
+                    return
+
+                # Check for stdout
+                if channel.recv_ready():
+                    data = channel.recv(buffer_size)
+                    if data and total_stdout < max_output:
+                        text = data.decode("utf-8", errors="replace")
+                        total_stdout += len(data)
+                        put_chunk(
+                            OutputChunk(
+                                type="stdout",
+                                data=text,
+                                timestamp=datetime.now(UTC),
+                            )
+                        )
+
+                # Check for stderr
+                if channel.recv_stderr_ready():
+                    data = channel.recv_stderr(buffer_size)
+                    if data and total_stderr < max_output:
+                        text = data.decode("utf-8", errors="replace")
+                        total_stderr += len(data)
+                        put_chunk(
+                            OutputChunk(
+                                type="stderr",
+                                data=text,
+                                timestamp=datetime.now(UTC),
+                            )
+                        )
+
+                # Check if command finished
+                if channel.exit_status_ready():
+                    # Drain remaining output
+                    while channel.recv_ready() and total_stdout < max_output:
+                        data = channel.recv(buffer_size)
+                        if data:
+                            text = data.decode("utf-8", errors="replace")
+                            total_stdout += len(data)
+                            put_chunk(
+                                OutputChunk(
+                                    type="stdout",
+                                    data=text,
+                                    timestamp=datetime.now(UTC),
+                                )
+                            )
+
+                    while channel.recv_stderr_ready() and total_stderr < max_output:
+                        data = channel.recv_stderr(buffer_size)
+                        if data:
+                            text = data.decode("utf-8", errors="replace")
+                            total_stderr += len(data)
+                            put_chunk(
+                                OutputChunk(
+                                    type="stderr",
+                                    data=text,
+                                    timestamp=datetime.now(UTC),
+                                )
+                            )
+
+                    # Get exit status
+                    exit_code = channel.recv_exit_status()
+                    duration_ms = int((time.monotonic() - start_time) * 1000)
+
+                    put_chunk(
+                        OutputChunk(
+                            type="exit",
+                            data=f'{{"code": {exit_code}, "duration_ms": {duration_ms}}}',
+                            timestamp=datetime.now(UTC),
+                        )
+                    )
+                    break
+
+                # Small sleep to prevent busy-waiting
+                time.sleep(0.05)
+
+        finally:
+            channel.close()

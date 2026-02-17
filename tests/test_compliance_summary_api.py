@@ -94,7 +94,7 @@ class TestComplianceSummaryWithServers:
         # Verify machine details
         for machine in data["machines"]:
             assert machine["status"] == "never_checked"
-            assert machine["pack"] is None
+            assert machine["pack"] == "base"  # Servers default to base pack
             assert machine["checked_at"] is None
 
 

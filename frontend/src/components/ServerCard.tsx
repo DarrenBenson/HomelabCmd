@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertCircle, Wrench, Pause, Play, RefreshCw } from 'lucide-react';
+import { AlertCircle, Wrench, Pause, Play, RefreshCw, Container, ArrowUpCircle } from 'lucide-react';
 import { StatusLED } from './StatusLED';
 import { MachineTypeBadge } from './MachineTypeBadge';
 import { MachineTypeIcon } from './MachineTypeIcon';
@@ -213,6 +213,25 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
         <MachineTypeBadge type={machineType} title={machineTypeTooltip} />
         {/* US0111: Tailscale connectivity badge */}
         <TailscaleBadge tailscaleHostname={server.tailscale_hostname} />
+        {/* US0157/US0163: Docker badge with container count (EP0014) */}
+        {server.has_docker && (
+          <span
+            className="inline-flex items-center gap-1 text-xs text-blue-500 dark:text-blue-400"
+            title={
+              server.docker_status
+                ? `${server.docker_status.running_containers} running / ${server.docker_status.total_containers} total containers`
+                : 'Docker installed'
+            }
+            data-testid="docker-badge"
+          >
+            <Container className="w-3.5 h-3.5" aria-hidden="true" />
+            {server.docker_status && server.docker_status.total_containers > 0 && (
+              <span data-testid="docker-container-count">
+                {server.docker_status.running_containers}/{server.docker_status.total_containers}
+              </span>
+            )}
+          </span>
+        )}
         {/* Inactive badge (EP0007) */}
         {server.is_inactive && (
           <span
@@ -270,6 +289,17 @@ export function ServerCard({ server, onClick, onPauseToggle, onMessage }: Server
               : server.agent_update_status === 'pending'
                 ? 'Update pending'
                 : 'Updating'}
+          </span>
+        )}
+        {/* Agent update available badge (show when no active update in progress) */}
+        {server.agent_update_available && !server.agent_update_status && !server.is_inactive && (
+          <span
+            className="ml-auto flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded bg-green-500/20 text-green-600 dark:text-green-400 flex items-center gap-1"
+            data-testid="agent-update-available-badge"
+            title="A newer agent version is available"
+          >
+            <ArrowUpCircle className="w-3 h-3" aria-hidden="true" />
+            Update
           </span>
         )}
       </div>

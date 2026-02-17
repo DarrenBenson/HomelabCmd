@@ -71,12 +71,13 @@ test.describe('Dashboard', () => {
     await expect(metricsSection).toBeVisible();
   });
 
-  test('shows server count in header', async ({ page }) => {
+  test('shows machine count in FleetStatus', async ({ page }) => {
     await page.waitForSelector('[data-testid="server-card"]', { timeout: 10000 });
 
-    // Header should show server count
-    const serverCount = page.locator('text=/\\d+ servers?/');
-    await expect(serverCount).toBeVisible();
+    // Machine count is now shown in FleetStatus component
+    const machineCount = page.locator('[data-testid="stat-machines"]');
+    await expect(machineCount).toBeVisible();
+    await expect(machineCount).toContainText('Machine');
   });
 
   test('handles empty state gracefully', async ({ page }) => {

@@ -10,11 +10,14 @@ const mockRunningService: ExpectedService = {
   enabled: true,
   current_status: {
     status: 'running',
+    status_reason: null,
     pid: 12345,
     memory_mb: 512.5,
     cpu_percent: 2.5,
     last_seen: '2026-01-19T10:00:00Z',
   },
+  last_restart_at: null,
+  grace_period_remaining: null,
 };
 
 const mockStoppedService: ExpectedService = {
@@ -24,11 +27,14 @@ const mockStoppedService: ExpectedService = {
   enabled: true,
   current_status: {
     status: 'stopped',
+    status_reason: null,
     pid: null,
     memory_mb: null,
     cpu_percent: null,
     last_seen: '2026-01-19T10:00:00Z',
   },
+  last_restart_at: null,
+  grace_period_remaining: null,
 };
 
 const mockServiceNoStatus: ExpectedService = {
@@ -37,6 +43,8 @@ const mockServiceNoStatus: ExpectedService = {
   is_critical: false,
   enabled: true,
   current_status: null,
+  last_restart_at: null,
+  grace_period_remaining: null,
 };
 
 const mockDisabledService: ExpectedService = {
@@ -45,6 +53,26 @@ const mockDisabledService: ExpectedService = {
   is_critical: false,
   enabled: false,
   current_status: null,
+  last_restart_at: null,
+  grace_period_remaining: null,
+};
+
+// US0185: Service in restart grace period
+const mockRestartingService: ExpectedService = {
+  service_name: 'nginx',
+  display_name: 'Nginx',
+  is_critical: true,
+  enabled: true,
+  current_status: {
+    status: 'stopped',
+    status_reason: null,
+    pid: null,
+    memory_mb: null,
+    cpu_percent: null,
+    last_seen: '2026-01-19T10:00:00Z',
+  },
+  last_restart_at: '2026-01-19T10:00:00Z',
+  grace_period_remaining: 45,
 };
 
 describe('ServiceCard', () => {
@@ -175,6 +203,64 @@ describe('ServiceCard', () => {
       render(<ServiceCard service={mockDisabledService} />);
       const card = screen.getByTestId('service-card');
       expect(card).toHaveClass('opacity-50');
+    });
+  });
+
+  // US0185: Grace period tests
+  describe('grace period display', () => {
+    it('shows restarting badge when in grace period', () => {
+      render(<ServiceCard service={mockRestartingService} />);
+      expect(screen.getByTestId('restarting-badge')).toBeInTheDocument();
+      expect(screen.getByTestId('restarting-badge')).toHaveTextContent('Restarting (45s)');
+    });
+
+    it('shows status as "restarting" when in grace period', () => {
+      render(<ServiceCard service={mockRestartingService} />);
+      expect(screen.getByTestId('service-status')).toHaveTextContent('restarting');
+    });
+
+    it('does not show restart button during grace period', () => {
+      render(<ServiceCard service={mockRestartingService} />);
+      expect(screen.queryByTestId('restart-button')).not.toBeInTheDocument();
+    });
+
+    it('does not have red border during grace period', () => {
+      render(<ServiceCard service={mockRestartingService} />);
+      const card = screen.getByTestId('service-card');
+      expect(card).not.toHaveClass('border-l-4');
+    });
+
+    it('uses gracePeriodRemaining prop when provided', () => {
+      render(
+        <ServiceCard
+          service={mockRestartingService}
+          gracePeriodRemaining={30}
+        />
+      );
+      expect(screen.getByTestId('restarting-badge')).toHaveTextContent('Restarting (30s)');
+    });
+
+    it('formats minutes correctly', () => {
+      const service: ExpectedService = {
+        ...mockRestartingService,
+        grace_period_remaining: 90,
+      };
+      render(<ServiceCard service={service} />);
+      expect(screen.getByTestId('restarting-badge')).toHaveTextContent('Restarting (1m 30s)');
+    });
+
+    it('does not show restarting badge when not in grace period', () => {
+      render(<ServiceCard service={mockStoppedService} />);
+      expect(screen.queryByTestId('restarting-badge')).not.toBeInTheDocument();
+    });
+
+    it('does not show restarting badge when grace_period_remaining is 0', () => {
+      const service: ExpectedService = {
+        ...mockStoppedService,
+        grace_period_remaining: 0,
+      };
+      render(<ServiceCard service={service} />);
+      expect(screen.queryByTestId('restarting-badge')).not.toBeInTheDocument();
     });
   });
 });

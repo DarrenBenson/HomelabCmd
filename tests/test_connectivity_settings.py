@@ -521,25 +521,36 @@ class TestSSHConfigurationShared:
         self, db_session, encryption_key
     ) -> None:
         """AC6: SSH key status is included in connectivity status."""
+        from unittest.mock import MagicMock, patch
+
         from homelab_cmd.services.connectivity_service import ConnectivityService
         from homelab_cmd.services.credential_service import CredentialService
 
         credential_service = CredentialService(db_session, encryption_key)
         service = ConnectivityService(db_session, credential_service)
 
-        # Get status without SSH key
-        status = await service.get_connectivity_status()
-        assert status.ssh.key_configured is False
+        # Mock SSH service to return no keys
+        mock_ssh_service = MagicMock()
+        mock_ssh_service.get_available_keys.return_value = []
 
-        # Upload SSH key
-        await credential_service.store_credential(
-            "ssh_private_key", "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
-        )
-        await db_session.commit()
+        with patch(
+            "homelab_cmd.services.ssh.get_ssh_service",
+            return_value=mock_ssh_service,
+        ):
+            # Get status without SSH keys
+            status = await service.get_connectivity_status()
+            assert status.ssh.key_configured is False
 
-        # Get status with SSH key
-        status = await service.get_connectivity_status()
-        assert status.ssh.key_configured is True
+        # Mock SSH service to return available keys
+        mock_ssh_service.get_available_keys.return_value = ["id_ai_ops"]
+
+        with patch(
+            "homelab_cmd.services.ssh.get_ssh_service",
+            return_value=mock_ssh_service,
+        ):
+            # Get status with SSH keys
+            status = await service.get_connectivity_status()
+            assert status.ssh.key_configured is True
 
 
 # =============================================================================
@@ -741,16 +752,16 @@ class TestConfigValueEdgeCases:
         assert status_bar.display == "Direct SSH"
 
     @pytest.mark.asyncio
-    async def test_get_ssh_info_with_string_username_config(
+    async def test_get_ssh_info_with_username_in_ssh_config(
         self, db_session, encryption_key
     ) -> None:
-        """SSH username as string instead of dict should be handled."""
+        """SSH username stored in ssh config dict should be returned."""
         from homelab_cmd.db.models.config import Config
         from homelab_cmd.services.connectivity_service import ConnectivityService
         from homelab_cmd.services.credential_service import CredentialService
 
-        # Insert string username directly (legacy format)
-        config = Config(key="ssh_username", value="customuser")
+        # Insert config with default_username
+        config = Config(key="ssh", value={"default_username": "customuser"})
         db_session.add(config)
         await db_session.commit()
 
@@ -818,13 +829,13 @@ class TestConfigValueEdgeCases:
     async def test_get_ssh_info_with_empty_dict_username_config(
         self, db_session, encryption_key
     ) -> None:
-        """Empty dict for SSH username should use default."""
+        """Empty dict for SSH config should return None username."""
         from homelab_cmd.db.models.config import Config
         from homelab_cmd.services.connectivity_service import ConnectivityService
         from homelab_cmd.services.credential_service import CredentialService
 
-        # Insert empty dict - missing 'username' key
-        config = Config(key="ssh_username", value={})
+        # Insert empty dict - missing 'default_username' key
+        config = Config(key="ssh", value={})
         db_session.add(config)
         await db_session.commit()
 
@@ -833,8 +844,8 @@ class TestConfigValueEdgeCases:
 
         ssh_info = await service._get_ssh_info()
 
-        # Should use default username
-        assert ssh_info.username == "homelabcmd"
+        # No username configured, should be None
+        assert ssh_info.username is None
 
     @pytest.mark.asyncio
     async def test_get_status_bar_with_empty_dict_mode_config(

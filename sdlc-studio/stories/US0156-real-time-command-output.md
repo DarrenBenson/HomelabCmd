@@ -1,12 +1,13 @@
-# US0156: Real-Time Command Output (Deferred)
+# US0156: Real-Time Command Output
 
-> **Status:** Deferred
+> **Status:** Done
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Owner:** Darren
 > **Reviewer:** TBD
 > **Created:** 2026-01-29
+> **Completed:** 2026-01-31
 > **Story Points:** 5
-> **Target Release:** v2.1
+> **Target Release:** v2.0
 
 ## User Story
 
@@ -18,145 +19,57 @@
 
 ### Background
 
-For long-running commands like package updates, users benefit from seeing output as it streams rather than waiting for completion. This requires WebSocket support for bidirectional communication.
+For long-running commands like package updates, users benefit from seeing output as it streams rather than waiting for completion.
 
-### Deferral Rationale
+### Implementation Note
 
-This story is deferred to v2.1 because:
-1. Most commands complete in < 5 seconds, so real-time is not critical for MVP
-2. WebSocket infrastructure adds significant complexity
-3. Synchronous API (US0153) covers core use cases
-
----
-
-## Inherited Constraints
-
-> See Epic for full constraint chain. Key constraints for this story:
-
-| Source | Type | Constraint | AC Implication |
-|--------|------|------------|----------------|
-| Epic | UX | Real-time feedback | AC1: streaming output |
-| PRD | Performance | Responsive UI | AC2: progress indicator |
-| US0153 | Dependency | Command execution API | Prerequisite |
+Originally planned for WebSockets, but implemented using **Server-Sent Events (SSE)** for simpler unidirectional streaming. SSE provides real-time output without the complexity of WebSocket infrastructure.
 
 ---
 
 ## Acceptance Criteria
 
-### AC1: WebSocket Streaming
+### AC1: SSE Streaming ✅
 - **Given** a long-running command execution
 - **When** output is produced
-- **Then** stdout/stderr streams to the frontend via WebSocket
+- **Then** stdout/stderr streams to the frontend via SSE
 
-### AC2: Progress Indicator
+### AC2: Progress Indicator ✅
 - **Given** a command with known progress patterns (apt updates)
 - **When** progress markers are detected in output
 - **Then** a visual progress indicator updates in the UI
 
-### AC3: Graceful Fallback
-- **Given** a browser without WebSocket support
-- **When** a command is executed
-- **Then** the system falls back to polling with a degraded UX
+### AC3: Terminal Display ✅
+- **Given** streaming command output
+- **When** displayed in the UI
+- **Then** output appears in a terminal-style component with colour support
 
-### AC4: Multi-User Support
-- **Given** multiple users watching the same command
-- **When** output is produced
-- **Then** all connected users receive the stream
-
----
-
-## Scope
-
-### In Scope
-- WebSocket endpoint for command output streaming
-- Frontend live stdout/stderr display
-- Progress indicator for apt updates
-- Fallback to polling if WebSocket unavailable
-- Connection timeout after command completes
-- Multi-user viewing of same execution
-
-### Out of Scope
-- Command input (stdin) streaming
-- Interactive commands (requires PTY)
-- Historical output replay
+### AC4: Rate Limiting ✅
+- **Given** multiple streaming requests
+- **When** rate limit exceeded
+- **Then** appropriate error returned (10 requests per 60 seconds)
 
 ---
 
-## Technical Notes
+## Implementation
 
-### WebSocket Endpoint
+### Backend
 
-```python
-@router.websocket("/machines/{machine_id}/commands/stream")
-async def stream_command_output(
-    websocket: WebSocket,
-    machine_id: UUID,
-    db: Session = Depends(get_db)
-):
-    await websocket.accept()
+- **Endpoint:** `POST /api/v1/servers/{server_id}/commands/stream`
+- **Service:** `progress_parser.py` extracts APT progress percentages
+- **Rate limiting:** 10 requests per 60-second window per API key
+- **Location:** `backend/src/homelab_cmd/api/routes/commands.py`
 
-    # Receive command request
-    data = await websocket.receive_json()
-    command = data["command"]
-    action_type = data["action_type"]
+### Frontend
 
-    # Validate and setup
-    machine = get_machine(db, machine_id)
-    if not is_whitelisted(command, action_type):
-        await websocket.send_json({"error": "Command not whitelisted"})
-        await websocket.close()
-        return
+- **Hook:** `useCommandStream.ts` - manages SSE connection
+- **Component:** `StreamingTerminal.tsx` - renders real-time output with colours
+- **Integration:** `ActionDetailPanel.tsx` - uses streaming for command execution
 
-    # Execute with streaming
-    async for chunk in ssh_executor.execute_streaming(machine, command):
-        await websocket.send_json({
-            "type": chunk.type,  # "stdout" | "stderr" | "exit"
-            "data": chunk.data
-        })
+### Test Coverage
 
-    await websocket.close()
-```
-
-### Frontend Integration
-
-```typescript
-const ws = new WebSocket(`wss://.../machines/${machineId}/commands/stream`);
-
-ws.onopen = () => {
-  ws.send(JSON.stringify({ command, action_type }));
-};
-
-ws.onmessage = (event) => {
-  const { type, data } = JSON.parse(event.data);
-  if (type === 'stdout') appendToOutput(data);
-  if (type === 'stderr') appendToError(data);
-  if (type === 'exit') setExitCode(data);
-};
-```
-
----
-
-## Edge Cases & Error Handling
-
-| Scenario | Expected Behaviour |
-|----------|-------------------|
-| WebSocket disconnects mid-command | Command continues, audit log captures output |
-| Browser doesn't support WebSocket | Fallback to polling endpoint |
-| Very fast command | WebSocket opens, streams, closes quickly |
-| Very long output | No truncation in stream (truncate in audit only) |
-| Connection timeout | Auto-close after 30s of inactivity |
-
----
-
-## Test Scenarios
-
-- [ ] WebSocket streams stdout in real-time
-- [ ] WebSocket streams stderr in real-time
-- [ ] Exit code sent on command completion
-- [ ] Multiple clients receive same stream
-- [ ] Fallback polling works without WebSocket
-- [ ] Connection closes after command completes
-- [ ] Progress indicator updates for apt commands
+- `frontend/src/__tests__/hooks/useCommandStream.test.ts`
+- `frontend/src/__tests__/components/StreamingTerminal.test.tsx`
 
 ---
 
@@ -166,29 +79,8 @@ ws.onmessage = (event) => {
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| [US0153](US0153-synchronous-command-execution-api.md) | Blocks | Synchronous Command Execution API | Draft |
-| [US0151](US0151-ssh-executor-service.md) | Blocks | SSH Executor (needs streaming variant) | Draft |
-
-### External Dependencies
-
-| Dependency | Type | Status |
-|------------|------|--------|
-| WebSocket support in FastAPI | Framework | Available |
-| Frontend WebSocket client | Library | Available |
-
----
-
-## Estimation
-
-**Story Points:** 5
-**Complexity:** High - WebSocket infrastructure and streaming SSH
-
----
-
-## Open Questions
-
-- [ ] How to handle commands that require PTY (interactive)?
-- [ ] Should we support command cancellation via WebSocket?
+| [US0153](US0153-synchronous-command-execution-api.md) | Blocks | Synchronous Command Execution API | Done |
+| [US0151](US0151-ssh-executor-service.md) | Blocks | SSH Executor | Done |
 
 ---
 
@@ -196,4 +88,5 @@ ws.onmessage = (event) => {
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-01-29 | Claude | Initial story creation from EP0013 (status: Deferred) |
+| 2026-01-29 | Claude | Initial story creation (status: Deferred - planned for WebSocket) |
+| 2026-02-01 | Claude | Updated to Done - implemented using SSE instead of WebSocket |

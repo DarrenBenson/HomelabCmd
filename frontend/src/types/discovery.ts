@@ -213,3 +213,44 @@ export interface UnifiedDevice {
   /** Whether device is online on Tailscale */
   tailscaleOnline?: boolean;
 }
+
+// =============================================================================
+// Merged Device Types (EP0019)
+// =============================================================================
+
+/** Match confidence level for device deduplication */
+export type MatchConfidence = 'high' | 'medium' | 'low';
+
+/** Source indicator for merged devices */
+export type MergedSource = 'network' | 'tailscale' | 'both';
+
+/**
+ * Extended device representation for merged discovery results.
+ *
+ * EP0019: Unified Device Discovery - Single Pane of Glass
+ */
+export interface MergedDevice extends UnifiedDevice {
+  /** Merged source indicator: network-only, tailscale-only, or both */
+  mergedSource: MergedSource;
+
+  /** Network-specific IP address (when mergedSource is 'both') */
+  networkIp?: string;
+
+  /** Tailscale-specific IP address (when mergedSource is 'both') */
+  tailscaleIp?: string;
+
+  /** Match confidence when device found via both sources */
+  matchConfidence?: MatchConfidence;
+
+  /** Recommended connection path (tailscale for remote, direct for local) */
+  recommendedPath?: 'network' | 'tailscale';
+
+  /** Original network device data (when mergedSource is 'network' or 'both') */
+  networkDevice?: UnifiedDevice;
+
+  /** Original Tailscale device data (when mergedSource is 'tailscale' or 'both') */
+  tailscaleDevice?: UnifiedDevice;
+}
+
+/** Source filter options for unified discovery */
+export type SourceFilter = 'all' | 'network' | 'tailscale' | 'both';

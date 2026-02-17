@@ -12,6 +12,7 @@ Test cases from TS0191:
 
 import logging
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -54,7 +55,7 @@ class TestV2AgentHeartbeat:
         assert data["status"] == "ok"
 
     def test_heartbeat_response_always_has_empty_pending_commands(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """TC02: Response always returns empty pending_commands array."""
         # Create server with an approved action
@@ -91,7 +92,7 @@ class TestV2AgentHeartbeat:
         assert data["pending_commands"] == []  # Always empty in v2.0
 
     def test_approved_action_not_delivered_via_heartbeat(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_ssh_action_executor
     ) -> None:
         """US0152: Approved actions are no longer delivered via heartbeat."""
         # Create server and approved action
@@ -225,11 +226,14 @@ class TestV1AgentBackwardCompatibility:
         )
         assert warning_logged, "Expected deprecation warning with server_id and 'command_results'"
 
+    @patch("homelab_cmd.api.routes.actions._execute_action_via_ssh")
     def test_command_results_ignored_not_processed(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, mock_execute_ssh, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """TC05: Command results from v1.0 agents are ignored (not processed)."""
         # Create server and an approved action
+        # Note: We mock _execute_action_via_ssh to prevent SSH execution in background
+        # which would change the action status to 'failed' (no SSH key in test env)
         client.post(
             "/api/v1/servers",
             json={"id": "ignored-results-test", "hostname": "test.local"},

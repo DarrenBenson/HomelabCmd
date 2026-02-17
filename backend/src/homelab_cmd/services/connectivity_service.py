@@ -173,29 +173,23 @@ class ConnectivityService:
         Returns:
             SSHInfo with username and key status.
         """
-        # Get username from config - handle both dict and string cases defensively
-        username_config = await get_config_value(self._session, "ssh_username")
-        username = "homelabcmd"  # default
-        if username_config:
-            if isinstance(username_config, dict):
-                username = username_config.get("username", "homelabcmd")
-            elif isinstance(username_config, str):
-                # Legacy or malformed data - use the string as username
-                username = username_config
+        # Get SSH config from database (key="ssh", contains default_username, default_key_id)
+        ssh_config = await get_config_value(self._session, "ssh")
+        username: str | None = None
+        if ssh_config and isinstance(ssh_config, dict):
+            username = ssh_config.get("default_username")
 
-        # Check if SSH key exists
-        key_exists = await self._credential_service.credential_exists("ssh_private_key")
+        # Check if SSH keys exist on disk via SSH service
+        from homelab_cmd.services.ssh import get_ssh_service
 
-        # Get key upload time from credential metadata if available
-        key_uploaded_at = None
-        if key_exists:
-            # For now, we don't have metadata, so leave as None
-            key_uploaded_at = None
+        ssh_service = get_ssh_service()
+        available_keys = ssh_service.get_available_keys()
+        key_exists = len(available_keys) > 0
 
         return SSHInfo(
             username=username,
             key_configured=key_exists,
-            key_uploaded_at=key_uploaded_at,
+            key_uploaded_at=None,
         )
 
     async def get_connectivity_status(self) -> ConnectivityStatusResponse:

@@ -69,10 +69,11 @@ async def sync_services_to_agent(
     if not server:
         return False, f"Server '{server_id}' not found"
 
-    # Determine hostname - prefer Tailscale hostname
-    hostname = server.tailscale_hostname or server.hostname
+    # Determine hostname - prefer Tailscale hostname, then IP address
+    # Avoid using server.hostname as it may resolve to 127.0.1.1 via /etc/hosts
+    hostname = server.tailscale_hostname or server.ip_address
     if not hostname:
-        return False, "Server has no hostname configured"
+        return False, "Server has no Tailscale hostname or IP address configured"
 
     # Get all enabled expected services for this server
     result = await session.execute(

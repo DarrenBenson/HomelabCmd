@@ -485,6 +485,96 @@ def is_running_in_container() -> bool:
     return False
 
 
+def detect_docker() -> bool:
+    """Detect if Docker is installed and accessible on the host.
+
+    US0157: Checks if `docker --version` succeeds within 5 seconds.
+    Works with both docker.io (Debian/Ubuntu packages) and Docker CE.
+
+    Returns:
+        True if Docker CLI is available and responds, False otherwise.
+
+    Note:
+        This only checks if the Docker CLI is installed, not if the daemon
+        is running. Container listing (US0158) will handle daemon availability.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "--version"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        # Docker binary not found
+        return False
+    except subprocess.TimeoutExpired:
+        # Command took too long - likely a hung daemon
+        logger.warning("Docker detection timed out after 5 seconds")
+        return False
+    except Exception as e:
+        # Any other error (permissions, etc.)
+        logger.debug("Docker detection failed: %s", e)
+        return False
+
+
+def get_docker_status() -> dict[str, int] | None:
+    """Get Docker container status summary (US0163).
+
+    Runs a single `docker ps -a --format '{{.State}}'` command to collect
+    container status with minimal overhead.
+
+    Returns:
+        Dictionary with running_containers, stopped_containers, total_containers
+        or None if Docker is not installed/accessible.
+
+    Note:
+        Only call this if detect_docker() returns True (AC3).
+        Uses a single docker command for efficiency (AC4).
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{.State}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            logger.debug("Docker ps failed: %s", result.stderr)
+            return None
+
+        # Parse container states
+        output = result.stdout.strip()
+        if not output:
+            # No containers
+            return {
+                "running_containers": 0,
+                "stopped_containers": 0,
+                "total_containers": 0,
+            }
+
+        states = output.split("\n")
+        running = sum(1 for s in states if s == "running")
+        total = len(states)
+        stopped = total - running
+
+        return {
+            "running_containers": running,
+            "stopped_containers": stopped,
+            "total_containers": total,
+        }
+
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        logger.warning("Docker status collection timed out after 10 seconds")
+        return None
+    except Exception as e:
+        logger.debug("Docker status collection failed: %s", e)
+        return None
+
+
 def get_package_update_list() -> list[dict[str, Any]]:
     """Get detailed list of available package updates (Debian-based systems).
 
@@ -561,10 +651,17 @@ def get_package_updates() -> dict[str, int | None]:
     """Get count of available package updates (Debian-based systems).
 
     Returns:
-        Dictionary with updates_available and security_updates counts.
+        Dictionary with updates_available, security_updates, and held_back_count.
+        - updates_available: packages that WILL upgrade
+        - held_back_count: packages held back (phased, dependency, manual)
+        - security_updates: subset of updates_available from security repos
         Returns None values on non-Debian systems or errors.
     """
-    result: dict[str, int | None] = {"updates_available": None, "security_updates": None}
+    result: dict[str, int | None] = {
+        "updates_available": None,
+        "security_updates": None,
+        "held_back_count": None,
+    }
 
     # Check if apt-get is available
     try:
@@ -590,13 +687,22 @@ def get_package_updates() -> dict[str, int | None]:
 
         output = proc.stdout
 
-        # Count total upgrades from summary line
-        # Example: "5 upgraded, 0 newly installed, 0 to remove and 0 not upgraded."
-        upgrade_match = re.search(r"(\d+) upgraded", output)
+        # Count total upgrades and held-back from summary line
+        # Handles multiple apt output formats:
+        # - "5 upgraded, 0 newly installed, 0 to remove and 3 not upgraded."
+        # - "5 to upgrade, 0 to newly install, 0 to remove and 3 not to upgrade."
+        upgrade_match = re.search(r"(\d+) (?:upgraded|to upgrade)", output)
         if upgrade_match:
             result["updates_available"] = int(upgrade_match.group(1))
         else:
             result["updates_available"] = 0
+
+        # Count held-back packages ("not upgraded" or "not to upgrade")
+        not_upgraded_match = re.search(r"(\d+) not (?:upgraded|to upgrade)", output)
+        if not_upgraded_match:
+            result["held_back_count"] = int(not_upgraded_match.group(1))
+        else:
+            result["held_back_count"] = 0
 
         # Count security updates by looking for security repository lines
         # Example: "Inst package [old] (new Debian-Security:version)"

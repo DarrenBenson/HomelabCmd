@@ -7,6 +7,7 @@ metadata when the database is initialised.
 from homelab_cmd.db.models.agent_credential import AgentCredential
 from homelab_cmd.db.models.alert import Alert, AlertStatus, AlertType
 from homelab_cmd.db.models.alert_state import AlertSeverity, AlertState, MetricType
+from homelab_cmd.db.models.command_audit import CommandAuditLog
 from homelab_cmd.db.models.config import Config
 from homelab_cmd.db.models.config_apply import ConfigApply, ConfigApplyStatus
 from homelab_cmd.db.models.config_check import ConfigCheck
@@ -32,6 +33,7 @@ __all__ = [
     "AgentCredential",
     "AgentMode",
     "Alert",
+    "CommandAuditLog",
     "ConfigApply",
     "ConfigApplyStatus",
     "ConfigCheck",

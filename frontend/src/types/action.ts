@@ -8,7 +8,8 @@ export type ActionStatus =
   | 'executing'
   | 'completed'
   | 'failed'
-  | 'rejected';
+  | 'rejected'
+  | 'timed_out'; // US0186: Command timeout configuration
 
 export type ActionType =
   | 'restart_service'
@@ -37,6 +38,9 @@ export interface Action {
   exit_code: number | null;
   stdout: string | null;
   stderr: string | null;
+  // US0186: Command timeout configuration
+  timeout_seconds: number | null;
+  timed_out_at: string | null;
 }
 
 export interface ActionsResponse {
@@ -55,4 +59,40 @@ export interface CreateActionRequest {
   action_type: ActionType;
   service_name?: string;
   alert_id?: number;
+  timeout_seconds?: number; // US0186: Optional timeout override
+}
+
+// US0186: Action timeout configuration
+export interface ActionTimeoutConfig {
+  default_timeout: number;
+  service_restart_timeout: number;
+  package_update_timeout: number;
+  updated_at: string | null;
+}
+
+// US0156: Real-time command output streaming
+export type OutputLineType = 'stdout' | 'stderr' | 'error';
+
+export interface OutputLine {
+  type: OutputLineType;
+  text: string;
+  timestamp: string;
+}
+
+export interface StreamProgress {
+  percent: number;
+  stage: string;
+}
+
+export interface StreamExitInfo {
+  code: number;
+  duration_ms: number;
+}
+
+export interface StreamingState {
+  isStreaming: boolean;
+  output: OutputLine[];
+  progress: StreamProgress | null;
+  exitInfo: StreamExitInfo | null;
+  error: string | null;
 }

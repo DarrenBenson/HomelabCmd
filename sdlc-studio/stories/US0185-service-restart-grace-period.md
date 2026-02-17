@@ -1,6 +1,6 @@
 # US0185: Service Restart Grace Period
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0003: Service Monitoring](../epics/EP0003-service-monitoring.md)
 > **Owner:** Darren
 > **Created:** 2026-01-29
@@ -140,12 +140,12 @@ When a service is restarted (either manually or via remediation), it may take se
 
 ## Test Scenarios
 
-- [ ] No alert during grace period after restart
-- [ ] Alert fires after grace period if service still down
-- [ ] Grace period resets on subsequent restart
-- [ ] UI shows "Restarting" status with countdown
-- [ ] Grace period setting persists
-- [ ] Service running before grace period ends clears status
+- [x] No alert during grace period after restart
+- [x] Alert fires after grace period if service still down
+- [x] Grace period resets on subsequent restart
+- [x] UI shows "Restarting" status with countdown
+- [x] Grace period setting persists
+- [x] Service running before grace period ends clears status
 
 ---
 
@@ -173,8 +173,19 @@ None.
 
 ---
 
+## Artefacts
+
+| Type | ID | Title |
+|------|----|-------|
+| Plan | [PL0202](../plans/PL0202-service-restart-grace-period.md) | Service Restart Grace Period Implementation Plan |
+| Test Spec | [TS0202](../test-specs/TS0202-service-restart-grace-period.md) | Service Restart Grace Period Tests (26 test cases) |
+
+---
+
 ## Revision History
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-29 | Claude | Initial story creation from resolved EP0003 open question |
+| 2026-01-31 | Claude | Status: Draft → Planned. Added PL0202, TS0202 |
+| 2026-01-31 | Claude | Status: Planned → In Progress → Done. All implementation complete |

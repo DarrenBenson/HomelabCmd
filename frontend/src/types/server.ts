@@ -52,6 +52,13 @@ export interface NetworkInterfaceMetric {
   is_up: boolean;
 }
 
+// US0163: Docker container status summary
+export interface DockerStatus {
+  running_containers: number;
+  stopped_containers: number;
+  total_containers: number;
+}
+
 export interface Server {
   id: string;
   hostname: string;
@@ -64,6 +71,8 @@ export interface Server {
   inactive_since: string | null;
   updates_available: number | null;
   security_updates: number | null;
+  // US0198: held-back package count (set by package status API)
+  held_back_count?: number | null;
   latest_metrics: LatestMetrics | null;
   // US0090: Workstation management
   machine_type?: MachineType;
@@ -80,6 +89,15 @@ export interface Server {
   // US0121: Pack assignment fields
   assigned_packs?: string[] | null;
   drift_detection_enabled?: boolean;
+  // US0184: Agent auto-update fields
+  auto_update_agent?: boolean;
+  agent_update_status?: 'pending' | 'downloading' | 'failed' | null;
+  agent_update_error?: string | null;
+  agent_update_available?: boolean;
+  // US0157: Docker detection (EP0014)
+  has_docker?: boolean | null;
+  // US0163: Docker container status (EP0014)
+  docker_status?: DockerStatus | null;
 }
 
 export interface ServersResponse {
@@ -130,6 +148,8 @@ export interface ServerDetail {
   // Package updates
   updates_available: number | null;
   security_updates: number | null;
+  // US0198: held-back package count
+  held_back_count?: number | null;
   // Tailscale integration (EP0008)
   tailscale_hostname: string | null;
   // Machine type (US0174: Default Widget Layout)
@@ -147,6 +167,15 @@ export interface ServerDetail {
   // US0121: Pack assignment fields
   assigned_packs?: string[] | null;
   drift_detection_enabled?: boolean;
+  // US0184: Agent auto-update fields
+  auto_update_agent?: boolean;
+  agent_update_status?: 'pending' | 'downloading' | 'failed' | null;
+  agent_update_error?: string | null;
+  agent_update_available?: boolean;
+  // US0157: Docker detection (EP0014)
+  has_docker?: boolean | null;
+  // US0163: Docker container status (EP0014)
+  docker_status?: DockerStatus | null;
 }
 
 // Types for Historical Metrics
@@ -186,6 +215,38 @@ export interface PackagesResponse {
   total_count: number;
   security_count: number;
   packages: Package[];
+}
+
+// ===========================================================================
+// Package Status Types (US0198: Held Back Status Indicator)
+// ===========================================================================
+
+export type PackageStatus = 'upgradable' | 'held_back';
+
+export type HoldReason = 'phased' | 'dependency' | 'manual';
+
+export interface PackageWithStatus {
+  name: string;
+  current_version: string;
+  candidate_version: string;
+  status: PackageStatus;
+  hold_reason: HoldReason | null;
+  phased_percentage: number | null;
+  repository: string;
+  is_security: boolean;
+}
+
+export interface PackageSummary {
+  upgradable_count: number;
+  held_back_count: number;
+  security_count: number;
+}
+
+export interface PackageStatusResponse {
+  server_id: string;
+  last_checked: string | null;
+  summary: PackageSummary;
+  packages: PackageWithStatus[];
 }
 
 // ===========================================================================

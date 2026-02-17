@@ -66,6 +66,12 @@ class ExpectedService(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+    # US0185: Track last restart timestamp for grace period calculation
+    last_restart_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
 
     # Relationship to server
     server: Mapped["Server"] = relationship("Server", back_populates="expected_services")

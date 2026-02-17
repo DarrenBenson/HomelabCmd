@@ -60,3 +60,19 @@ export interface ServerActivateResponse {
   message: string;
   error: string | null;
 }
+
+// US0188: Remote Agent Mode Switch
+export type AgentMode = 'readonly' | 'readwrite';
+
+export interface AgentModeSwitchRequest {
+  mode: AgentMode;
+  sudo_password?: string;
+}
+
+export interface AgentModeSwitchResponse {
+  success: boolean;
+  server_id: string;
+  new_mode: AgentMode | null;
+  message: string;
+  error: string | null;
+}

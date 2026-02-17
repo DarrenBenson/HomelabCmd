@@ -20,6 +20,7 @@ from homelab_cmd.api.schemas.heartbeat import (
     HeartbeatResponse,
     PendingCommand,
 )
+from homelab_cmd.config import get_settings
 from homelab_cmd.db.models.metrics import FilesystemMetrics, Metrics, NetworkInterfaceMetrics
 from homelab_cmd.db.models.server import Server, ServerStatus
 from homelab_cmd.db.models.service import ServiceStatus
@@ -28,6 +29,7 @@ from homelab_cmd.services.alerting import AlertingService
 from homelab_cmd.services.notifier import get_notifier
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
+settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # US0152: Async command channel removed (EP0013)
@@ -205,6 +207,16 @@ async def receive_heartbeat(
     if heartbeat.agent_mode:
         server.agent_mode = heartbeat.agent_mode
 
+    # US0184: Handle agent update status reporting
+    if heartbeat.update_status:
+        server.agent_update_status = heartbeat.update_status
+        if heartbeat.update_status == "success":
+            # Clear update status on success
+            server.agent_update_status = None
+            server.agent_update_error = None
+        elif heartbeat.update_status == "failed":
+            server.agent_update_error = heartbeat.update_error
+
     # Note: Auto-reactivation removed (BG0012) - inactive servers must be
     # explicitly reactivated via the API, not by receiving heartbeats
 
@@ -213,6 +225,21 @@ async def receive_heartbeat(
         server.updates_available = heartbeat.updates_available
     if heartbeat.security_updates is not None:
         server.security_updates = heartbeat.security_updates
+    # US0198: Store held-back count from agent
+    if heartbeat.held_back_count is not None:
+        server.held_back_count = heartbeat.held_back_count
+
+    # US0157: Store Docker detection status (EP0014)
+    if heartbeat.docker_installed is not None:
+        server.has_docker = heartbeat.docker_installed
+
+    # US0163: Store Docker container status (EP0014)
+    if heartbeat.docker_status is not None:
+        server.docker_status = {
+            "running_containers": heartbeat.docker_status.running_containers,
+            "stopped_containers": heartbeat.docker_status.stopped_containers,
+            "total_containers": heartbeat.docker_status.total_containers,
+        }
 
     # Store metrics if provided (AC1)
     if heartbeat.metrics:
@@ -391,10 +418,41 @@ async def receive_heartbeat(
     # The pending_commands field is kept for backward compatibility with v1.0 agents
     pending_commands: list[PendingCommand] = []
 
-    # Return response with empty pending_commands (backward compatible)
+    # US0184: Determine if update command should be sent
+    # Only send to agents >= 2.1.0 (when updater.py was added)
+    update_command: str | None = None
+    if server.agent_update_status == "pending":
+        # Check if agent supports self-update (requires updater.py from 2.1.0+)
+        agent_version = server.agent_version or "0.0.0"
+        version_parts = agent_version.split(".")
+        try:
+            major = int(version_parts[0]) if len(version_parts) > 0 else 0
+            minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+            supports_update = (major > 2) or (major == 2 and minor >= 1)
+        except ValueError:
+            supports_update = False
+
+        if supports_update:
+            update_command = "update"
+            # Clear pending status - agent received the command
+            server.agent_update_status = "downloading"
+        else:
+            # Agent too old for self-update - clear status and log
+            logger.warning(
+                "Agent %s (version %s) does not support self-update. Use SSH upgrade.",
+                server.id,
+                agent_version,
+            )
+            server.agent_update_status = None
+            server.agent_update_error = "Agent version too old for self-update. Use SSH upgrade."
+        await session.flush()
+
+    # Return response with auto-update info (US0184)
     return HeartbeatResponse(
         status="ok",
         server_registered=server_registered,
         pending_commands=pending_commands,
         results_acknowledged=results_acknowledged,
+        latest_agent_version=settings.agent_version,
+        update_command=update_command,
     )

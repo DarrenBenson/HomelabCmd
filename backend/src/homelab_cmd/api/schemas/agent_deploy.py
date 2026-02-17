@@ -154,3 +154,40 @@ class ServerActivateResponse(BaseModel):
     server_id: str = Field(..., description="Server identifier")
     message: str = Field("", description="Status message")
     error: str | None = Field(None, description="Error message if failed")
+
+
+# US0188: Remote Agent Mode Switch
+class AgentModeSwitchRequest(BaseModel):
+    """Request schema for switching agent mode remotely."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "mode": "readwrite",
+                    "sudo_password": "optional-password",
+                }
+            ]
+        }
+    )
+
+    mode: str = Field(
+        ...,
+        pattern=r"^(readonly|readwrite)$",
+        description="Target agent mode",
+        examples=["readwrite", "readonly"],
+    )
+    sudo_password: str | None = Field(
+        None,
+        description="Sudo password if required for installation",
+    )
+
+
+class AgentModeSwitchResponse(BaseModel):
+    """Response schema for agent mode switch."""
+
+    success: bool = Field(..., description="Whether mode switch succeeded")
+    server_id: str = Field(..., description="Server identifier")
+    new_mode: str | None = Field(None, description="New agent mode if successful")
+    message: str = Field("", description="Status message")
+    error: str | None = Field(None, description="Error message if failed")

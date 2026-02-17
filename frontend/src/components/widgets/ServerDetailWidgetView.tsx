@@ -8,12 +8,14 @@ import { CpuWidget } from './CpuWidget';
 import { MemoryWidget } from './MemoryWidget';
 import { DiskWidget } from './DiskWidget';
 import { ServicesWidget } from './ServicesWidget';
+import { ContainersWidget } from './ContainersWidget';
 import { NetworkIOWidget } from './NetworkIOWidget';
 import { LoadAverageWidget } from './LoadAverageWidget';
+import { ComplianceWidget } from './ComplianceWidget';
 import { WidgetPicker } from './WidgetPicker';
 import { getWidgetMeta } from './widgetRegistry';
 import { getWidgetLayout, saveWidgetLayout, deleteWidgetLayout } from '../../api/widget-layout';
-import type { MachineData, WidgetLayouts, WidgetId } from './types';
+import type { MachineData, WidgetLayouts, WidgetId, MachineFeature } from './types';
 import type { SSHTestResponse } from '../../types/ssh';
 import type { ServerDetail } from '../../types/server';
 import type { WidgetLayouts as ApiWidgetLayouts } from '../../types/widget-layout';
@@ -94,6 +96,20 @@ export function ServerDetailWidgetView({
   // Determine machine type - default to 'server' if not specified (AC1 edge case)
   const machineType = server.machine_type ?? 'server';
 
+  // Build list of machine features for widget availability
+  const machineFeatures: MachineFeature[] = useMemo(() => {
+    const features: MachineFeature[] = [];
+    // All Linux machines have systemd (if they have an agent running)
+    if (server.agent_version) {
+      features.push('systemd');
+    }
+    // Docker feature based on has_docker flag
+    if (server.has_docker) {
+      features.push('docker');
+    }
+    return features;
+  }, [server.agent_version, server.has_docker]);
+
   // Convert server to MachineData format
   const machineData: MachineData = useMemo(() => ({
     id: server.id,
@@ -115,6 +131,7 @@ export function ServerDetailWidgetView({
     latest_metrics: server.latest_metrics,
     filesystems: server.filesystems,
     network_interfaces: server.network_interfaces,
+    has_docker: server.has_docker,
   }), [server, machineType]);
 
   // Get default responsive layouts based on machine type (US0174: AC2, AC3)
@@ -375,6 +392,7 @@ export function ServerDetailWidgetView({
             <WidgetPicker
               visibleWidgets={visibleWidgets}
               machineType={machineType}
+              machineFeatures={machineFeatures}
               onAddWidget={handleAddWidget}
             />
             {/* Reset to default button */}
@@ -484,8 +502,8 @@ export function ServerDetailWidgetView({
           </div>
         )}
 
-        {/* Load Average Widget - servers only (US0174 AC2, US0176: conditionally visible) */}
-        {machineType === 'server' && visibleWidgets.includes('load_average') && (
+        {/* Load Average Widget (US0176: conditionally visible) */}
+        {visibleWidgets.includes('load_average') && (
           <div key="load_average" data-testid="widget-load-average">
             <LoadAverageWidget
               machine={machineData}
@@ -506,8 +524,8 @@ export function ServerDetailWidgetView({
           </div>
         )}
 
-        {/* Services Widget - servers only (US0174 AC2, AC3, US0176: conditionally visible) */}
-        {machineType === 'server' && visibleWidgets.includes('services') && (
+        {/* Services Widget (US0176: conditionally visible, requires systemd feature) */}
+        {visibleWidgets.includes('services') && (
           <div key="services" data-testid="widget-services">
             <ServicesWidget
               machine={machineData}
@@ -515,6 +533,27 @@ export function ServerDetailWidgetView({
               onRemove={isEditMode ? () => handleRemoveWidget('services') : undefined}
               isInactive={server.is_inactive}
               agentMode={server.agent_mode}
+            />
+          </div>
+        )}
+
+        {/* Containers Widget - only for machines with Docker (US0159, US0176: conditionally visible) */}
+        {server.has_docker && visibleWidgets.includes('containers') && (
+          <div key="containers" data-testid="widget-containers">
+            <ContainersWidget
+              machine={machineData}
+              isEditMode={isEditMode}
+              onRemove={isEditMode ? () => handleRemoveWidget('containers') : undefined}
+            />
+          </div>
+        )}
+
+        {/* Compliance Dashboard Widget (US0176: conditionally visible) */}
+        {visibleWidgets.includes('compliance_dashboard') && (
+          <div key="compliance_dashboard" data-testid="widget-compliance-dashboard">
+            <ComplianceWidget
+              isEditMode={isEditMode}
+              onRemove={isEditMode ? () => handleRemoveWidget('compliance_dashboard') : undefined}
             />
           </div>
         )}

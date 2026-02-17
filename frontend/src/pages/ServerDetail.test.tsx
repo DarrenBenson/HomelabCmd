@@ -8,7 +8,8 @@ import type { ServerDetail as ServerDetailType } from '../types/server';
 // Mock the API
 vi.mock('../api/servers', () => ({
   getServer: vi.fn(),
-  getServerPackages: vi.fn(),
+  getPackageStatus: vi.fn(),
+  getPackageStatus: vi.fn(),
   pauseServer: vi.fn(),
   unpauseServer: vi.fn(),
   testSSHConnection: vi.fn(),
@@ -298,11 +299,10 @@ describe('ServerDetail', () => {
   describe('System Updates card (TC083)', () => {
     it('displays package list panel', async () => {
       vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
-      vi.mocked(serversApi.getServerPackages).mockResolvedValue({
+      vi.mocked(serversApi.getPackageStatus).mockResolvedValue({
         server_id: 'test-server',
         last_checked: new Date().toISOString(),
-        total_count: 12,
-        security_count: 3,
+        summary: { upgradable_count: 12, held_back_count: 0, security_count: 3 },
         packages: [],
       });
 
@@ -315,11 +315,10 @@ describe('ServerDetail', () => {
 
     it('displays package list toggle button', async () => {
       vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
-      vi.mocked(serversApi.getServerPackages).mockResolvedValue({
+      vi.mocked(serversApi.getPackageStatus).mockResolvedValue({
         server_id: 'test-server',
         last_checked: new Date().toISOString(),
-        total_count: 12,
-        security_count: 3,
+        summary: { upgradable_count: 12, held_back_count: 0, security_count: 3 },
         packages: [],
       });
 
@@ -332,11 +331,10 @@ describe('ServerDetail', () => {
 
     it('shows empty message when no packages available', async () => {
       vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
-      vi.mocked(serversApi.getServerPackages).mockResolvedValue({
+      vi.mocked(serversApi.getPackageStatus).mockResolvedValue({
         server_id: 'test-server',
         last_checked: new Date().toISOString(),
-        total_count: 0,
-        security_count: 0,
+        summary: { upgradable_count: 0, held_back_count: 0, security_count: 0 },
         packages: [],
       });
 
@@ -350,7 +348,7 @@ describe('ServerDetail', () => {
 
     it('shows error message on fetch failure', async () => {
       vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
-      vi.mocked(serversApi.getServerPackages).mockRejectedValue(new Error('Failed to fetch'));
+      vi.mocked(serversApi.getPackageStatus).mockRejectedValue(new Error('Failed to fetch'));
 
       renderWithRouter();
 
@@ -367,11 +365,10 @@ describe('ServerDetail', () => {
         security_updates: null,
       };
       vi.mocked(serversApi.getServer).mockResolvedValue(serverNoUpdateData);
-      vi.mocked(serversApi.getServerPackages).mockResolvedValue({
+      vi.mocked(serversApi.getPackageStatus).mockResolvedValue({
         server_id: 'test-server',
         last_checked: null,
-        total_count: 0,
-        security_count: 0,
+        summary: { upgradable_count: 0, held_back_count: 0, security_count: 0 },
         packages: [],
       });
 
@@ -390,17 +387,19 @@ describe('ServerDetail', () => {
    * Spec Reference: sdlc-studio/stories/US0029-server-maintenance-mode.md
    */
   describe('Maintenance mode (US0029 AC5)', () => {
-    it('displays maintenance mode status as Disabled when not paused', async () => {
+    it('displays maintenance mode toggle in off state when not paused', async () => {
       vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
 
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Disabled');
+        const toggle = screen.getByTestId('maintenance-toggle');
+        expect(toggle).toBeInTheDocument();
+        expect(toggle).toHaveAttribute('aria-label', 'Enable maintenance mode');
       });
     });
 
-    it('displays maintenance mode status as Enabled when paused', async () => {
+    it('displays maintenance mode toggle in on state when paused', async () => {
       const pausedServer = {
         ...mockServer,
         is_paused: true,
@@ -411,32 +410,9 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Enabled');
-      });
-    });
-
-    it('displays Enable button when server is not paused', async () => {
-      vi.mocked(serversApi.getServer).mockResolvedValue(mockServer);
-
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('maintenance-toggle')).toHaveTextContent('Enable');
-      });
-    });
-
-    it('displays Disable button when server is paused', async () => {
-      const pausedServer = {
-        ...mockServer,
-        is_paused: true,
-        paused_at: '2026-01-19T10:00:00Z',
-      };
-      vi.mocked(serversApi.getServer).mockResolvedValue(pausedServer);
-
-      renderWithRouter();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('maintenance-toggle')).toHaveTextContent('Disable');
+        const toggle = screen.getByTestId('maintenance-toggle');
+        expect(toggle).toBeInTheDocument();
+        expect(toggle).toHaveAttribute('aria-label', 'Disable maintenance mode');
       });
     });
 
@@ -461,12 +437,12 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toBeInTheDocument();
+        expect(screen.getByTestId('maintenance-toggle')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('paused-at')).not.toBeInTheDocument();
     });
 
-    it('calls pauseServer when Enable button is clicked', async () => {
+    it('calls pauseServer when toggle is clicked to enable', async () => {
       const pausedServer = {
         ...mockServer,
         is_paused: true,
@@ -478,7 +454,7 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-toggle')).toHaveTextContent('Enable');
+        expect(screen.getByTestId('maintenance-toggle')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('maintenance-toggle'));
@@ -488,7 +464,7 @@ describe('ServerDetail', () => {
       });
     });
 
-    it('calls unpauseServer when Disable button is clicked', async () => {
+    it('calls unpauseServer when toggle is clicked to disable', async () => {
       const pausedServer = {
         ...mockServer,
         is_paused: true,
@@ -500,7 +476,7 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-toggle')).toHaveTextContent('Disable');
+        expect(screen.getByTestId('maintenance-toggle')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByTestId('maintenance-toggle'));
@@ -522,17 +498,17 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Disabled');
+        expect(screen.getByTestId('maintenance-toggle')).toHaveAttribute('aria-label', 'Enable maintenance mode');
       });
 
       fireEvent.click(screen.getByTestId('maintenance-toggle'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Enabled');
+        expect(screen.getByTestId('maintenance-toggle')).toHaveAttribute('aria-label', 'Disable maintenance mode');
       });
     });
 
-    it('applies warning colour to Enabled status', async () => {
+    it('applies warning colour to toggle when enabled', async () => {
       const pausedServer = {
         ...mockServer,
         is_paused: true,
@@ -543,7 +519,7 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveClass('text-status-warning');
+        expect(screen.getByTestId('maintenance-toggle')).toHaveClass('bg-status-warning');
       });
     });
   });
@@ -567,7 +543,7 @@ describe('ServerDetail', () => {
       });
     });
 
-    it('displays agent mode as Read/Write', async () => {
+    it('displays agent mode toggle for Read/Write mode', async () => {
       const serverWithAgent = {
         ...mockServer,
         agent_version: '1.2.3',
@@ -578,11 +554,12 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('agent-mode')).toHaveTextContent('Read/Write');
+        expect(screen.getByTestId('agent-mode-toggle')).toBeInTheDocument();
+        expect(screen.getByText('On')).toBeInTheDocument();
       });
     });
 
-    it('displays agent mode as Read Only with notice', async () => {
+    it('displays agent mode toggle for Read Only mode', async () => {
       const serverWithAgent = {
         ...mockServer,
         agent_version: '1.2.3',
@@ -593,9 +570,9 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('agent-mode')).toHaveTextContent('Read Only');
+        expect(screen.getByTestId('agent-mode-toggle')).toBeInTheDocument();
+        expect(screen.getByText('Read/Write Mode')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('readonly-notice')).toBeInTheDocument();
     });
 
     it('shows install agent button for Tailscale imports', async () => {
@@ -999,7 +976,7 @@ describe('ServerDetail', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('maintenance-status')).toHaveTextContent('Enabled');
+        expect(screen.getByTestId('maintenance-toggle')).toHaveClass('bg-status-warning');
       });
     });
   });
