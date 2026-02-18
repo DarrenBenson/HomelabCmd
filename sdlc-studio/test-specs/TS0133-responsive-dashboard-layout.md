@@ -1,6 +1,6 @@
 # TS0133: Responsive Dashboard Layout
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0133: Responsive Dashboard Layout](../stories/US0133-responsive-dashboard-layout.md)
 > **Epic:** [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
 > **Created:** 2026-01-28
