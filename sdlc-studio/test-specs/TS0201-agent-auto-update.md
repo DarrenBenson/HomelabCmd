@@ -1,9 +1,9 @@
 # TS0201: Agent Auto-Update Mechanism Tests
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0001: Core Monitoring](../epics/EP0001-core-monitoring.md)
 > **Created:** 2026-01-31
-> **Last Updated:** 2026-01-31
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

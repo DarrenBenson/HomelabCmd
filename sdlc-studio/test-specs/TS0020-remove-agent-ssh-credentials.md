@@ -1,9 +1,9 @@
 # TS0020: Remove Agent API SSH Credentials and Verification
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0001: Core Monitoring](../../epics/EP0001-core-monitoring.md)
 > **Created:** 2026-01-24
-> **Last Updated:** 2026-01-24
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

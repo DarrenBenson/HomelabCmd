@@ -209,7 +209,7 @@ class AgentDeploymentService:
         self,
         session: AsyncSession,
         credential_service: CredentialService | None = None,
-        ssh_service: "SSHConnectionService | None" = None,
+        ssh_service: SSHConnectionService | None = None,
     ) -> None:
         """Initialise the deployment service.
 
@@ -1093,7 +1093,7 @@ class AgentDeploymentService:
 def get_deployment_service(
     session: AsyncSession,
     credential_service: CredentialService | None = None,
-    ssh_service: "SSHConnectionService | None" = None,
+    ssh_service: SSHConnectionService | None = None,
 ) -> AgentDeploymentService:
     """Get an agent deployment service instance.
 

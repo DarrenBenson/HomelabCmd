@@ -2,7 +2,7 @@
 
 This document provides an overview of all Epics in the project.
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-02-17
 **PRD Reference:** [Product Requirements Document](../prd.md)
 
 ## Summary

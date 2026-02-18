@@ -73,11 +73,11 @@ class TestContainerStartActionErrorPaths:
         data = response.json()
         assert data["detail"]["code"] == "DOCKER_NOT_INSTALLED"
 
-    def test_start_container_no_tailscale(
+    def test_start_container_no_ssh_key(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test starting container on server without Tailscale returns 400."""
-        # Create server with Docker but no Tailscale hostname
+        """Test starting container without SSH key configured returns 400."""
+        # Create server with Docker but no SSH key configured
         create_server_with_docker(
             client, auth_headers, "no-tailscale-host", has_docker=True
         )
@@ -89,7 +89,7 @@ class TestContainerStartActionErrorPaths:
 
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["code"] == "NO_TAILSCALE_HOSTNAME"
+        assert data["detail"]["code"] == "SSH_KEY_NOT_CONFIGURED"
 
     def test_start_container_requires_auth(
         self, client: TestClient, auth_headers: dict
@@ -298,10 +298,10 @@ class TestContainerStopActionErrorPaths:
         data = response.json()
         assert data["detail"]["code"] == "DOCKER_NOT_INSTALLED"
 
-    def test_stop_container_no_tailscale(
+    def test_stop_container_no_ssh_key(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test stopping container on server without Tailscale returns 400."""
+        """Test stopping container without SSH key configured returns 400."""
         create_server_with_docker(
             client, auth_headers, "no-tailscale-stop", has_docker=True
         )
@@ -313,7 +313,7 @@ class TestContainerStopActionErrorPaths:
 
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["code"] == "NO_TAILSCALE_HOSTNAME"
+        assert data["detail"]["code"] == "SSH_KEY_NOT_CONFIGURED"
 
     def test_stop_container_requires_auth(
         self, client: TestClient, auth_headers: dict
@@ -563,10 +563,10 @@ class TestContainerRestartActionErrorPaths:
         data = response.json()
         assert data["detail"]["code"] == "DOCKER_NOT_INSTALLED"
 
-    def test_restart_container_no_tailscale(
+    def test_restart_container_no_ssh_key(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test restarting container on server without Tailscale returns 400."""
+        """Test restarting container without SSH key configured returns 400."""
         create_server_with_docker(
             client, auth_headers, "no-tailscale-restart", has_docker=True
         )
@@ -578,7 +578,7 @@ class TestContainerRestartActionErrorPaths:
 
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["code"] == "NO_TAILSCALE_HOSTNAME"
+        assert data["detail"]["code"] == "SSH_KEY_NOT_CONFIGURED"
 
     def test_restart_container_requires_auth(
         self, client: TestClient, auth_headers: dict

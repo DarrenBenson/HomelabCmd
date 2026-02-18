@@ -1,9 +1,9 @@
 # TS0179: Per-Interface Network Metrics API
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
 > **Created:** 2026-01-29
-> **Last Updated:** 2026-01-29
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

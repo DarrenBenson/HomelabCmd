@@ -1,5 +1,7 @@
 # Bug Index
 
+**Last Updated:** 2026-02-17
+
 ## Open
 
 | ID | Title | Severity | Priority | Epic | Assignee |

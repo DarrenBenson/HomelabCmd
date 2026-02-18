@@ -138,7 +138,7 @@ class TestContainerSorting:
         mock_server = MagicMock()
         mock_server.id = "test-server"
 
-        containers, cached, _ = await service.list_containers(mock_server)
+        containers, cached, _, _ = await service.list_containers(mock_server)
 
         # Verify order: running first, then alphabetical within each group
         assert containers[0]["name"] == "running1"
@@ -207,18 +207,18 @@ class TestContainerListEndpoint:
         assert data["total"] == 0
         assert data["error"] == "Docker not installed on this server"
 
-    def test_list_containers_no_tailscale(
+    def test_list_containers_no_ssh_key(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
-        """Return 400 for server without Tailscale hostname."""
-        # Create server with Docker but no Tailscale
+        """Return 200 with error when SSH key not configured."""
+        # Create server with Docker but no SSH key configured
         client.post(
             "/api/v1/servers",
             json={"id": "no-tailscale-server", "hostname": "test.local"},
             headers=auth_headers,
         )
 
-        # Send heartbeat with docker_installed=true (but no tailscale_hostname)
+        # Send heartbeat with docker_installed=true
         client.post(
             "/api/v1/agents/heartbeat",
             json={
@@ -235,8 +235,11 @@ class TestContainerListEndpoint:
             headers=auth_headers,
         )
 
-        assert response.status_code == 400
-        assert response.json()["detail"]["code"] == "NO_TAILSCALE_HOSTNAME"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["containers"] == []
+        assert data["total"] == 0
+        assert "SSH key not configured" in data["error"]
 
     def test_list_containers_docker_unknown(
         self, client: TestClient, auth_headers: dict[str, str]
@@ -283,12 +286,12 @@ class TestContainerCaching:
         mock_server.id = "cache-test-server"
 
         # First call - should hit SSH
-        containers1, cached1, _ = await service.list_containers(mock_server)
+        containers1, cached1, _, _ = await service.list_containers(mock_server)
         assert cached1 is False
         assert mock_executor.execute.call_count == 1
 
         # Second call - should return cached
-        containers2, cached2, _ = await service.list_containers(mock_server)
+        containers2, cached2, _, _ = await service.list_containers(mock_server)
         assert cached2 is True
         assert mock_executor.execute.call_count == 1  # No additional call
 
@@ -317,7 +320,7 @@ class TestContainerCaching:
         assert mock_executor.execute.call_count == 1
 
         # Second call with force_refresh
-        containers, cached, _ = await service.list_containers(mock_server, force_refresh=True)
+        containers, cached, _, _ = await service.list_containers(mock_server, force_refresh=True)
         assert cached is False
         assert mock_executor.execute.call_count == 2
 

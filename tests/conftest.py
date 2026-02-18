@@ -341,6 +341,23 @@ def create_server_with_heartbeat(create_server, send_heartbeat):
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _reset_container_service_singleton():
+    """Reset container service singleton between tests.
+
+    The container route uses module-level singletons for SSHPooledExecutor and
+    ContainerService. These must be reset between tests to avoid stale sessions
+    when using in-memory databases.
+    """
+    import homelab_cmd.api.routes.containers as containers_module
+
+    containers_module._container_service = None
+    containers_module._ssh_executor = None
+    yield
+    containers_module._container_service = None
+    containers_module._ssh_executor = None
+
+
 @pytest.fixture
 def mock_ssh_client():
     """Mock paramiko.SSHClient for SSH connection tests."""

@@ -68,6 +68,8 @@ docker-compose.override.yml
 *.sqlite3
 data/homelab.db
 data/*.db
+data/*.db-shm
+data/*.db-wal
 data/*.bak
 
 # SSH keys

@@ -1,9 +1,9 @@
 # TS0132: Server and Workstation Grouping
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
 > **Created:** 2026-01-28
-> **Last Updated:** 2026-01-28
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

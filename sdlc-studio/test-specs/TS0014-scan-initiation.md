@@ -1,6 +1,6 @@
 # TS0014: Scan Initiation Tests
 
-> **Status:** In Progress
+> **Status:** Complete
 > **Epic:** [EP0006: Ad-hoc Scanning](../../epics/EP0006-adhoc-scanning.md)
 > **Created:** 2026-01-21
 > **Last Updated:** 2026-01-21
@@ -647,7 +647,7 @@ Maps each Story AC to test cases ensuring complete coverage.
 | Unit Tests | 6 |
 | Integration Tests | 5 |
 | API Tests | 12 |
-| Automated | 20/23 |
+| Automated | 18/23 |
 
 ## Revision History
 

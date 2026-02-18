@@ -1,6 +1,6 @@
 # TS0019: SSH Key Manager UI
 
-> **Status:** In Progress
+> **Status:** Complete
 > **Epic:** [EP0006: Ad-hoc Scanning](../epics/EP0006-adhoc-scanning.md)
 > **Created:** 2026-01-22
 > **Last Updated:** 2026-01-22

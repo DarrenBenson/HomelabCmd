@@ -1,9 +1,9 @@
 # TS0018: Scan Dashboard Integration
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0006: Ad-hoc Scanning](../../epics/EP0006-adhoc-scanning.md)
 > **Created:** 2026-01-21
-> **Last Updated:** 2026-01-21
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

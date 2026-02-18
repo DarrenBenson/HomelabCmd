@@ -1,9 +1,9 @@
 # TS0201: Command Execution Audit Trail
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Created:** 2026-01-30
-> **Last Updated:** 2026-01-30
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

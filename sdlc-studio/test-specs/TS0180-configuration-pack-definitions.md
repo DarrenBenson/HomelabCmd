@@ -1,9 +1,9 @@
 # TS0180: Configuration Pack Definitions
 
-> **Status:** Draft
+> **Status:** Complete
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29
-> **Last Updated:** 2026-01-29
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

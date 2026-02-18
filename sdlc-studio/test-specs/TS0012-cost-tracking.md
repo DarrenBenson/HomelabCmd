@@ -1,6 +1,6 @@
 # TS0012: Cost Tracking Tests
 
-> **Status:** Active
+> **Status:** Complete
 > **Epic:** [EP0005: Cost Tracking](../epics/EP0005-cost-tracking.md)
 > **Created:** 2026-01-20
 > **Last Updated:** 2026-01-20
