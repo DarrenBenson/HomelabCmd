@@ -1,10 +1,10 @@
 # US0198: Package Held-Back Detection
 
 > **Status:** Done
-
-**Epic:** [EP0001 - Core Monitoring](../epics/EP0001-core-monitoring.md)
-**Points:** 3
-**Priority:** P1
+> **Epic:** [EP0001 - Core Monitoring](../epics/EP0001-core-monitoring.md)
+> **Owner:** Darren
+> **Story Points:** 3
+> **Priority:** P1
 
 ---
 

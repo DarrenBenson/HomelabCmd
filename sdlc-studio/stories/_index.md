@@ -1,6 +1,6 @@
 # Story Registry
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-02-17
 **Personas Reference:** [User Personas](../personas.md)
 
 ## Summary
@@ -82,12 +82,12 @@
 | Story | Title | Points | Status |
 |-------|-------|--------|--------|
 | ~~[US0157](US0157-docker-detection.md)~~ | ~~Docker Detection~~ | ~~3~~ | Done |
-| ~~[US0158](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Listing~~ | ~~5~~ | Done |
-| ~~[US0159](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Widget~~ | ~~5~~ | Done |
-| ~~[US0160](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Start Action~~ | ~~3~~ | Done |
-| ~~[US0161](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Stop Action~~ | ~~3~~ | Done |
-| ~~[US0162](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Restart Action~~ | ~~2~~ | Done |
-| ~~[US0163](../epics/EP0014-docker-container-monitoring.md)~~ | ~~Container Service Status in Heartbeat~~ | ~~3~~ | Done |
+| ~~[US0158](US0158-container-listing.md)~~ | ~~Container Listing~~ | ~~5~~ | Done |
+| ~~[US0159](US0159-container-widget.md)~~ | ~~Container Widget~~ | ~~5~~ | Done |
+| ~~[US0160](US0160-container-start-action.md)~~ | ~~Container Start Action~~ | ~~3~~ | Done |
+| ~~[US0161](US0161-container-stop-action.md)~~ | ~~Container Stop Action~~ | ~~3~~ | Done |
+| ~~[US0162](US0162-container-restart-action.md)~~ | ~~Container Restart Action~~ | ~~2~~ | Done |
+| ~~[US0163](US0163-container-status-heartbeat.md)~~ | ~~Container Service Status in Heartbeat~~ | ~~3~~ | Done |
 
 ### Planned (0 pts)
 
