@@ -1,6 +1,6 @@
 # PL0204: Remote Agent Mode Switch - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0188: Remote Agent Mode Switch](../stories/US0188-remote-agent-mode-switch.md)
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Created:** 2026-01-31

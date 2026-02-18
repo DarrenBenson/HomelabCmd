@@ -1,6 +1,6 @@
 # TS0203: Command Timeout Configuration Tests
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0186: Command Timeout Configuration](../stories/US0186-command-timeout-configuration.md)
 > **Plan:** [PL0203: Command Timeout Configuration](../plans/PL0203-command-timeout-configuration.md)
 > **Created:** 2026-01-31

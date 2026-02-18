@@ -2,7 +2,7 @@
 
 > **Story:** [US0040: Scan History View](../stories/US0040-scan-history.md)
 > **Plan:** [PL0047: Scan History Implementation](../plans/PL0047-scan-history.md)
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-01-21
 
 ## Overview

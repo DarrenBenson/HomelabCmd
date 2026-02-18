@@ -1,6 +1,6 @@
 # PL0093: Unified SSH Key Management - Implementation Plan
 
-> **Status:** Review
+> **Status:** Done
 > **Story:** [US0093: Unified SSH Key Management](../stories/US0093-unified-ssh-key-management.md)
 > **Epic:** [EP0008: Tailscale Integration](../epics/EP0008-tailscale-integration.md)
 > **Created:** 2026-01-27

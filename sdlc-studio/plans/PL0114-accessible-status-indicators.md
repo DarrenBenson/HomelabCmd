@@ -1,6 +1,6 @@
 # PL0114: Accessible Status Indicators - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0114: Accessible Status Indicators](../stories/US0114-accessible-status-indicators.md)
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Created:** 2026-01-28

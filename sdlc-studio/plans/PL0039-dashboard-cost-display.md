@@ -1,6 +1,6 @@
 # PL0039: Dashboard Cost Summary Display - Implementation Plan
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0035: Dashboard Cost Summary Display](../stories/US0035-dashboard-cost-display.md)
 > **Epic:** [EP0005: Cost Tracking](../epics/EP0005-cost-tracking.md)
 > **Created:** 2026-01-20

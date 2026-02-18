@@ -1,6 +1,6 @@
 # PL0052: SSH Key Manager UI - Implementation Plan
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0071: SSH Key Manager UI](../stories/US0071-ssh-key-manager-ui.md)
 > **Epic:** [EP0006: Ad-hoc Scanning](../epics/EP0006-adhoc-scanning.md)
 > **Created:** 2026-01-22

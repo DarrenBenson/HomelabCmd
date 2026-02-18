@@ -1,6 +1,6 @@
 # PL0053: Remove Agent API SSH Credentials and Verification - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0075: Remove Agent API SSH Credentials and Verification](../stories/US0075-remove-agent-ssh-credentials.md)
 > **Epic:** [EP0001: Core Monitoring](../epics/EP0001-core-monitoring.md)
 > **Created:** 2026-01-24

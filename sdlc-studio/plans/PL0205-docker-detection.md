@@ -1,6 +1,6 @@
 # PL0205: Docker Detection - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0157: Docker Detection](../stories/US0157-docker-detection.md)
 > **Epic:** [EP0014: Docker Container Monitoring](../epics/EP0014-docker-container-monitoring.md)
 > **Created:** 2026-02-01

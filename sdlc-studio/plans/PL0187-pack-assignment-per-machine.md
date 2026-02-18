@@ -1,6 +1,6 @@
 # PL0187: Pack Assignment per Machine - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0121: Pack Assignment per Machine](../stories/US0121-pack-assignment-per-machine.md)
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29

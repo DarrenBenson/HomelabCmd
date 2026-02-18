@@ -1,6 +1,6 @@
 # PL0178: Per-Filesystem Metrics API - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0178: Per-Filesystem Metrics API](../stories/US0178-per-filesystem-metrics-api.md)
 > **Epic:** [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
 > **Created:** 2026-01-29

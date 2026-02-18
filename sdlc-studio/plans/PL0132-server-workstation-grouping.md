@@ -1,6 +1,6 @@
 # PL0132: Server and Workstation Grouping - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0132: Server and Workstation Grouping](../stories/US0132-server-workstation-grouping.md)
 > **Epic:** [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
 > **Created:** 2026-01-28

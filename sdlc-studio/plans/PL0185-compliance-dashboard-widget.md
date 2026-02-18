@@ -1,6 +1,6 @@
 # PL0185: Compliance Dashboard Widget - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0120: Compliance Dashboard Widget](../stories/US0120-compliance-dashboard-widget.md)
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29

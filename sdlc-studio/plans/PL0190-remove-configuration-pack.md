@@ -1,6 +1,6 @@
 # PL0190: Remove Configuration Pack - Implementation Plan
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0123: Remove Configuration Pack](../stories/US0123-remove-configuration-pack.md)
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29

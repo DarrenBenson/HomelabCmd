@@ -1,6 +1,6 @@
 # PL0201: Command Execution Audit Trail - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0155: Command Execution Audit Trail](../stories/US0155-command-execution-audit-trail.md)
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Created:** 2026-01-30

@@ -1,7 +1,7 @@
 # PL0203: Command Timeout Configuration
 
 > **Story:** [US0186: Command Timeout Configuration](../stories/US0186-command-timeout-configuration.md)
-> **Status:** Draft
+> **Status:** Done
 > **Approach:** Test-After
 > **Created:** 2026-01-31
 

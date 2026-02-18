@@ -1,10 +1,10 @@
 # TS0189: Command Whitelist Enforcement
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0154: Command Whitelist Enforcement](../stories/US0154-command-whitelist-enforcement.md)
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Created:** 2026-01-29
-> **Last Updated:** 2026-01-29
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

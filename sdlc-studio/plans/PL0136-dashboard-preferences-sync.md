@@ -1,6 +1,6 @@
 # PL0136: Dashboard Preferences Sync - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0136: Dashboard Preferences Sync](../stories/US0136-dashboard-preferences-sync.md)
 > **Epic:** [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
 > **Created:** 2026-01-28

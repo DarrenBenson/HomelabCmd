@@ -2,7 +2,7 @@
 
 > **Story:** [US0041: Network Discovery](../stories/US0041-network-discovery.md)
 > **Plan:** [PL0048: Network Discovery Implementation](../plans/PL0048-network-discovery.md)
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-01-21
 
 ## Overview

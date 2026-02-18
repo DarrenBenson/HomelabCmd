@@ -1,6 +1,6 @@
 # WF0191: Remove Async Command Channel - Workflow State
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0152: Remove Async Command Channel](../stories/US0152-remove-async-command-channel.md)
 > **Plan:** [PL0191: Remove Async Command Channel](../plans/PL0191-remove-async-command-channel.md)
 > **Created:** 2026-01-29

@@ -1,10 +1,10 @@
 # TS0137: Cross-Section Machine Type Change
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0137: Cross-Section Machine Type Change via Drag-and-Drop](../stories/US0137-cross-section-machine-type-change.md)
 > **Epic:** [EP0011: Advanced Dashboard UI](../epics/EP0011-advanced-dashboard-ui.md)
 > **Created:** 2026-01-28
-> **Last Updated:** 2026-01-28
+> **Last Updated:** 2026-02-17
 
 ## Overview
 

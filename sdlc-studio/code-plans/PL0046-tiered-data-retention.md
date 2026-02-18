@@ -1,7 +1,7 @@
 # Code Plan: US0046 Tiered Data Retention and Rollup
 
 > **Story:** [US0046](../stories/US0046-tiered-data-retention.md)
-> **Status:** Draft
+> **Status:** Done
 > **Created:** 2026-01-21
 
 ## Overview

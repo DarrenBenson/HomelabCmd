@@ -1,6 +1,6 @@
 # PL0190: Synchronous Command Execution API - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0153: Synchronous Command Execution API](../stories/US0153-synchronous-command-execution-api.md)
 > **Epic:** [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 > **Created:** 2026-01-29

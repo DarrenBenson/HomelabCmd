@@ -1,6 +1,6 @@
 # PL0115: Server Card Quick Actions - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0115: Server Card Quick Actions](../stories/US0115-server-card-quick-actions.md)
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Created:** 2026-01-28

@@ -1,6 +1,6 @@
 # PL0179: Per-Interface Network Metrics API - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0179: Per-Interface Network Metrics API](../stories/US0179-per-interface-network-metrics-api.md)
 > **Epic:** [EP0012: Widget-Based Detail View](../epics/EP0012-widget-based-detail-view.md)
 > **Created:** 2026-01-29

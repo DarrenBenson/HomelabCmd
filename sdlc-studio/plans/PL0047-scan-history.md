@@ -1,7 +1,7 @@
 # PL0047: Scan History View Implementation Plan
 
 > **Story:** [US0040: Scan History View](../stories/US0040-scan-history.md)
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-01-21
 > **Complexity:** Low-Medium
 

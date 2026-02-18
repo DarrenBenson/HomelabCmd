@@ -1,6 +1,6 @@
 # PL0080: SSH Connection via Tailscale - Implementation Plan
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0079: SSH Connection via Tailscale](../stories/US0079-ssh-connection-tailscale.md)
 > **Epic:** [EP0008: Tailscale Integration](../epics/EP0008-tailscale-integration.md)
 > **Created:** 2026-01-26

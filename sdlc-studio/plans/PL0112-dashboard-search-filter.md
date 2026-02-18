@@ -1,6 +1,6 @@
 # PL0112: Dashboard Search and Filter - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0112: Dashboard Search and Filter](../stories/US0112-dashboard-search-filter.md)
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Created:** 2026-01-28

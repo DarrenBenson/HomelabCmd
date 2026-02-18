@@ -1,6 +1,6 @@
 # PL0186: Configuration Drift Detection - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0122: Configuration Drift Detection](../stories/US0122-configuration-drift-detection.md)
 > **Epic:** [EP0010: Configuration Management](../epics/EP0010-configuration-management.md)
 > **Created:** 2026-01-29

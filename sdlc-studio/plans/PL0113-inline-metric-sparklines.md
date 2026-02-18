@@ -1,6 +1,6 @@
 # PL0113: Inline Metric Sparklines - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0113: Inline Metric Sparklines](../stories/US0113-inline-metric-sparklines.md)
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 > **Created:** 2026-01-28

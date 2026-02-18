@@ -1,6 +1,6 @@
 # PL0184: Alert Sustained Duration Configuration - Implementation Plan
 
-> **Status:** Ready
+> **Status:** Done
 > **Story:** [US0181: Alert Sustained Duration Configuration](../stories/US0181-alert-sustained-duration.md)
 > **Epic:** [EP0002: Alerting & Notifications](../epics/EP0002-alerting.md)
 > **Created:** 2026-01-29

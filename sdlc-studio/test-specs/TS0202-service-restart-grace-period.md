@@ -2,7 +2,7 @@
 
 > **Story:** [US0185: Service Restart Grace Period](../stories/US0185-service-restart-grace-period.md)
 > **Plan:** [PL0202: Service Restart Grace Period](../plans/PL0202-service-restart-grace-period.md)
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-01-31
 
 ## Test Summary

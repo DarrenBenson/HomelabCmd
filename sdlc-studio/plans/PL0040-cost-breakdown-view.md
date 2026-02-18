@@ -1,6 +1,6 @@
 # PL0040: Cost Breakdown View - Implementation Plan
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0036: Cost Breakdown View](../stories/US0036-cost-breakdown-view.md)
 > **Epic:** [EP0005: Cost Tracking](../epics/EP0005-cost-tracking.md)
 > **Created:** 2026-01-20
