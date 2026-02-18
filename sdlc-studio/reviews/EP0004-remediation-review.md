@@ -1,5 +1,7 @@
 # Code Review: EP0004 - Remediation Engine
 
+> **Status:** Complete
+
 **Epic:** [EP0004: Remediation Engine](../epics/EP0004-remediation.md)
 **Review Date:** 2026-01-19
 **Reviewer:** Claude

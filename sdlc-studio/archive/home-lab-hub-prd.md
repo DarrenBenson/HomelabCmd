@@ -1,8 +1,9 @@
 # Product Requirements Document
 
+> **Status:** Archived
+
 **Project:** HomelabCmd
 **Version:** 1.0.0
-**Status:** Draft
 **Last Updated:** 2026-01-18
 **Author:** Darren / Claude
 **TRD Reference:** [HomelabCmd-trd.md](HomelabCmd-trd.md)

@@ -1,5 +1,7 @@
 # User Personas
 
+> **Status:** Active
+
 **Project:** HomelabCmd
 **Version:** 1.0.0
 **Last Updated:** 2026-01-18

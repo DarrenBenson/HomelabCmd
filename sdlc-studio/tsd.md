@@ -1,8 +1,9 @@
 # Test Strategy Document
 
+> **Status:** Active
 > **Project:** HomelabCmd
 > **Version:** 2.2.0
-> **Last Updated:** 2026-02-17
+> **Last Updated:** 2026-02-18
 > **Owner:** Darren
 
 ---
@@ -13,11 +14,11 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Backend unit/integration tests | ✅ Implemented | 84 test files, 80%+ coverage |
-| Frontend unit tests | ✅ Implemented | 116 test files, 82% line coverage |
-| Frontend E2E tests | ✅ Implemented | 7 spec files (v1.0 coverage) |
+| Backend unit/integration tests | ✅ Implemented | 90 test files, 80%+ coverage |
+| Frontend unit tests | ✅ Implemented | 118 test files, 82% line coverage |
+| Frontend E2E tests (v1.0) | ✅ Implemented | 7 spec files, 156 tests |
+| Frontend E2E tests (v2.0) | ✅ Implemented | 9 spec files, 107 tests |
 | GitHub Actions CI/CD | 🔄 Planned | No `.github/workflows/` yet |
-| v2.0 E2E specs | 🔄 Planned | ~7 additional spec files planned |
 | **EP0010 Config Management tests** | ✅ Implemented | 6 test files: packs, check, apply, compliance, drift, assignment |
 | **EP0013 Command Execution tests** | ✅ Implemented | 6 test files: ssh_executor, whitelist, commands_api, audit, streaming, service |
 | **EP0014 Docker Container tests** | ✅ Implemented | 4 test files: docker_detection, container_listing, container_actions, heartbeat_docker_status |
@@ -452,21 +453,23 @@ cd frontend && npm run test:e2e
 
 **v1.0 Total:** 7 spec files, 159 E2E tests covering all user-visible features.
 
-**v2.0 Coverage (Planned):**
+**v2.0 Coverage:**
 
 | Feature Area | Spec File | Test Count | Status |
 |--------------|-----------|------------|--------|
-| Tailscale Integration | `tailscale.spec.ts` | ~15 | 🔄 Planned |
-| Workstation Management | `workstations.spec.ts` | ~12 | 🔄 Planned |
-| Command Execution | `commands.spec.ts` | ~18 | 🔄 Planned |
-| Configuration Management | `config-compliance.spec.ts` | ~20 | 🔄 Planned (backend tests ✅) |
-| Widget Customisation | `widgets.spec.ts` | ~15 | 🔄 Planned |
-| Dashboard Preferences | `dashboard-v2.spec.ts` | ~10 | 🔄 Planned |
-| Docker Monitoring | `docker.spec.ts` | ~12 | 🔄 Planned |
+| Tailscale/SSH Settings | `settings-v2.spec.ts` | ~15 | ✅ Complete |
+| Dashboard Preferences | `dashboard-v2.spec.ts` | ~12 | ✅ Complete |
+| Widget Detail View | `server-detail-widgets.spec.ts` | ~15 | ✅ Complete |
+| Configuration Compliance | `config-compliance.spec.ts` | ~10 | ✅ Complete |
+| Device Discovery | `discovery.spec.ts` | ~15 | ✅ Complete |
+| Remediation Actions | `actions.spec.ts` | ~12 | ✅ Complete |
+| Command Execution | `commands.spec.ts` | ~15 | ✅ Complete |
+| Docker Management | `docker.spec.ts` | ~15 | ✅ Complete |
+| Workstation Behaviour | `workstations.spec.ts` | ~12 | ✅ Complete |
 
-**v2.0 Estimated Total:** +7 spec files, ~102 E2E tests for new features.
+**v2.0 Total:** +9 spec files, 107 E2E tests for new features.
 
-**Combined v2.0 Total:** 14 spec files, ~261 E2E tests.
+**Combined v2.0 Total:** 16 spec files, 263 E2E tests.
 
 **Focus Areas:**
 - Component rendering and accessibility
@@ -995,7 +998,7 @@ Common causes:
 | Item | Status | Notes |
 |------|--------|-------|
 | pytest configuration | ✅ Configured | `pyproject.toml [tool.pytest.ini_options]` |
-| Backend coverage | ✅ Configured | `coverage.py`, 90% threshold |
+| Backend coverage | ✅ Configured | `coverage.py`, 80% threshold |
 | Coverage concurrency | ✅ Configured | `concurrency = ["greenlet", "thread"]` for async |
 | GitHub Actions CI/CD | ❌ Not configured | No workflows in `.github/workflows/` |
 | Vitest configuration | ✅ Configured | `frontend/vitest.config.ts` |

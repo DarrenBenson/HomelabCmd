@@ -1,5 +1,6 @@
 # WF0137: Cross-Section Machine Type Change - Workflow State
 
+> **Status:** Complete
 > **Story:** [US0137](../stories/US0137-cross-section-machine-type-change.md)
 > **Plan:** [PL0137](../plans/PL0137-cross-section-machine-type-change.md)
 > **Started:** 2026-01-28

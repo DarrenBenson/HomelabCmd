@@ -1,5 +1,7 @@
 # Legacy Project Audit Report
 
+> **Status:** Complete
+
 **Date:** 2026-01-18 (Revised)
 **Purpose:** Extract domain knowledge from legacy projects to inform HomelabCmd development
 **Projects Audited:**

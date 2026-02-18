@@ -1,9 +1,10 @@
 # Product Requirements Document
 
+> **Status:** Active
+
 **Project:** HomelabCmd
 **Version:** 2.2.0
-**Last Updated:** 2026-02-17
-**Status:** Active
+**Last Updated:** 2026-02-18
 **TRD Reference:** [TRD](trd.md)
 
 > **v2.0 Major Changes:**
@@ -391,7 +392,7 @@ Managing a homelab with multiple servers and workstations currently requires:
 
 ---
 
-## 4. Functional Requirements
+## 6. Functional Requirements
 
 ### Core Behaviours
 
@@ -422,7 +423,7 @@ See [TRD §4: API Contracts](trd.md#4-api-contracts) for complete request/respon
 
 ---
 
-## 5. Non-Functional Requirements
+## 7. Non-Functional Requirements
 
 ### Performance
 
@@ -474,13 +475,13 @@ See [TRD §4: API Contracts](trd.md#4-api-contracts) for complete request/respon
 
 ---
 
-## 6. AI/ML Specifications
+## 8. AI/ML Specifications
 
 > Not applicable for v1.0. Future consideration: anomaly detection for metrics.
 
 ---
 
-## 7. Data Architecture
+## 9. Data Architecture
 
 ### Core Entities
 
@@ -507,7 +508,7 @@ Agent → Heartbeat → Store metrics → Check thresholds → Generate alerts �
 
 ---
 
-## 8. Integrations
+## 10. Integrations
 
 | Integration | Purpose |
 |-------------|---------|
@@ -518,7 +519,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 10. Test Coverage Analysis
+## 11. Test Coverage Analysis
 
 ### Tested Functionality
 > To be determined post-implementation.
@@ -537,7 +538,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 11. Technical Debt Register
+## 12. Technical Debt Register
 
 ### TODO/FIXME Items Found
 > None (greenfield).
@@ -555,7 +556,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 12. Documentation Gaps
+## 13. Documentation Gaps
 
 ### Undocumented Features
 > Agent installation procedure needs user documentation.
@@ -568,7 +569,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 13. Recommendations
+## 14. Recommendations
 
 ### Critical Gaps
 1. ~~**Agent versioning** - Add version to heartbeat for compatibility checking~~ ✅ Resolved (version field in heartbeat + auto-update mechanism US0184)
@@ -589,7 +590,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 14. Release Plan
+## 15. Release Plan
 
 ### v1.0 (Complete) ✅
 
@@ -729,7 +730,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 15. Success Criteria
+## 16. Success Criteria
 
 ### v1.0 Success Criteria (Achieved) ✅
 
@@ -814,7 +815,7 @@ See [TRD §6: Integration Patterns](trd.md#6-integration-patterns) for authentic
 
 ---
 
-## 16. Key User Flows
+## 17. Key User Flows
 
 ### v1.0 Flows (Existing)
 
@@ -1014,7 +1015,7 @@ Widget auto-refreshes every 60 seconds
 
 ---
 
-## 17. Open Questions
+## 18. Open Questions
 
 ### v1.0 Questions (Resolved) ✅
 
@@ -1039,7 +1040,7 @@ Widget auto-refreshes every 60 seconds
 
 ---
 
-## 18. Configuration Reference
+## 19. Configuration Reference
 
 ### Environment Variables
 

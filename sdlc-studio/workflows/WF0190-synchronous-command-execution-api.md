@@ -1,5 +1,6 @@
 # WF0190: Synchronous Command Execution API - Workflow State
 
+> **Status:** Complete
 > **Story:** [US0153: Synchronous Command Execution API](../stories/US0153-synchronous-command-execution-api.md)
 > **Plan:** [PL0190: Synchronous Command Execution API](../plans/PL0190-synchronous-command-execution-api.md)
 > **Created:** 2026-01-29

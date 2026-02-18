@@ -1,8 +1,9 @@
 # Technical Requirements Document
 
+> **Status:** Archived
+
 **Project:** HomelabCmd
 **Version:** 1.0.0
-**Status:** Draft
 **Last Updated:** 2026-01-18
 **PRD Reference:** TBD
 

@@ -1,5 +1,6 @@
 # WF0189: Command Whitelist Enforcement - Workflow State
 
+> **Status:** Complete
 > **Story:** [US0154: Command Whitelist Enforcement](../stories/US0154-command-whitelist-enforcement.md)
 > **Plan:** [PL0189: Command Whitelist Enforcement](../plans/PL0189-command-whitelist-enforcement.md)
 > **Created:** 2026-01-29

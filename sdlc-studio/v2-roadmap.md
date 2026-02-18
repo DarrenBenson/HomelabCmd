@@ -1,5 +1,7 @@
 # HomelabCmd v2.0 Implementation Roadmap
 
+> **Status:** Active
+
 **Version:** 2.0.0
 **Created:** 2026-01-26
 **Owner:** Darren

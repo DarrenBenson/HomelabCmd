@@ -1,7 +1,8 @@
 # HOME-LAB-HUB: Brand Identity & Design System
 
+> **Status:** Draft
+
 **Version:** 1.0.0
-**Status:** Draft
 **Date:** January 2026
 
 ---

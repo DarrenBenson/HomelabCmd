@@ -1,5 +1,6 @@
 # WF0188: SSH Executor Service - Workflow State
 
+> **Status:** Complete
 > **Story:** [US0151: SSH Executor Service](../stories/US0151-ssh-executor-service.md)
 > **Plan:** [PL0188: SSH Executor Service](../plans/PL0188-ssh-executor-service.md)
 > **Created:** 2026-01-29
