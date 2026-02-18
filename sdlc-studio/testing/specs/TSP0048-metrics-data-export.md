@@ -1,7 +1,8 @@
 # Test Specification: TSP0048 - Metrics Data Export
 
+> **Status:** Draft
 > **Story:** [US0048: Metrics Data Export](../../stories/US0048-metrics-data-export.md)
-> **Code Plan:** [US0048-metrics-data-export.md](../../code-plans/US0048-metrics-data-export.md)
+> **Code Plan:** [US0048-metrics-data-export.md](../../code-plans/PL0048-metrics-data-export.md)
 > **Created:** 2026-01-21
 
 ## Overview

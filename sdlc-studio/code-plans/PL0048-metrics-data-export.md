@@ -1,5 +1,6 @@
 # Code Plan: US0048 - Metrics Data Export
 
+> **Status:** Draft
 > **Story:** [US0048: Metrics Data Export](../stories/US0048-metrics-data-export.md)
 > **Epic:** [EP0007: Analytics & Reporting](../epics/EP0007-analytics-reporting.md)
 > **Created:** 2026-01-21

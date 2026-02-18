@@ -548,7 +548,7 @@ daily_metrics_old:  # Older than 12 months
 | PRD | [sdlc-studio/prd.md](../prd.md) |
 | Epic | [EP0007](../epics/EP0007-analytics-reporting.md) |
 | Story | [US0046](../stories/US0046-tiered-data-retention.md) |
-| Code Plan | [US0046](../code-plans/US0046-tiered-data-retention.md) |
+| Code Plan | [PL0046](../code-plans/PL0046-tiered-data-retention.md) |
 | TSD | [sdlc-studio/tsd.md](../tsd.md) |
 
 ## Revision History
