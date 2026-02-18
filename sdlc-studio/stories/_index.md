@@ -77,7 +77,7 @@
 |-------|-------|--------|
 | ~~[US0185](US0185-service-restart-grace-period.md)~~ | ~~Service Restart Grace Period~~ | ~~3~~ (Done) |
 
-**EP0014: Docker Container Monitoring** - US0157, US0158, US0159, US0160, US0161, US0162 ✅
+**EP0014: Docker Container Monitoring** - US0157, US0158, US0159, US0160, US0161, US0162, US0163 ✅
 
 | Story | Title | Points | Status |
 |-------|-------|--------|--------|
