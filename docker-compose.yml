@@ -8,8 +8,8 @@ services:
       - HOMELAB_CMD_API_KEY=${HOMELAB_CMD_API_KEY:-dev-key-change-me}
       - HOMELAB_CMD_DEBUG=${HOMELAB_CMD_DEBUG:-false}
       - HOMELAB_CMD_DATABASE_URL=sqlite:////app/data/homelab.db
-      - HOMELAB_CMD_EXTERNAL_URL=${HOMELAB_CMD_EXTERNAL_URL:-http://10.0.0.63:8080}
-      - HOMELAB_CMD_ENCRYPTION_KEY=${HOMELAB_CMD_ENCRYPTION_KEY:-plXXSqqz0RfafK90lRsF0zrMiBxzzL_jAAtFPpXP1aI=}
+      - HOMELAB_CMD_EXTERNAL_URL=${HOMELAB_CMD_EXTERNAL_URL:-http://localhost:8080}
+      - HOMELAB_CMD_ENCRYPTION_KEY=${HOMELAB_CMD_ENCRYPTION_KEY:?Set HOMELAB_CMD_ENCRYPTION_KEY in .env - generate with: homelabcmd-cli generate-key}
       - HOMELAB_CMD_AGENT_VERSION=2.1.0
     volumes:
       - ./data:/app/data
