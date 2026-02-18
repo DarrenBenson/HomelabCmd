@@ -1,6 +1,6 @@
 # US0158: Container Listing via SSH
 
-> **Status:** Ready
+> **Status:** Done
 > **Epic:** [EP0014: Docker Container Monitoring](../epics/EP0014-docker-container-monitoring.md)
 > **Owner:** Darren
 > **Reviewer:** TBD
