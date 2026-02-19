@@ -1,4 +1,4 @@
-# PL0201: Command Execution Audit Trail - Implementation Plan
+# PL0211: Command Execution Audit Trail - Implementation Plan
 
 > **Status:** Done
 > **Story:** [US0155: Command Execution Audit Trail](../stories/US0155-command-execution-audit-trail.md)

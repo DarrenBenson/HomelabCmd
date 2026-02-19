@@ -14,7 +14,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | Complete | 49 | 981 |
 | **Total** | **49** | **981** |
 
-> **Note:** Three ID collisions exist: TS0012 (EP0005 cost-tracking and EP0005 agent-cpu-details), TS0180 (EP0010 config-pack-definitions and EP0017 connectivity-badge), TS0190 (EP0013 synchronous-command-api and EP0010 remove-config-pack), TS0201 (EP0001 agent-auto-update and EP0013 command-execution-audit-trail). All counted separately. Unique spec count: 45.
+> **Note:** ID collisions resolved 2026-02-19. TS0012/TS0180/TS0190/TS0201 collisions resolved via renumbering to TS0204-TS0207.
 
 ## Specifications by Epic
 
@@ -58,7 +58,7 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
 | [TS0012](TS0012-cost-tracking.md) | Cost Tracking Tests | US0034-US0036 | 39 | Complete |
-| [TS0012](TS0012-agent-cpu-details.md) | Agent CPU Details Collection Tests | US0053 | 12 | Complete |
+| [TS0204](TS0204-agent-cpu-details.md) | Agent CPU Details Collection Tests | US0053 | 12 | Complete |
 | [TS0013](TS0013-machine-category-profiles.md) | Machine Category Power Profiles Tests | US0054 | 21 | Complete |
 | [TS0200](TS0200-historical-cost-tracking.md) | Historical Cost Tracking Tests | US0183 | 45 | Complete |
 
@@ -116,15 +116,15 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
 | [TS0189](TS0189-command-whitelist-enforcement.md) | Command Whitelist Enforcement Tests | US0154 | 12 | Complete |
-| [TS0190](TS0190-synchronous-command-execution-api.md) | Synchronous Command Execution API Tests | US0153 | 11 | Complete |
+| [TS0206](TS0206-synchronous-command-execution-api.md) | Synchronous Command Execution API Tests | US0153 | 11 | Complete |
 | [TS0191](TS0191-remove-async-command-channel.md) | Remove Async Command Channel Tests | US0152 | 8 | Complete |
-| [TS0201](TS0201-command-execution-audit-trail.md) | Command Execution Audit Trail Tests | US0155 | 15 | Complete |
+| [TS0207](TS0207-command-execution-audit-trail.md) | Command Execution Audit Trail Tests | US0155 | 15 | Complete |
 
 ### [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
 
 | ID | Title | Stories | Test Cases | Status |
 |----|-------|---------|------------|--------|
-| [TS0180](TS0180-detail-page-connectivity-badge.md) | Detail Page Connectivity Badge Tests | US0180 | 4 | Complete |
+| [TS0205](TS0205-detail-page-connectivity-badge.md) | Detail Page Connectivity Badge Tests | US0180 | 4 | Complete |
 
 ### [EP0018: Dashboard UX Simplification](../epics/EP0018-dashboard-ux-simplification.md)
 
@@ -132,58 +132,12 @@ This document provides an overview of all Test Specifications for the HomelabCmd
 |----|-------|---------|------------|--------|
 | [TS0021](TS0021-dashboard-ux-simplification.md) | Dashboard UX Simplification Tests | US0156+ | 51 | Complete |
 
-## By Status
-
-### Complete
-
-- **TS0001**: Core Monitoring API Tests - 20 test cases fully automated (93 pytest tests)
-- **TS0002**: API Infrastructure Tests - 19 test cases fully automated (32 pytest tests)
-- **TS0003**: Dashboard Frontend Tests - 14 test cases fully automated (319 unit tests + E2E)
-- **TS0004**: Agent Script Tests - 20 test cases fully automated (48 pytest tests)
-- **TS0005**: Settings and Configuration Tests - 22 test cases fully automated (frontend + backend)
-- **TS0006**: Server Detail View and Charts Tests - 21 test cases fully automated (frontend + backend)
-- **TS0007**: Alerting & Notifications Tests - 31 test cases fully automated (89 backend + 66 frontend tests)
-- **TS0008**: Service Monitoring Tests - 34 test cases fully automated (73 backend + 32 frontend tests)
-- **TS0009**: Remediation Engine Tests - 33 test cases fully automated (116 backend + frontend tests)
-- **TS0010**: Package Update List View Tests - 15 test cases fully automated (19 pytest tests)
-- **TS0011**: Trigger Package Updates Tests - 17 test cases fully automated (19 pytest tests)
-- **TS0012** (cost-tracking): Cost Tracking Tests - 39 test cases (TC063-TC101, covering US0034-US0036)
-- **TS0012** (agent-cpu): Agent CPU Details Collection Tests - 12 test cases fully automated (24 pytest tests)
-- **TS0013**: Machine Category Power Profiles Tests - 21 test cases fully automated (37 tests in test_power_service.py)
-- **TS0015**: Scan Results Display Tests - 20 test cases fully automated (73 tests in scan-results-display.test.tsx)
-- **TS0018**: Scan Dashboard Integration Tests - 7 test cases
-- **TS0020**: Remove Agent SSH Credentials Tests - 9 test cases fully automated (20 tests in test_remove_agent_credentials.py)
-- **TS0021**: Dashboard UX Simplification Tests - 51 test cases (55 automated tests)
-- **TS0046**: Tiered Data Retention Tests - 14 test cases
-- **TS0130**: Drag-and-Drop Card Reordering Tests - 15 test cases fully automated
-- **TS0131**: Card Order Persistence Tests - 16 test cases fully automated
-- **TS0132**: Server and Workstation Grouping Tests - 20 test cases (test_api_preferences.py + Dashboard.test.tsx)
-- **TS0134**: Dashboard Summary Bar Tests - 19 test cases fully automated
-- **TS0135**: Card Visual Enhancements Tests - 10 test cases fully automated
-- **TS0137**: Cross-Section Machine Type Change Tests - 23 test cases fully automated (23 backend + 37 frontend tests)
-- **TS0178**: Per-Filesystem Metrics API Tests - 18 test cases (16/18 automated)
-- **TS0179**: Per-Interface Network Metrics API Tests - 22 test cases
-- **TS0180** (EP0010): Configuration Pack Definitions Tests - 11 test cases fully automated
-- **TS0180** (EP0017): Detail Page Connectivity Badge Tests - 4 test cases fully automated
-- **TS0181**: Configuration Compliance Checker Tests - 17 test cases fully automated
-- **TS0182**: Configuration Diff View Tests - 10 test cases fully automated
-- **TS0183**: Apply Configuration Pack Tests - 16 test cases
-- **TS0185**: Compliance Dashboard Widget Tests - 17 test cases
-- **TS0189**: Command Whitelist Enforcement Tests - 12 test cases
-- **TS0190** (EP0013): Synchronous Command Execution API Tests - 11 test cases
-- **TS0190** (EP0010): Remove Configuration Pack Tests - 11 test cases
-- **TS0191**: Remove Async Command Channel Tests - 8 test cases (6/8 automated in test_heartbeat_commands.py)
-- **TS0200**: Historical Cost Tracking Tests - 45 test cases (backend + API + frontend)
-- **TS0201** (EP0001): Agent Auto-Update Mechanism Tests - 29 test cases fully automated (15 backend + 35 agent tests)
-- **TS0201** (EP0013): Command Execution Audit Trail Tests - 15 test cases
-- **TS0203**: Command Timeout Configuration Tests - 26 test cases
-
 ## Notes
 
 - Test specifications are numbered globally (TS0001, TS0002, etc.)
 - Each spec covers one or more related user stories
 - Status: Draft -> Ready -> In Progress -> Complete
 - Automation status tracks implemented vs specified test cases
-- **ID collisions:** TS0012 (cost-tracking vs agent-cpu-details), TS0180 (config-pack vs connectivity-badge), TS0190 (sync-command vs remove-config-pack), TS0201 (agent-auto-update vs command-audit-trail)
+- ID collisions resolved 2026-02-19: colliding specs renumbered to TS0204-TS0207
 - **Deleted specs:** TS0109 (maintenance mode indicator), TS0133 (responsive layout), TS0177 (responsive widget), TS0184 (alert sustained duration) - removed as low-ROI or speculative
 - Index refreshed 2026-02-17: added 17 previously untracked specs, promoted 12 Draft specs to Complete

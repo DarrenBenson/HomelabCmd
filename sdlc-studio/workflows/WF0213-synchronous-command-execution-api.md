@@ -1,8 +1,8 @@
-# WF0190: Synchronous Command Execution API - Workflow State
+# WF0213: Synchronous Command Execution API - Workflow State
 
 > **Status:** Complete
 > **Story:** [US0153: Synchronous Command Execution API](../stories/US0153-synchronous-command-execution-api.md)
-> **Plan:** [PL0190: Synchronous Command Execution API](../plans/PL0190-synchronous-command-execution-api.md)
+> **Plan:** [PL0210: Synchronous Command Execution API](../plans/PL0210-synchronous-command-execution-api.md)
 > **Created:** 2026-01-29
 > **Current Phase:** 8 (Complete)
 
@@ -28,8 +28,8 @@
 
 | Type | ID | Path | Status |
 |------|-----|------|--------|
-| Plan | PL0190 | sdlc-studio/plans/PL0190-synchronous-command-execution-api.md | ✅ Created |
-| Test Spec | TS0190 | sdlc-studio/test-specs/TS0190-synchronous-command-execution-api.md | ✅ Created |
+| Plan | PL0210 | sdlc-studio/plans/PL0210-synchronous-command-execution-api.md | ✅ Created |
+| Test Spec | TS0206 | sdlc-studio/test-specs/TS0206-synchronous-command-execution-api.md | ✅ Created |
 | Implementation | - | backend/src/homelab_cmd/api/routes/commands.py | ✅ Created |
 | Schemas | - | backend/src/homelab_cmd/api/schemas/commands.py | ✅ Created |
 | Tests | - | tests/test_commands_api.py | ✅ Created (14 tests) |

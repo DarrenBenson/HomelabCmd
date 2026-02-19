@@ -1,4 +1,4 @@
-# TS0190: Synchronous Command Execution API
+# TS0206: Synchronous Command Execution API
 
 > **Status:** Done
 > **Story:** [US0153: Synchronous Command Execution API](../stories/US0153-synchronous-command-execution-api.md)
@@ -334,7 +334,7 @@ ssh_responses:
 |----------|-----------|
 | PRD | [sdlc-studio/prd.md](../prd.md) |
 | Epic | [EP0013](../epics/EP0013-synchronous-command-execution.md) |
-| Plan | [PL0190](../plans/PL0190-synchronous-command-execution-api.md) |
+| Plan | [PL0210](../plans/PL0210-synchronous-command-execution-api.md) |
 | TSD | [sdlc-studio/tsd.md](../tsd.md) |
 
 ---

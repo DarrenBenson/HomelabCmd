@@ -121,7 +121,7 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 |-------|--------|----------|----------|
 | Backend Unit/Integration | 80% (fail_under) | 80%+ | Tests in 84 files |
 | Frontend Unit | 70% | 82% | Vitest with @vitest/coverage-v8 (116 test files) |
-| E2E | 100% feature coverage | 100% v1.0 | 7 spec files covering all v1.0 features |
+| E2E | 100% feature coverage | 100% | 16 spec files covering all v1.0 and v2.0 features |
 
 **Why 90%?** AI-assisted development produces code faster than traditional development. Higher coverage gates ensure AI-generated code is correct and catches hallucinations early. This target has been proven achievable with AI assistance.
 
@@ -822,82 +822,14 @@ async def db_session():
 
 ## Test Anti-Patterns and Pitfalls
 
-### Conditional Assertion Anti-Pattern
+Key anti-patterns observed in this project:
 
-**Problem:** Tests using conditional logic silently pass when conditions aren't met.
+- **Conditional assertions** - using `if` to guard assertions silently passes when conditions aren't met
+- **Silent test helpers** - helpers missing required data fields (e.g., heartbeat without `metrics` skips `evaluate_services()`)
+- **Integration dependency chains** - testing feature A without satisfying feature B's prerequisites
+- **Low coverage despite passing tests** - code paths not reached due to unmet conditions
 
-```python
-# BAD - silently passes if no alerts created
-service_alerts = [a for a in alerts if a["alert_type"] == "service"]
-if service_alerts:
-    alert_id = service_alerts[0]["id"]
-    response = client.post(f"/api/v1/alerts/{alert_id}/acknowledge")
-    assert response.status_code == 400
-
-# GOOD - fails explicitly if precondition not met
-service_alerts = [a for a in alerts if a["alert_type"] == "service"]
-assert len(service_alerts) > 0, "Service alert should be created"
-alert_id = service_alerts[0]["id"]
-response = client.post(f"/api/v1/alerts/{alert_id}/acknowledge")
-assert response.status_code == 400
-```
-
-**Rule:** Never use `if` to guard test assertions. Use explicit assertions for preconditions.
-
-### Silent Test Helpers
-
-**Problem:** Helper functions that don't include all required data for features to trigger.
-
-**Example from this project:** Service alerts require `metrics` in the heartbeat payload because `evaluate_services()` is only called inside `if heartbeat.metrics:`.
-
-```python
-# BAD - no metrics means evaluate_services() never runs
-def _create_service_down_alert(client, auth_headers, server_id, service_name):
-    client.post("/api/v1/agents/heartbeat", json={
-        "server_id": server_id,
-        "services": [{"name": service_name, "status": "stopped"}],
-    }, headers=auth_headers)
-
-# GOOD - includes metrics to trigger service evaluation
-def _create_service_down_alert(client, auth_headers, server_id, service_name):
-    client.post("/api/v1/agents/heartbeat", json={
-        "server_id": server_id,
-        "metrics": {"cpu_percent": 10.0, "memory_percent": 30.0, "disk_percent": 50.0},
-        "services": [{"name": service_name, "status": "stopped"}],
-    }, headers=auth_headers)
-```
-
-**Rule:** When creating test helpers, trace the full code path to ensure all triggers are satisfied.
-
-### Integration Test Dependency Chains
-
-**Problem:** Testing feature A without understanding it depends on feature B being triggered first.
-
-**Checklist before writing integration tests:**
-1. Read the endpoint/function source code
-2. Identify all conditional branches (`if` statements)
-3. Trace what data triggers each branch
-4. Ensure test data satisfies all required conditions
-
-| Feature | Hidden Dependency |
-|---------|------------------|
-| Service alerts | Requires `metrics` in heartbeat |
-| Alert acknowledgement | Requires service status to be "running" |
-| Threshold evaluation | Requires `notifications` config |
-
-### Debugging Low Coverage Despite Passing Tests
-
-When tests pass but coverage remains low:
-
-1. **Add debug prints** in the code being tested
-2. **Run with `-s` flag** to see output: `pytest -s test_file.py`
-3. **If no output appears**, the code path isn't being reached
-4. **Trace backwards** to find what condition isn't being met
-
-Common causes:
-- Conditional assertions hiding failures
-- Test helpers missing required data fields
-- Feature dependencies not satisfied
+> For detailed examples and remediation patterns, see SDLC Studio reference-test-best-practices.md.
 
 ## Related Specifications
 
@@ -915,8 +847,8 @@ Common causes:
 | Backend coverage | 80%+ (fail_under enforced) | coverage.py with greenlet/thread concurrency |
 | Frontend unit test files | 116 | `frontend/src/**/*.test.{ts,tsx}` |
 | Frontend unit coverage | 82% line | Vitest with @vitest/coverage-v8 |
-| Frontend E2E tests | ~159 | `frontend/e2e/` (7 spec files) |
-| E2E feature coverage | 100% v1.0 | All v1.0 user-visible features covered |
+| Frontend E2E tests | ~263 | `frontend/e2e/` (16 spec files: 7 v1.0 + 9 v2.0) |
+| E2E feature coverage | 100% | All v1.0 and v2.0 user-visible features covered |
 | Shared fixtures | 1 | `tests/conftest.py` |
 
 ### Backend Test Files
@@ -1071,7 +1003,7 @@ Coverage is enabled via `@vitest/coverage-v8` with the following settings:
 ### Gaps Identified
 
 1. **No CI/CD pipeline** - GitHub Actions workflows should be created
-2. **No v2.0 E2E specs** - 7 planned v2.0 E2E spec files not yet created (Tailscale, workstations, commands, config, widgets, dashboard v2, Docker)
+2. ~~**No v2.0 E2E specs**~~ - Resolved: all 9 v2.0 spec files implemented (settings-v2, dashboard-v2, server-detail-widgets, config-compliance, discovery, actions, commands, docker, workstations)
 3. **Frontend test location inconsistency** - Tests split between `__tests__/` subdirectories and co-located files with no single convention enforced
 
 ## Lessons Learned
@@ -1152,3 +1084,4 @@ concurrency = ["greenlet", "thread"]
 | 2026-01-29 | Claude | **TSD Review (EP0010):** Updated test counts - backend tests now ~1,702 in 64+ files. Added EP0010 Configuration Management test files to Implementation Status (test_config_packs.py, test_config_check_api.py, test_config_apply_api.py). Backend tests complete for US0116, US0117, US0118, US0119. E2E config-compliance.spec.ts still planned. |
 | 2026-01-30 | Claude | **TSD Review (EP0013 + EP0018):** Updated test counts - backend 76 test files with 82% coverage, frontend 110 test files. Added EP0013 Command Execution Audit Trail tests (test_audit_service.py, test_audit_api.py). Added EP0018 Dashboard UX tests (FleetStatus.test.tsx). Phase 1 Alpha and Phase 3 GA complete. |
 | 2026-02-17 | Claude | **TSD Review (All v2.0 Complete):** Backend tests now 84 files (was 76). Frontend tests now 116 files (was 110), coverage improved to 82% (was 74.89%). Added EP0014 Docker Container Monitoring tests (4 files: docker_detection, container_listing, container_actions, heartbeat_docker_status). Added US0184 Agent Auto-Update, US0185 Service Grace Period, US0198 Package Status test entries to Implementation Status. Corrected backend coverage threshold from 90% to 80% (actual pyproject.toml fail_under). Corrected SSH mocking from asyncssh to Paramiko throughout. Added 25 new test files to Backend Test Files inventory. Added gaps: no v2.0 E2E specs, frontend test location inconsistency. Updated all `/machines/` endpoint references to `/servers/`. |
+| 2026-02-19 | Claude | **Stale findings cleanup:** Updated E2E coverage totals to 16 spec files / ~263 tests (all v2.0 specs now implemented: commands, docker, workstations). Marked v2.0 E2E gap as resolved. Updated coverage matrix to reflect full v1.0 + v2.0 E2E coverage. Cleared 9 resolved review findings from review-state.json; 2 remain (CI/CD planned, test location inconsistency). |

@@ -2,8 +2,8 @@
 
 > **Status:** Done
 > **Story:** [US0155: Command Execution Audit Trail](../stories/US0155-command-execution-audit-trail.md)
-> **Plan:** [PL0201](../plans/PL0201-command-execution-audit-trail.md)
-> **Test Spec:** [TS0201](../test-specs/TS0201-command-execution-audit-trail.md)
+> **Plan:** [PL0211](../plans/PL0211-command-execution-audit-trail.md)
+> **Test Spec:** [TS0207](../test-specs/TS0207-command-execution-audit-trail.md)
 > **Started:** 2026-01-30
 > **Completed:** 2026-01-30
 > **Approach:** TDD
@@ -35,8 +35,8 @@
 
 | # | Phase | Status | Started | Completed | Notes |
 |---|-------|--------|---------|-----------|-------|
-| 1 | Plan | Done | 2026-01-30 | 2026-01-30 | PL0201 created |
-| 2 | Test Spec | Done | 2026-01-30 | 2026-01-30 | TS0201 created |
+| 1 | Plan | Done | 2026-01-30 | 2026-01-30 | PL0211 created |
+| 2 | Test Spec | Done | 2026-01-30 | 2026-01-30 | TS0207 created |
 | 3 | Implement | Done | 2026-01-30 | 2026-01-30 | All implementation tasks complete |
 | 4 | Tests | Done | 2026-01-30 | 2026-01-30 | 17 unit + 23 integration tests |
 | 5 | Test | Done | 2026-01-30 | 2026-01-30 | All 40 tests passing |
@@ -91,8 +91,8 @@ None.
 
 | Type | Path | Status |
 |------|------|--------|
-| Plan | `sdlc-studio/plans/PL0201-command-execution-audit-trail.md` | Complete |
-| Test Spec | `sdlc-studio/test-specs/TS0201-command-execution-audit-trail.md` | Complete |
+| Plan | `sdlc-studio/plans/PL0211-command-execution-audit-trail.md` | Complete |
+| Test Spec | `sdlc-studio/test-specs/TS0207-command-execution-audit-trail.md` | Complete |
 | Model | `backend/src/homelab_cmd/db/models/command_audit.py` | Complete |
 | Migration | `migrations/versions/l0m1n2o3p4q5_add_command_audit_log_table.py` | Complete |
 | Service | `backend/src/homelab_cmd/services/audit_service.py` | Complete |

@@ -140,8 +140,8 @@ None.
 
 | Artefact | Link | Status |
 |----------|------|--------|
-| Plan | [PL0180](../plans/PL0180-detail-page-connectivity-badge.md) | Complete |
-| Test Spec | [TS0180](../test-specs/TS0180-detail-page-connectivity-badge.md) | Complete |
+| Plan | [PL0208](../plans/PL0208-detail-page-connectivity-badge.md) | Complete |
+| Test Spec | [TS0205](../test-specs/TS0205-detail-page-connectivity-badge.md) | Complete |
 
 ---
 

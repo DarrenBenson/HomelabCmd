@@ -12,6 +12,7 @@
 | `HomelabCmd-prd.md` | `/HomelabCmd-prd.md` | `sdlc-studio/prd.md` | 2026-01-18 |
 | `HomelabCmd-trd.md` | `/HomelabCmd-trd.md` | `sdlc-studio/trd.md` | 2026-01-18 |
 | `LEGACY_AUDIT_REPORT.md` | `/LEGACY_AUDIT_REPORT.md` | Domain knowledge extracted to PRD/TRD | 2026-01-18 |
+| `PL0053-remove-agent-ssh-credentials.md` | `sdlc-studio/plans/` | Duplicate of PL0075 (ID collision) | 2026-02-19 |
 
 ---
 

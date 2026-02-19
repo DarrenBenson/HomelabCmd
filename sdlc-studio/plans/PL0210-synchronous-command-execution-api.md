@@ -1,4 +1,4 @@
-# PL0190: Synchronous Command Execution API - Implementation Plan
+# PL0210: Synchronous Command Execution API - Implementation Plan
 
 > **Status:** Done
 > **Story:** [US0153: Synchronous Command Execution API](../stories/US0153-synchronous-command-execution-api.md)

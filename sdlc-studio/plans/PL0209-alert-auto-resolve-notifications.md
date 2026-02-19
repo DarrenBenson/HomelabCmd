@@ -1,4 +1,4 @@
-# PL0184: Alert Auto-Resolve Notifications - Implementation Plan
+# PL0209: Alert Auto-Resolve Notifications - Implementation Plan
 
 > **Status:** Complete
 > **Story:** [US0182: Alert Auto-Resolve Notifications](../stories/US0182-alert-auto-resolve-notifications.md)

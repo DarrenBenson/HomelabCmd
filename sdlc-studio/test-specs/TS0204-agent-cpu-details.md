@@ -1,4 +1,4 @@
-# TS0012: Agent CPU Details Collection Tests
+# TS0204: Agent CPU Details Collection Tests
 
 > **Status:** Complete
 > **Epic:** [EP0005: Cost Tracking](../epics/EP0005-cost-tracking.md)

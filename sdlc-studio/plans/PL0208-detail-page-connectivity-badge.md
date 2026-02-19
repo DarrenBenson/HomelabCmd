@@ -1,4 +1,4 @@
-# PL0180: Detail Page Connectivity Badge - Implementation Plan
+# PL0208: Detail Page Connectivity Badge - Implementation Plan
 
 > **Status:** Complete
 > **Story:** [US0180: Detail Page Connectivity Badge](../stories/US0180-detail-page-connectivity-badge.md)

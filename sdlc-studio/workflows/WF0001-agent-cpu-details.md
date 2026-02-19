@@ -43,7 +43,7 @@
 | # | Phase | Status | Artifact | Started | Completed | Notes |
 |---|-------|--------|----------|---------|-----------|-------|
 | 1 | Plan | Complete | PL0041 | 2026-01-20 | 2026-01-20 | Most code done; AC5 schema pending |
-| 2 | Test Spec | Complete | TS0012 | 2026-01-20 | 2026-01-20 | 12 test cases |
+| 2 | Test Spec | Complete | TS0204 | 2026-01-20 | 2026-01-20 | 12 test cases |
 | 3 | Tests | Complete | - | 2026-01-20 | 2026-01-20 | 24 pytest tests |
 | 4 | Implement | Complete | - | 2026-01-20 | 2026-01-20 | AC5 schema added |
 | 5 | Test | Complete | - | 2026-01-20 | 2026-01-20 | 134 tests passed |

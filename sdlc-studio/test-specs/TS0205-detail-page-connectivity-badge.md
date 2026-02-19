@@ -1,4 +1,4 @@
-# TS0180: Detail Page Connectivity Badge
+# TS0205: Detail Page Connectivity Badge
 
 > **Status:** Complete
 > **Epic:** [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md)
@@ -170,7 +170,7 @@ const serverEmptyTailscale = {
 | PRD | [sdlc-studio/prd.md](../prd.md) |
 | Epic | [EP0017: Desktop UX Improvements](../epics/EP0017-desktop-ux-improvements.md) |
 | TSD | [sdlc-studio/tsd.md](../tsd.md) |
-| Plan | [PL0180: Detail Page Connectivity Badge](../plans/PL0180-detail-page-connectivity-badge.md) |
+| Plan | [PL0208: Detail Page Connectivity Badge](../plans/PL0208-detail-page-connectivity-badge.md) |
 
 ---
 

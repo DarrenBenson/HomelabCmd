@@ -14,7 +14,7 @@ This document provides an overview of all Implementation Plans in the project.
 | Complete | 113 |
 | **Total** | **113** |
 
-> **Note:** ID collisions exist for PL0075/PL0053, PL0180, PL0184, PL0190, PL0201. Each variant counted separately.
+> **Note:** ID collisions resolved 2026-02-19. PL0053 archived (duplicate of PL0075); PL0180/PL0184/PL0190/PL0201 collisions resolved via renumbering to PL0208-PL0211.
 
 ## Plans by Epic
 
@@ -39,7 +39,7 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0036](PL0036-package-update-list.md) | US0051 | Package Update List View | Complete | 2026-01-20 |
 | [PL0037](PL0037-trigger-package-updates.md) | US0052 | Trigger Package Updates | Complete | 2026-01-20 |
 | [PL0050](PL0050-guid-based-server-identity.md) | US0070 | GUID-Based Server Identity | Complete | 2026-01-22 |
-| [PL0053](PL0053-remove-agent-ssh-credentials.md) | US0075 | Remove Agent API SSH Credentials and Verification | Complete | 2026-01-24 |
+| [PL0075](PL0075-remove-agent-ssh-credentials.md) | US0075 | Remove Agent API SSH Credentials and Verification | Complete | 2026-01-24 |
 | [PL0201](PL0201-agent-auto-update.md) | US0184 | Agent Auto-Update Mechanism | Complete | 2026-01-31 |
 
 ### [EP0002: Alerting & Notifications](../epics/EP0002-alerting.md)
@@ -53,7 +53,7 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0018](PL0018-dashboard-alerts.md) | US0015 | Dashboard Alert Display | Complete | 2026-01-19 |
 | [PL0020](PL0020-alert-list-view.md) | US0016 | Alert List and Detail Views | Complete | 2026-01-19 |
 | [PL0184](PL0184-alert-sustained-duration.md) | US0181 | Alert Sustained Duration Configuration | Complete | 2026-01-31 |
-| [PL0184](PL0184-alert-auto-resolve-notifications.md) | US0182 | Alert Auto-Resolve Notifications | Complete | 2026-01-31 |
+| [PL0209](PL0209-alert-auto-resolve-notifications.md) | US0182 | Alert Auto-Resolve Notifications | Complete | 2026-01-31 |
 
 ### [EP0003: Service Monitoring](../epics/EP0003-service-monitoring.md)
 
@@ -196,7 +196,7 @@ This document provides an overview of all Implementation Plans in the project.
 | [PL0113](PL0113-inline-metric-sparklines.md) | US0113 | Inline Metric Sparklines | Complete | 2026-01-28 |
 | [PL0114](PL0114-accessible-status-indicators.md) | US0114 | Accessible Status Indicators | Complete | 2026-01-28 |
 | [PL0115](PL0115-server-card-quick-actions.md) | US0115 | Server Card Quick Actions | Complete | 2026-01-28 |
-| [PL0180](PL0180-detail-page-connectivity-badge.md) | US0180 | Detail Page Connectivity Badge | Complete | 2026-01-29 |
+| [PL0208](PL0208-detail-page-connectivity-badge.md) | US0180 | Detail Page Connectivity Badge | Complete | 2026-01-29 |
 
 ### [EP0013: Synchronous Command Execution](../epics/EP0013-synchronous-command-execution.md)
 
@@ -204,22 +204,16 @@ This document provides an overview of all Implementation Plans in the project.
 |----|-------|-------|--------|---------|
 | [PL0188](PL0188-ssh-executor-service.md) | US0151 | SSH Executor Service | Complete | 2026-01-29 |
 | [PL0189](PL0189-command-whitelist-enforcement.md) | US0154 | Command Whitelist Enforcement | Complete | 2026-01-29 |
-| [PL0190](PL0190-synchronous-command-execution-api.md) | US0153 | Synchronous Command Execution API | Complete | 2026-01-29 |
+| [PL0210](PL0210-synchronous-command-execution-api.md) | US0153 | Synchronous Command Execution API | Complete | 2026-01-29 |
 | [PL0191](PL0191-remove-async-command-channel.md) | US0152 | Remove Async Command Channel | Complete | 2026-01-29 |
-| [PL0201](PL0201-command-execution-audit-trail.md) | US0155 | Command Execution Audit Trail | Complete | 2026-01-31 |
+| [PL0211](PL0211-command-execution-audit-trail.md) | US0155 | Command Execution Audit Trail | Complete | 2026-01-31 |
 | [PL0203](PL0203-command-timeout-configuration.md) | US0186 | Command Timeout Configuration | Complete | 2026-01-31 |
 | [PL0204](PL0204-remote-agent-mode-switch.md) | US0188 | Remote Agent Mode Switch | Complete | 2026-01-31 |
-
-## By Status
-
-### Complete
-
-All 113 implementation plans are complete. All linked stories are Done with code verified in the codebase.
 
 ## Notes
 
 - Plans are numbered globally (PL0001, PL0002, etc.)
 - Each plan links to a specific User Story
 - Plan status: Draft -> In Progress -> Complete
-- **ID collisions:** PL0184 (alert-sustained-duration and alert-auto-resolve-notifications), PL0190 (synchronous-command-api and remove-configuration-pack), PL0201 (agent-auto-update and command-execution-audit-trail), PL0180 (configuration-pack-definitions and detail-page-connectivity-badge)
+- ID collisions resolved 2026-02-19: PL0053 archived, colliding plans renumbered to PL0208-PL0211
 - Index refreshed 2026-02-17: added 25 previously untracked plans, promoted all Draft/In Progress plans to Complete

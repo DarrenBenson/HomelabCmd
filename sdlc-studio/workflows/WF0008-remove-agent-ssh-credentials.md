@@ -42,7 +42,7 @@
 
 | # | Phase | Status | Artifact | Started | Completed | Notes |
 |---|-------|--------|----------|---------|-----------|-------|
-| 1 | Plan | Done | PL0053-remove-agent-ssh-credentials.md | 2026-01-24 | 2026-01-24 | Plan created after story marked Ready |
+| 1 | Plan | Done | PL0075-remove-agent-ssh-credentials.md | 2026-01-24 | 2026-01-24 | Plan created after story marked Ready |
 | 2 | Test Spec | Pending | - | - | - | Ready to generate test spec |
 | 3 | Tests | Pending | - | - | - | - |
 | 4 | Implement | Pending | - | - | - | - |
@@ -56,10 +56,10 @@
 ### Phase 1: Plan
 
 **Command:** `code plan --story US0075`
-**Expected Output:** `sdlc-studio/plans/PL0053-remove-agent-ssh-credentials.md`
+**Expected Output:** `sdlc-studio/plans/PL0075-remove-agent-ssh-credentials.md`
 
 **Result:**
-- Plan created: sdlc-studio/plans/PL0053-remove-agent-ssh-credentials.md
+- Plan created: sdlc-studio/plans/PL0075-remove-agent-ssh-credentials.md
 - Implementation phases: 3
 - Key files: backend/src/homelab_cmd/api/schemas/agent_deploy.py, backend/src/homelab_cmd/api/routes/agent_deploy.py, backend/src/homelab_cmd/services/agent_deploy.py, backend/src/homelab_cmd/services/ssh.py, tests/test_agent_deploy_service.py, tests/test_ssh_service.py
 
@@ -70,7 +70,7 @@
 | Timestamp | Phase | Error | Resolution |
 |-----------|-------|-------|------------|
 | 2026-01-24 | 1 | Story status is Draft, not Ready. | Updated story readiness checklist and set status to Ready. |
-| 2026-01-24 | 1 | Plan paused pending story Ready status. | Created PL0053 after marking story Ready. |
+| 2026-01-24 | 1 | Plan paused pending story Ready status. | Created PL0075 after marking story Ready. |
 
 ## Completion Notes
 
@@ -82,7 +82,7 @@ The story was implemented and marked Done, but this workflow was not updated dur
 
 | Type | ID | Path |
 |------|-----|------|
-| Plan | PL0053 | sdlc-studio/plans/PL0053-remove-agent-ssh-credentials.md |
+| Plan | PL0075 | sdlc-studio/plans/PL0075-remove-agent-ssh-credentials.md |
 | Test Spec | - | - |
 | Tests | - | - |
 
